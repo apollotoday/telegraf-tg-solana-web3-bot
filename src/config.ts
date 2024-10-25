@@ -1,0 +1,1 @@
+export const fundsToSendForRanking = 0.0031

@@ -1,0 +1,87 @@
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+enum EWalletType {
+  DEPOSIT
+  FEE_PAYER_FUND
+  RUN_FUNDING
+  VOLUME
+  FEES
+}
+
+
+
+model CompanyWallet {
+  pubkey String @id
+
+  encryptedPrivKey String
+
+  type EWalletType
+
+  isActive Boolean @default(true) // if the wallet is still actively used, especially useful for sub wallets
+   
+  createdAt             DateTime           @default(now())
+  updatedAt             DateTime           @updatedAt
+}
+
+enum EServiceType {
+  VOLUME
+  RANKING
+}
+
+model BookedService {
+  id String @id @default(cuid())
+
+  type EServiceType
+
+  solAmountForService Float
+
+  botCustomerId String @unique
+  botCustomer BotCustomer @relation(fields: [botCustomerId], references: [id])
+
+  mainWallet BotCustomerWallet @relation(fields: [mainWalletId], references: [pubkey])
+  mainWalletId String @unique
+
+  createdAt             DateTime           @default(now())
+  updatedAt             DateTime           @updatedAt
+
+  description String?
+}
+
+model BotCustomerWallet {
+  pubkey String @id
+
+  encryptedPrivKey String
+
+  type EWalletType
+
+  botCustomerId String @unique
+  botCustomer BotCustomer @relation(fields: [botCustomerId], references: [id])
+
+  isActive Boolean @default(true) // if the wallet is still actively used, especially useful for sub wallets
+   
+  createdAt             DateTime           @default(now())
+  updatedAt             DateTime           @updatedAt
+
+  service BookedService?
+}
+
+model BotCustomer {
+  id String @id @default(cuid())
+
+  email String?
+  telegramUsername String?
+
+  walletsAssociated BotCustomerWallet[]  
+  bookedServices BookedService[]
+
+  createdAt             DateTime           @default(now())
+  updatedAt             DateTime           @updatedAt
+}
