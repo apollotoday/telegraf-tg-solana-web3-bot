@@ -1,6 +1,6 @@
-import { PublicKey } from "@solana/web3.js";
+import { PublicKey, SystemProgram } from "@solana/web3.js";
 import { Percent, TokenAmount } from "@raydium-io/raydium-sdk";
-import { swapRay } from "./raydium";
+import { swapRay, swapRaydium } from "./raydium";
 import reattempt from "reattempt";
 import { getDevWallet } from "../testUtils";
 import { sendAndConfirmJitoTransactions } from "../jitoUtils";
@@ -28,7 +28,7 @@ test("swap raydium jito", async () => {
   }
 
   const swapAmount = 0.01;
-  const sellAmountPercentage = 0.95;
+  const sellAmountPercentage = 0.98;
   const sellAmount = swapAmount * sellAmountPercentage;
   const randomSlippagePercentage = 0.1;
   const [buyAmount1, buyAmount2] = calculatePartionedSwapAmount(swapAmount, 2, randomSlippagePercentage);
@@ -64,8 +64,40 @@ test("swap raydium jito", async () => {
   ]);
 
   if (buyRes.tx && buyRes2.tx && sellRes.tx) {
-    const res = await sendAndConfirmJitoTransactions([buyRes.tx, buyRes2.tx, sellRes.tx], devwallet2);
+    const res = await sendAndConfirmJitoTransactions({
+      transactions: [buyRes.tx, buyRes2.tx, sellRes.tx],
+      payer: devWallet,
+      signers: [devwallet2],
+      instructions: [
+        SystemProgram.transfer({
+          fromPubkey: devwallet2.publicKey,
+          toPubkey: devWallet.publicKey,
+          lamports: 1000000,
+        }),
+      ],
+    });
   }
+});
+
+test("swap raydium direct with buyout amount input", async () => {
+  const puffPool = new PublicKey("9Tb2ohu5P16BpBarqd3N27WnkF51Ukfs8Z1GzzLDxVZW");
+  const startTime = Date.now();
+  const endTime = startTime + 60000; // 60 seconds
+
+  const buyAmount1 = 0.001;
+  const buyRes = await swapRaydium({
+    amount: 0.01,
+    amountSide: "in",
+    type: "buy",
+    keypair: devWallet,
+    feePayer: devWallet,
+    poolId: puffPool,
+    slippage: new Percent(10, 100),
+  });
+
+  console.log("buyRes", buyRes);
+
+  await sendAndConfirmRawTransactionAndRetry(buyRes.tx);
 });
 
 test("swap raydium direct with different feePayer", async () => {

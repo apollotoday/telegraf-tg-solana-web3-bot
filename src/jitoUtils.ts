@@ -1,9 +1,19 @@
-import { Keypair, LAMPORTS_PER_SOL, PublicKey, SystemProgram, Transaction, TransactionMessage, VersionedTransaction } from "@solana/web3.js";
+import { Keypair, LAMPORTS_PER_SOL, PublicKey, SystemProgram, Transaction, TransactionInstruction, TransactionMessage, VersionedTransaction } from "@solana/web3.js";
 import axios, { AxiosError } from "axios";
 import base58 from "bs58";
 import { connection, jitoFee } from "./config";
 
-export const sendAndConfirmJitoTransactions = async (transactions: VersionedTransaction[] | Transaction[], payer: Keypair) => {
+export const sendAndConfirmJitoTransactions = async ({
+  transactions,
+  payer,
+  signers,
+  instructions,
+}: {
+  transactions: VersionedTransaction[] | Transaction[];
+  payer: Keypair;
+  signers?: Keypair[];
+  instructions?: TransactionInstruction[];
+}) => {
   console.log("Starting Jito transaction execution...");
   const tipAccounts = [
     "Cw8CFyM9FkoMi7K7Crf6HNQqf4uEMzpKw6QNghXLvLkY",
@@ -31,11 +41,12 @@ export const sendAndConfirmJitoTransactions = async (transactions: VersionedTran
           toPubkey: jitoFeeWallet,
           lamports: jitoFee,
         }),
+        ...(instructions ?? []),
       ],
     }).compileToV0Message();
 
     const jitoFeeTx = new VersionedTransaction(jitTipTxFeeMessage);
-    jitoFeeTx.sign([payer]);
+    jitoFeeTx.sign([payer, ...(signers ?? [])]);
 
     const jitoTxsignature = base58.encode(jitoFeeTx.signatures[0]);
 

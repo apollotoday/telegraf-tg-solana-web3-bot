@@ -2,7 +2,7 @@ import { LAMPORTS_PER_SOL, PublicKey, SystemProgram, TransactionInstruction, Ver
 import { connection } from "./config";
 import reattempt from "reattempt";
 
-export class TokenAmount {
+export class Sol {
   constructor(public lamports: number) {
     this.lamports = lamports;
   }
@@ -11,12 +11,12 @@ export class TokenAmount {
     return this.lamports / 10 ** 9;
   }
 
-  static fromLamports(lamports: number): TokenAmount {
-    return new TokenAmount(lamports);
+  static fromLamports(lamports: number): Sol {
+    return new Sol(lamports);
   }
 
-  static fromSol(sol: number): TokenAmount {
-    return new TokenAmount(sol * 10 ** 9);
+  static fromSol(sol: number): Sol {
+    return new Sol(sol * 10 ** 9);
   }
 }
 

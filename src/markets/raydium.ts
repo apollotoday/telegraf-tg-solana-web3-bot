@@ -418,6 +418,91 @@ export class BaseRay {
       fixedSide,
     };
   }
+
+  async computeAmount(
+    input: {
+      poolKeys: LiquidityPoolKeys;
+      user: PublicKey;
+      amount: number;
+      type: "buy" | "sell";
+      amountSide: "in" | "out";
+      slippage?: Percent;
+    },
+    etc?: { extraBaseResever?: number; extraQuoteReserve?: number; extraLpSupply?: number }
+  ) {
+    const { amount, poolKeys, user } = input;
+    const slippage = input.slippage ?? new Percent(1, 100);
+    const base = poolKeys.baseMint;
+    const baseMintDecimals = poolKeys.baseDecimals;
+    const quote = poolKeys.quoteMint;
+    const quoteMintDecimals = poolKeys.quoteDecimals;
+    const baseTokenAccount = getAssociatedTokenAddressSync(base, user);
+    const quoteTokenAccount = getAssociatedTokenAddressSync(quote, user);
+    const baseR = new Token(TOKEN_PROGRAM_ID, base, baseMintDecimals);
+    const quoteR = new Token(TOKEN_PROGRAM_ID, quote, quoteMintDecimals);
+    let amountIn: TokenAmount;
+    let amountOut: TokenAmount;
+    let tokenAccountIn: PublicKey;
+    let tokenAccountOut: PublicKey;
+    const [lpAccountInfo, baseVAccountInfo, quoteVAccountInfo] = await connection
+      .getMultipleAccountsInfo([poolKeys.lpMint, poolKeys.baseVault, poolKeys.quoteVault].map((e) => new PublicKey(e)))
+      .catch(() => [null, null, null, null]);
+    if (!lpAccountInfo || !baseVAccountInfo || !quoteVAccountInfo) throw "Failed to fetch some data";
+    // const lpSupply = new BN(Number(MintLayout.decode(lpAccountInfo.data).supply.toString()))
+    // const baseReserve = new BN(Number(AccountLayout.decode(baseVAccountInfo.data).amount.toString()))
+    // const quoteReserve = new BN(Number(AccountLayout.decode(quoteVAccountInfo.data).amount.toString()))
+
+    const lpSupply = new BN(toBufferBE(MintLayout.decode(lpAccountInfo.data).supply, 8)).addn(etc?.extraLpSupply ?? 0);
+    const baseReserve = new BN(toBufferBE(AccountLayout.decode(baseVAccountInfo.data).amount, 8)).addn(etc?.extraBaseResever ?? 0);
+    const quoteReserve = new BN(toBufferBE(AccountLayout.decode(quoteVAccountInfo.data).amount, 8)).addn(etc?.extraQuoteReserve ?? 0);
+    let fixedSide: SwapSide;
+
+    const poolInfo: LiquidityPoolInfo = {
+      baseDecimals: poolKeys.baseDecimals,
+      quoteDecimals: poolKeys.quoteDecimals,
+      lpDecimals: poolKeys.lpDecimals,
+      lpSupply,
+      baseReserve,
+      quoteReserve,
+      startTime: null as any,
+      status: null as any,
+    };
+
+    if (input.type == "buy") {
+      // base in quote out
+      if (input.amountSide == "in") {
+        amountIn = new TokenAmount(baseR, amount.toString(), false);
+        amountOut = Liquidity.computeAmountOut({ amountIn, currencyOut: quoteR, poolInfo, poolKeys, slippage }).minAmountOut as TokenAmount;
+      } else {
+        amountOut = new TokenAmount(quoteR, amount.toString(), false);
+        amountIn = Liquidity.computeAmountIn({ amountOut, currencyIn: baseR, poolInfo, poolKeys, slippage }).maxAmountIn as TokenAmount;
+      }
+    } else {
+      // base out; quote in
+      if (input.amountSide == "in") {
+        amountIn = new TokenAmount(quoteR, amount.toString(), false);
+        amountOut = Liquidity.computeAmountOut({ amountIn, currencyOut: baseR, poolInfo, poolKeys, slippage }).minAmountOut as TokenAmount;
+      } else {
+        amountOut = new TokenAmount(baseR, amount.toString(), false);
+        amountIn = Liquidity.computeAmountIn({ amountOut, currencyIn: quoteR, poolInfo, poolKeys, slippage }).maxAmountIn as TokenAmount;
+      }
+    }
+
+    if (input.type == "buy") {
+      tokenAccountIn = baseTokenAccount;
+      tokenAccountOut = quoteTokenAccount;
+    } else {
+      tokenAccountIn = quoteTokenAccount;
+      tokenAccountOut = baseTokenAccount;
+    }
+
+    return {
+      amountIn,
+      amountOut,
+      tokenAccountIn,
+      tokenAccountOut,
+    };
+  }
 }
 
 export async function formatAmmKeysById(connection: Connection, id: string): Promise<ApiPoolInfoV4 | undefined> {
@@ -554,6 +639,83 @@ export async function swapRay(input: SwapInput) {
 
   const txInfo = await baseRay
     .buyFromPool({ amountIn, amountOut, fixedSide, poolKeys, tokenAccountIn, tokenAccountOut, user, feePayer: feePayer.publicKey })
+    .catch((buyFromPoolError) => {
+      console.log({ buyFromPoolError });
+      return null;
+    });
+
+  if (!txInfo) throw new Error("failed to prepare swap transaction");
+
+  const recentBlockhash = (await connection.getLatestBlockhash("finalized")).blockhash;
+
+  const txMsg = new TransactionMessage({
+    instructions: txInfo.ixs,
+    payerKey: input?.feePayer?.publicKey ?? user,
+    recentBlockhash,
+  }).compileToV0Message();
+
+  const tx = new VersionedTransaction(txMsg);
+
+  tx.sign([feePayer, input.keypair, ...txInfo.signers]);
+
+  {
+    const buysimRes = await connection.simulateTransaction(tx);
+    // console.log('swap log', buysimRes.value.logs?.slice(-10))
+  }
+
+  return {
+    tx,
+    amountIn,
+    amountOut,
+  };
+}
+
+export async function swapRaydium(input: {
+  keypair: Keypair;
+  poolId: PublicKey;
+  feePayer?: Keypair;
+  type: "buy" | "sell";
+  amountSide: "in" | "out";
+  amount: number;
+  slippage: Percent;
+}) {
+  const user = input.keypair.publicKey;
+  const baseRay = new BaseRay();
+  const slippage = input.slippage;
+  const poolKeys = await getPoolkeys(connection, input.poolId.toBase58()).catch((getPoolKeysError) => {
+    console.log({ getPoolKeysError });
+    return null;
+  });
+  if (!poolKeys) {
+    throw new Error("pool not found");
+  }
+
+  console.log("base mint", poolKeys.baseMint.toBase58());
+  console.log("quote mint", poolKeys.quoteMint.toBase58());
+
+  // console.log('tx handler swap input', amount, amountSide, buyToken)
+  const swapAmountInfo = await baseRay
+    .computeAmount({
+      amount: input.amount,
+      type: input.type,
+      amountSide: input.amountSide,
+      poolKeys,
+      user,
+      slippage,
+    })
+    .catch((computeBuyAmountError) => console.log({ computeBuyAmountError }));
+
+  if (!swapAmountInfo) throw new Error("failed to calculate the amount");
+
+  const { amountIn, amountOut, tokenAccountIn, tokenAccountOut } = swapAmountInfo;
+
+  console.log(`swap ${amountIn.toFixed(4)} ${amountIn.token.mint} to ${amountOut.toFixed(4)} ${amountOut.token.mint}`);
+
+  const feePayer = input?.feePayer ?? input.keypair;
+  console.log("feePayer", feePayer.publicKey.toBase58());
+
+  const txInfo = await baseRay
+    .buyFromPool({ amountIn, amountOut, fixedSide: input.amountSide, poolKeys, tokenAccountIn, tokenAccountOut, user, feePayer: feePayer.publicKey })
     .catch((buyFromPoolError) => {
       console.log({ buyFromPoolError });
       return null;

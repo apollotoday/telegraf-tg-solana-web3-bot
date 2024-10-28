@@ -1,6 +1,6 @@
 import { Keypair } from "@solana/web3.js";
 import base58 from "bs58";
-import { sendSol, TokenAmount } from "./solUtils";
+import { sendSol, Sol } from "./solUtils";
 
 export function getDevWallet(nr = 1) {
   const pkStr = process.env[`DEV_WALLET_${nr}`]!;
@@ -10,7 +10,7 @@ export function getDevWallet(nr = 1) {
   return Keypair.fromSecretKey(base58.decode(pkStr));
 }
 
-export async function fundTestWallet(args: { amount: TokenAmount }) {
+export async function fundTestWallet(args: { amount: Sol }) {
   const testWallet = Keypair.generate();
 
   console.log(`created test wallet: ${testWallet.publicKey.toBase58()}`);
