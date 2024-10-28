@@ -52,8 +52,7 @@ export async function swap(input: MeteoraSwapInput) {
 
   const swapTx = new VersionedTransaction(txMsg);
 
-  //swapTx.sign(input.feePayer);
-  swapTx.sign([input.swapWallet]);
+  swapTx.sign([input.swapWallet, input.feePayer]);
 
   console.log("input.swapWallet", input.swapWallet.publicKey.toBase58());
 

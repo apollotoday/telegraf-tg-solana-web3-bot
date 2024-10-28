@@ -76,14 +76,16 @@ test("should fake volumne", async () => {
   await fakeVolumne({ wallet: devWallet, amountLamports: Sol.fromSol(0.01).lamports });
 });
 
+const devWallet2 = getDevWallet(2);
+
 test("ranking bot", async () => {
   let errorCount = 0;
   for (let i = 0; i < 10; i++) {
     try {
       const buyRes = await swap({
         swapWallet: devWallet,
-        feePayer: devWallet,
-        inLamports: Sol.fromSol(0.000001).lamports,
+        feePayer: devWallet2,
+        inLamports: Sol.fromSol(0.001).lamports,
         slippage: 50,
         pool: new PublicKey(meteoraDynPool),
       });
