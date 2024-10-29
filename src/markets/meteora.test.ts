@@ -6,6 +6,7 @@ import { sendAndConfirmRawTransactionAndRetry, Sol } from "../solUtils";
 import { meteoraDynPool } from "../config";
 import { sendAndConfirmJitoTransactions } from "../jitoUtils";
 import { measureTime } from "../utils";
+import _ from "lodash";
 
 let testWallet: Keypair;
 
@@ -18,39 +19,35 @@ let testWallet: Keypair;
 // });
 
 const devWallet = getDevWallet();
+const devWallet2 = getDevWallet(2);
 
 test("should buy and sell drew", async () => {
   let failed = 0;
-  for (let i = 0; i < 4; i++) {
-    try {
-      const buyRes = await swap({
-        inLamports: Sol.fromSol(0.01).lamports,
-        swapWallet: devWallet,
-        slippage: 50,
-        feePayer: devWallet,
-        pool: new PublicKey(meteoraDynPool),
-      });
+  try {
+    const buyRes = await swap({
+      inLamports: Sol.fromSol(0.01).lamports,
+      feePayer: devWallet,
+      swapWallet: devWallet,
+      slippage: 50,
+      pool: new PublicKey(meteoraDynPool),
+    });
 
-      // const sellRes = await swap({
-      //   inLamports: buyRes.outAmountLamport * 0.99,
-      //   swapWallet: devWallet,
-      //   slippage: 50,
-      //   feePayer: devWallet,
-      //   pool: new PublicKey(meteoraDynPool),
-      //   direction: "BToA",
-      // });
+    const sellRes = await swap({
+      inLamports: buyRes.outAmountLamport * 0.99,
+      swapWallet: devWallet,
+      feePayer: devWallet,
+      slippage: 50,
+      pool: new PublicKey(meteoraDynPool),
+      type: "sell",
+    });
 
-      await sendAndConfirmJitoTransactions({
-        transactions: [
-          buyRes.swapTx,
-          // sellRes.swapTx
-        ],
-        payer: devWallet,
-      });
-    } catch (e) {
-      console.log(e);
-      failed++;
-    }
+    await sendAndConfirmJitoTransactions({
+      transactions: [buyRes.swapTx, sellRes.swapTx],
+      payer: devWallet,
+    });
+  } catch (e) {
+    console.log(e);
+    failed++;
   }
   console.log("failed", failed);
 });
@@ -60,23 +57,23 @@ test("should buy and sell drew fast", async () => {
     const res = await buySellVersioned({
       swapWallet: devWallet,
       feePayer: devWallet,
-      inLamports: Sol.fromSol(0.01).lamports,
+      inLamports: Sol.fromSol(_.random(0.0095, 0.0105)).lamports,
       pool: new PublicKey(meteoraDynPool),
-      slippage: 200,
+      slippage: 50,
     });
     return res;
   });
 
   await measureTime("sendAndConfirmJitoTransactions", async () => {
-    await sendAndConfirmJitoTransactions({ transactions: [res.buyTx, res.sellTx], payer: devWallet });
+    await sendAndConfirmJitoTransactions({ transactions: [res.buyTx1, 
+      res.sellTx
+    ], payer: devWallet });
   });
 });
 
 test("should fake volumne", async () => {
   await fakeVolumne({ wallet: devWallet, amountLamports: Sol.fromSol(0.01).lamports });
 });
-
-const devWallet2 = getDevWallet(2);
 
 test("ranking bot", async () => {
   let errorCount = 0;
@@ -85,7 +82,7 @@ test("ranking bot", async () => {
       const buyRes = await swap({
         swapWallet: devWallet,
         feePayer: devWallet2,
-        inLamports: Sol.fromSol(0.001).lamports,
+        inLamports: Sol.fromSol(0.0000001).lamports,
         slippage: 50,
         pool: new PublicKey(meteoraDynPool),
       });

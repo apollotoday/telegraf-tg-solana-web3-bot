@@ -5,6 +5,9 @@ import { TOKEN_PROGRAM_ID, ASSOCIATED_TOKEN_PROGRAM_ID, getAssociatedTokenAddres
 import AmmImpl, { MAINNET_POOL } from "@mercurial-finance/dynamic-amm-sdk";
 import { Wallet, AnchorProvider, BN } from "@project-serum/anchor";
 import { connection, meteoraDynPool } from "../config";
+import { calculatePartionedSwapAmount } from "../calculationUtils";
+import { Transaction } from "@solana/web3.js";
+import { ComputeBudgetProgram } from "@solana/web3.js";
 
 // Connection, Wallet, and AnchorProvider to interact with the network
 
@@ -19,17 +22,17 @@ export type MeteoraSwapInput = {
   inLamports: number;
   slippage: number;
   pool: PublicKey;
-  direction?: "AToB" | "BToA";
+  type?: "buy" | "sell";
 };
 
 export async function swap(input: MeteoraSwapInput) {
-  const { direction = "AToB" } = input;
+  const { type = "buy" } = input;
 
   const pool = await getMeteoraPool(input.pool);
   console.log("pool", pool.address);
 
-  const inToken = direction === "AToB" ? pool.tokenAMint : pool.tokenBMint;
-  const outToken = direction === "AToB" ? pool.tokenBMint : pool.tokenAMint;
+  const inToken = type === "buy" ? pool.tokenAMint : pool.tokenBMint;
+  const outToken = type === "buy" ? pool.tokenBMint : pool.tokenAMint;
 
   //const inAmountLamport = typeof input.inLamports == "number" ? new BN(input.inLamports * 10 ** inToken.decimals) : input.inLamports;
   const inAmountLamport = new BN(input.inLamports);
@@ -74,7 +77,7 @@ export async function swap(input: MeteoraSwapInput) {
 }
 
 export async function buySell(input: MeteoraSwapInput) {
-  const { direction = "AToB" } = input;
+  const { type = "AToB" } = input;
 
   const pool = await getMeteoraPool(input.pool);
   console.log("pool", pool.address);
@@ -127,8 +130,6 @@ export async function buySell(input: MeteoraSwapInput) {
 }
 
 export async function buySellVersioned(input: MeteoraSwapInput) {
-  const { direction = "AToB" } = input;
-
   const pool = await getMeteoraPool(input.pool);
   console.log("pool", pool.address);
 
@@ -138,33 +139,43 @@ export async function buySellVersioned(input: MeteoraSwapInput) {
   //const inAmountLamport = typeof input.inLamports == "number" ? new BN(input.inLamports * 10 ** inToken.decimals) : input.inLamports;
   const inAmountLamport = new BN(input.inLamports);
 
-  // Swap SOL → TOKEN
-  const buyQuote = pool.getSwapQuote(inToken.address, inAmountLamport, input.slippage);
-  const sellQuote = pool.getSwapQuote(outToken.address, buyQuote.swapOutAmount, input.slippage);
+  const [_buyAmount1, _buyAmount2] = calculatePartionedSwapAmount(input.inLamports, 2, 0.1);
 
-  const [_buyTx, _sellTx] = await Promise.all([
-    pool.swap(input.swapWallet.publicKey, inToken.address, inAmountLamport, buyQuote.minSwapOutAmount),
-    pool.swap(input.swapWallet.publicKey, outToken.address, buyQuote.swapOutAmount, sellQuote.minSwapOutAmount),
+  const buyAmount1 = new BN(_buyAmount1);
+  const buyAmount2 = new BN(_buyAmount2);
+
+  // Swap SOL → TOKEN
+  const buyQuote1 = pool.getSwapQuote(inToken.address, inAmountLamport, input.slippage);
+  const buyQuote2 = pool.getSwapQuote(inToken.address, buyAmount2, input.slippage);
+
+  let sellAmount = new BN((buyQuote1.swapOutAmount.toNumber() + buyQuote2.swapOutAmount.toNumber()) * 0.95);
+  sellAmount = new BN(buyQuote1.swapOutAmount.toNumber() * 0.9);
+  const sellQuote = pool.getSwapQuote(outToken.address, sellAmount, input.slippage);
+
+  console.log("buyQuote.swapOutAmount", sellAmount.toNumber());
+
+  const [_buyTx1, _buyTx2, _sellTx] = await Promise.all([
+    pool.swap(input.swapWallet.publicKey, inToken.address, inAmountLamport, buyQuote1.minSwapOutAmount),
+    pool.swap(input.swapWallet.publicKey, inToken.address, buyAmount2, buyQuote2.minSwapOutAmount),
+    pool.swap(input.swapWallet.publicKey, outToken.address, sellAmount, sellQuote.minSwapOutAmount),
   ]);
 
-  const buyTx = new VersionedTransaction(
-    new TransactionMessage({
-      instructions: _buyTx.instructions,
-      payerKey: input.feePayer.publicKey,
-      recentBlockhash: _buyTx.recentBlockhash!,
-    }).compileToV0Message()
-  );
-
-  const sellTx = new VersionedTransaction(
-    new TransactionMessage({
-      instructions: _sellTx.instructions,
-      payerKey: input.feePayer.publicKey,
-      recentBlockhash: _sellTx.recentBlockhash!,
-    }).compileToV0Message()
-  );
+  function convertToVersionedTransaction(tx: Transaction) {
+    return new VersionedTransaction(
+      new TransactionMessage({
+        instructions: [...tx.instructions],
+        payerKey: input.feePayer.publicKey,
+        recentBlockhash: tx.recentBlockhash!,
+      }).compileToV0Message()
+    );
+  }
+  const buyTx1 = convertToVersionedTransaction(_buyTx1);
+  const buyTx2 = convertToVersionedTransaction(_buyTx2);
+  const sellTx = convertToVersionedTransaction(_sellTx);
 
   //swapTx.sign(input.feePayer);
-  buyTx.sign([input.swapWallet]);
+  buyTx1.sign([input.swapWallet]);
+  buyTx2.sign([input.swapWallet]);
   sellTx.sign([input.swapWallet]);
 
   console.log("input.swapWallet", input.swapWallet.publicKey.toBase58());
@@ -173,15 +184,18 @@ export async function buySellVersioned(input: MeteoraSwapInput) {
   //const swapResult = await provider.sendAndConfirm(swapTx);
 
   console.log(
-    `Swap ${input.inLamports / 10 ** inToken.decimals} ${inToken.address} to ${buyQuote.swapOutAmount.toNumber() / 10 ** outToken.decimals} ${outToken.address}`
+    `Swap ${input.inLamports / 10 ** inToken.decimals} ${inToken.address} to ${buyQuote1.swapOutAmount.toNumber() / 10 ** outToken.decimals} ${
+      outToken.address
+    }`
   );
   console.log(`
-    Swap ${buyQuote.swapOutAmount.toNumber() / 10 ** inToken.decimals} ${outToken.address} to ${sellQuote.swapOutAmount.toNumber() / 10 ** outToken.decimals} ${
+    Swap ${sellAmount.toNumber() / 10 ** inToken.decimals} ${outToken.address} to ${sellQuote.swapOutAmount.toNumber() / 10 ** outToken.decimals} ${
     inToken.address
   }`);
 
   return {
-    buyTx,
+    buyTx1,
+    buyTx2,
     sellTx,
     inToken,
     outToken,
@@ -218,7 +232,7 @@ export async function fakeVolumne(args: { wallet: Keypair; amountLamports: numbe
     slippage: 50,
     feePayer: args.wallet,
     pool: new PublicKey(meteoraDynPool),
-    direction: "BToA",
+    type: "sell",
   });
 
   await sendAndConfirmJitoTransactions([buyRes1.swapTx, buyRes2.swapTx, sellRes.swapTx], args.wallet);

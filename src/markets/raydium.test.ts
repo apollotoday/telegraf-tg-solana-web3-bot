@@ -6,6 +6,7 @@ import { getDevWallet } from "../testUtils";
 import { sendAndConfirmJitoTransactions } from "../jitoUtils";
 import { sendAndConfirmRawTransactionAndRetry } from "../solUtils";
 import _ from "lodash";
+import { calculatePartionedSwapAmount } from "../calculationUtils";
 
 const devWallet = getDevWallet();
 const devwallet2 = getDevWallet(2);
@@ -13,19 +14,7 @@ const devwallet2 = getDevWallet(2);
 test("swap raydium jito", async () => {
   const puffPool = new PublicKey("9Tb2ohu5P16BpBarqd3N27WnkF51Ukfs8Z1GzzLDxVZW");
 
-  function calculatePartionedSwapAmount(totalSwapAmount: number, partCount: number, randomSlippagePercentage: number) {
-    let partAmounts = [];
-    const averagePartAmount = totalSwapAmount / partCount;
-    for (let i = 0; i < partCount - 1; i++) {
-      const randomSlippage = averagePartAmount * randomSlippagePercentage;
-      const partAmount = _.random(averagePartAmount - randomSlippage, averagePartAmount + randomSlippage);
-      partAmounts.push(partAmount);
-    }
-    const totalPartAmount = _.sum(partAmounts);
-    const lastPartAmount = totalSwapAmount - totalPartAmount;
-    partAmounts.push(lastPartAmount);
-    return partAmounts;
-  }
+  
 
   const swapAmount = 0.01;
   const sellAmountPercentage = 0.98;
