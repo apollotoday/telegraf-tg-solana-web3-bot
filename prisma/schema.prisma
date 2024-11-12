@@ -41,9 +41,9 @@ model BookedService {
 
   type EServiceType
 
-  solAmountForService Float
+  solAmountForService Float?
 
-  botCustomerId String @unique
+  botCustomerId String 
   botCustomer BotCustomer @relation(fields: [botCustomerId], references: [id])
 
   mainWallet BotCustomerWallet @relation(fields: [mainWalletId], references: [pubkey])
@@ -62,7 +62,7 @@ model BotCustomerWallet {
 
   type EWalletType
 
-  botCustomerId String @unique
+  botCustomerId String 
   botCustomer BotCustomer @relation(fields: [botCustomerId], references: [id])
 
   isActive Boolean @default(true) // if the wallet is still actively used, especially useful for sub wallets

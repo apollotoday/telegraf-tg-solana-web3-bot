@@ -1,12 +1,12 @@
 import { PublicKey, Keypair, TransactionMessage } from "@solana/web3.js";
-
 import { buySell, buySellVersioned, fakeVolumne, swap } from "./meteora";
 import { getDevWallet } from "../testUtils";
 import { sendAndConfirmRawTransactionAndRetry, Sol } from "../solUtils";
-import { meteoraDynPool } from "../config";
+import { connection, meteoraDynPool } from "../config";
 import { sendAndConfirmJitoTransactions } from "../jitoUtils";
 import { measureTime } from "../utils";
 import _ from "lodash";
+import { TOKEN_PROGRAM_ID } from "@solana/spl-token";
 
 let testWallet: Keypair;
 
@@ -65,9 +65,13 @@ test("should buy and sell drew fast", async () => {
   });
 
   await measureTime("sendAndConfirmJitoTransactions", async () => {
-    await sendAndConfirmJitoTransactions({ transactions: [res.buyTx1, 
-      res.sellTx
-    ], payer: devWallet });
+    await sendAndConfirmJitoTransactions({
+      transactions: [
+        res.buyTx1,
+         res.sellTx
+      ],
+      payer: devWallet,
+    });
   });
 });
 
@@ -75,9 +79,9 @@ test("should fake volumne", async () => {
   await fakeVolumne({ wallet: devWallet, amountLamports: Sol.fromSol(0.01).lamports });
 });
 
+
 test("ranking bot", async () => {
   let errorCount = 0;
-
 
   await Promise.all(
     Array.from({ length: 30 }).map(async () => {

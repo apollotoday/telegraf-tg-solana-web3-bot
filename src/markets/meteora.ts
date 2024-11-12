@@ -149,7 +149,7 @@ export async function buySellVersioned(input: MeteoraSwapInput) {
   const buyQuote2 = pool.getSwapQuote(inToken.address, buyAmount2, input.slippage);
 
   let sellAmount = new BN((buyQuote1.swapOutAmount.toNumber() + buyQuote2.swapOutAmount.toNumber()) * 0.95);
-  sellAmount = new BN(buyQuote1.swapOutAmount.toNumber() * 0.9);
+  sellAmount = new BN(buyQuote1.swapOutAmount.toNumber() * 0.95);
   const sellQuote = pool.getSwapQuote(outToken.address, sellAmount, input.slippage);
 
   console.log("buyQuote.swapOutAmount", sellAmount.toNumber());

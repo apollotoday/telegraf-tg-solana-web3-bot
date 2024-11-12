@@ -61,8 +61,8 @@ export const sendAndConfirmJitoTransactions = async ({
     const endpoints = [
       // "https://ny.mainnet.block-engine.jito.wtf/api/v1/bundles",
       // "https://tokyo.mainnet.block-engine.jito.wtf/api/v1/bundles",
-      // 'https://amsterdam.mainnet.block-engine.jito.wtf/api/v1/bundles',
-      "https://frankfurt.mainnet.block-engine.jito.wtf/api/v1/bundles",
+       'https://amsterdam.mainnet.block-engine.jito.wtf/api/v1/bundles',
+      // "https://frankfurt.mainnet.block-engine.jito.wtf/api/v1/bundles",
       // 'https://mainnet.block-engine.jito.wtf/api/v1/bundles',
     ];
 
@@ -78,6 +78,8 @@ export const sendAndConfirmJitoTransactions = async ({
     console.log("Sending transactions to endpoints...");
 
     const results = await Promise.all(requests.map((p) => p.catch((e) => e)));
+
+    console.log("jito bundle tx", results[0].data.result)
 
     const signatures = transactions.map((tx) => {
       if (tx instanceof VersionedTransaction) {

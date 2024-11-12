@@ -1,6 +1,16 @@
-import { LAMPORTS_PER_SOL, PublicKey, SystemProgram, TransactionInstruction, VersionedTransaction } from "@solana/web3.js";
+import {
+  ComputeBudgetProgram,
+  Keypair,
+  LAMPORTS_PER_SOL,
+  PublicKey,
+  SystemProgram,
+  TransactionInstruction,
+  TransactionMessage,
+  VersionedTransaction,
+} from "@solana/web3.js";
 import { connection } from "./config";
 import reattempt from "reattempt";
+import { sleep } from "./utils";
 
 export class Sol {
   constructor(public lamports: number) {
@@ -103,4 +113,50 @@ export async function confirmTransactionSignatureAndRetry(
     console.error("Failed to confirm transaction: ", e);
     throw new Error("Please retry! Failed to confirm transaction: " + e);
   }
+}
+
+export async function sendSol(args: { from: Keypair; to: PublicKey; amount: Sol; feePayer?: Keypair }) {
+  const instructions = [
+    ComputeBudgetProgram.setComputeUnitPrice({
+      microLamports: 20000,
+    }),
+    SystemProgram.transfer({
+      fromPubkey: args.from.publicKey,
+      toPubkey: args.to,
+      lamports: args.amount.lamports,
+    }),
+  ];
+  const blockhash = await connection.getLatestBlockhash();
+  const messageV0 = new TransactionMessage({
+    payerKey: args?.feePayer?.publicKey ?? args.from.publicKey,
+    recentBlockhash: blockhash.blockhash,
+    instructions,
+  }).compileToV0Message();
+
+  const transaction = new VersionedTransaction(messageV0);
+
+  // sign your transaction with the required `Signers`
+  const signers = [args.from];
+  if (args.feePayer) signers.push(args.feePayer);
+  transaction.sign(signers);
+
+  // Send the transaction
+  return await sendAndConfirmRawTransactionAndRetry(transaction);
+}
+
+export async function closeWallet(args: { from: Keypair; to: Keypair; waitTime?: number }) {
+  const { waitTime = 5000 } = args;
+  const waitPerRetry = 500;
+  const retries = Math.floor(waitTime / waitPerRetry);
+  let balance = 0;
+
+  for (let i = 0; i < retries; i++) {
+    balance = await connection.getBalance(args.from.publicKey);
+    if (balance > 0) {
+      break;
+    }
+    await sleep(waitPerRetry);
+  }
+
+  return await sendSol({ from: args.from, to: args.to.publicKey, amount: Sol.fromLamports(balance), feePayer: args.to });
 }

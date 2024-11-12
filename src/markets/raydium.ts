@@ -34,6 +34,8 @@ import { toBufferBE } from "bigint-buffer";
 import { TransactionMessage, VersionedTransaction } from "@solana/web3.js";
 // import { connection, puffAddr, solAddr } from "../../config"
 import { connection, net } from "../config";
+import { calculatePartionedSwapAmount } from "../calculationUtils";
+import { sendAndConfirmJitoTransactions } from "../jitoUtils";
 
 export type BuyFromPoolInput = {
   poolKeys: LiquidityPoolKeys;
@@ -584,6 +586,37 @@ export const getPoolkeys = async (connection: Connection, id: string) => {
   }
 };
 
+export async function getRaydiumPoolsByTokenAddress(tokenAddress: string): Promise<PublicKey[]> {
+  const tokenPublicKey = new PublicKey(tokenAddress);
+  const poolAddresses: PublicKey[] = [];
+
+  // Fetch all accounts owned by the Raydium program
+  const accounts = await connection.getProgramAccounts(new PublicKey(_SERUM_PROGRAM_ID_V3), {
+    filters: [
+      {
+        dataSize: 165, // Only account data layouts for token accounts are 165 bytes
+      },
+    ],
+  });
+
+  for (const account of accounts) {
+    const accountInfo = AccountLayout.decode(account.account.data);
+
+    // Check if this account contains the token
+    if (accountInfo.mint.equals(tokenPublicKey)) {
+      poolAddresses.push(account.pubkey);
+    }
+  }
+
+  return poolAddresses;
+}
+
+// Usage example
+const tokenAddress = "YourTokenAddressHere"; // Replace with the token address you're interested in
+getRaydiumPoolsByTokenAddress(tokenAddress).then((pools) => {
+  console.log("Pools containing the token:", pools);
+});
+
 export type SwapInput = {
   keypair: Keypair;
   poolId: PublicKey;
@@ -745,4 +778,59 @@ export async function swapRaydium(input: {
     amountIn,
     amountOut,
   };
+}
+
+export async function fakeVolumneTransaction(args: { swapAmount: number; wallet: Keypair; feePayer1: Keypair; feePayer2: Keypair; feePayer3: Keypair }) {
+  const puffPool = new PublicKey("9Tb2ohu5P16BpBarqd3N27WnkF51Ukfs8Z1GzzLDxVZW");
+
+  const swapAmount = args.swapAmount;
+  const sellAmountPercentage = 0.98;
+  const sellAmount = swapAmount * sellAmountPercentage;
+  const randomSlippagePercentage = 0.1;
+  const [buyAmount1, buyAmount2] = calculatePartionedSwapAmount(swapAmount, 2, randomSlippagePercentage);
+
+  const [buyRes, buyRes2, sellRes] = await Promise.all([
+    swapRay({
+      amount: buyAmount1,
+      amountSide: "receive",
+      buyToken: "quote",
+      keypair: args.wallet,
+      feePayer: args.feePayer1,
+      poolId: puffPool,
+      slippage: new Percent(10, 100),
+    }),
+    swapRay({
+      amount: buyAmount2,
+      amountSide: "receive",
+      buyToken: "quote",
+      keypair: args.wallet,
+      feePayer: args.feePayer2,
+      poolId: puffPool,
+      slippage: new Percent(10, 100),
+    }),
+    swapRay({
+      amount: sellAmount,
+      amountSide: "receive",
+      buyToken: "base",
+      keypair: args.wallet,
+      feePayer: args.feePayer3,
+      poolId: puffPool,
+      slippage: new Percent(10, 100),
+    }),
+  ]);
+
+  if (buyRes.tx && buyRes2.tx && sellRes.tx) {
+    const res = await sendAndConfirmJitoTransactions({
+      transactions: [buyRes.tx, buyRes2.tx, sellRes.tx],
+      payer: args.feePayer1,
+      signers: [args.wallet, args.feePayer1, args.feePayer2, args.feePayer3],
+      instructions: [
+        SystemProgram.transfer({
+          fromPubkey: args.feePayer1.publicKey,
+          toPubkey: args.feePayer1.publicKey,
+          lamports: 1000000,
+        }),
+      ],
+    });
+  }
 }
