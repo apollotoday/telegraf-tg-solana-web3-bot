@@ -4,7 +4,8 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "cli": "env-cmd -f .env ts-node --project cli/tsconfig.json cli/cli.ts",
   },
   "dependencies": {
     "@mercurial-finance/dynamic-amm-sdk": "^1.1.7",

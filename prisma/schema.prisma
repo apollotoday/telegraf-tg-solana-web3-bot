@@ -63,8 +63,6 @@ model BookedService {
 
   solAmountForService Float?
 
-
-
   botCustomerId String 
   botCustomer BotCustomer @relation(fields: [botCustomerId], references: [id])
 
@@ -92,7 +90,12 @@ model BotCustomerWallet {
   createdAt             DateTime           @default(now())
   updatedAt             DateTime           @updatedAt
 
+  latestSolBalance Float?
+  latestTokenBalance Float?
+
   service BookedService?
+
+  marketMakingJobs MarketMakingJob[]
 }
 
 model BotCustomer {
@@ -109,7 +112,8 @@ model BotCustomer {
   updatedAt             DateTime           @updatedAt
 }
 
-enum EMarketMakingCycleType{
+
+enum EMarketMakingCycleType {
   PRE_PUSH
   PUSH
   POST_PUSH
@@ -121,6 +125,60 @@ model MarketMakingCycle {
   id String @id @default(cuid())
 
   type EMarketMakingCycleType
+
+  solSpentForCycle Float?
+  maxSolSpentForCycle Float?
+
+  solEarnedForCycle Float?
+  maxSolEarnedForCycle Float?
+
+  buyMinRange Float?
+  buyMaxRange Float?
+
+  sellToBuyValueRatio Float? // >1 => extract value, <1 => add value
+
+  durationBetweenBuyAndSellInSeconds Int? // 30 - 300 seconds; but smaller than durationBetweenJobsInSeconds
+  durationBetweenJobsInSeconds Int? // 60 - 300 seconds
+
+  plannedTotalDurationInMinutes Int?
+
+  startTimestamp DateTime? @default(now())
+  endTimestamp DateTime?
+
+  updatedAt             DateTime           @updatedAt
+
+  jobs MarketMakingJob[]
+}
+
+
+model MarketMakingJob {
+  id String @id @default(cuid())
+
+  cycleId String
+  cycle MarketMakingCycle @relation(fields: [cycleId], references: [id])
+
+  // BUY
+
+  buyWalletId String
+  buyWallet BotCustomerWallet @relation(fields: [buyWalletId], references: [pubkey])
+
+  earliestExecutionTimestampForBuy DateTime? // last job sets this to when the job can be executed the earliest
+  latestExecutionTimestampForBuy DateTime? // last job sets this to when the job can be executed the latest
+  executedAtForBuy DateTime?
+
+  tokenPriceAtBuy Float?
+  solSpent Float?
+  tokenBought Float?
+
+  // SELL
+
+  earliestExecutionTimestampForSell DateTime? // after the buy, this job sets this to when it should sell the earliest
+  latestExecutionTimestampForSell DateTime? // after the buy, this job sets this to when it should sell the latest
+  executedAtForSell DateTime?
+
+  tokenPriceAtSell Float?
+  solEarned Float?
+  tokenSold Float?
 
   createdAt             DateTime           @default(now())
   updatedAt             DateTime           @updatedAt
