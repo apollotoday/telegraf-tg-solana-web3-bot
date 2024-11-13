@@ -14,6 +14,7 @@ enum EWalletType {
   RUN_FUNDING
   VOLUME
   FEES
+  MARKET_MAKING
 }
 
 
@@ -34,14 +35,35 @@ model CompanyWallet {
 enum EServiceType {
   VOLUME
   RANKING
+  MARKET_MAKING
 }
+
+model SplToken {
+  tokenMint      String                        @id
+  symbol         String                        
+  name           String                        
+  decimals       Int                           @default(9)
+  isSPL          Boolean                       @default(true)
+  createdAt      DateTime                      @default(now())
+  updatedAt      DateTime                      @updatedAt
+  lastUsdcPrice  Float?
+
+  usedInBookedServices BookedService[]
+}
+
+
 
 model BookedService {
   id String @id @default(cuid())
 
   type EServiceType
 
+  usedSplTokenMint String?
+  usedSplToken SplToken? @relation(fields: [usedSplTokenMint], references: [tokenMint])
+
   solAmountForService Float?
+
+
 
   botCustomerId String 
   botCustomer BotCustomer @relation(fields: [botCustomerId], references: [id])
@@ -76,11 +98,29 @@ model BotCustomerWallet {
 model BotCustomer {
   id String @id @default(cuid())
 
+  name String?
   email String?
   telegramUsername String?
 
   walletsAssociated BotCustomerWallet[]  
   bookedServices BookedService[]
+
+  createdAt             DateTime           @default(now())
+  updatedAt             DateTime           @updatedAt
+}
+
+enum EMarketMakingCycleType{
+  PRE_PUSH
+  PUSH
+  POST_PUSH
+  MAINTAIN
+  TAKE_PROFIT
+}
+
+model MarketMakingCycle {
+  id String @id @default(cuid())
+
+  type EMarketMakingCycleType
 
   createdAt             DateTime           @default(now())
   updatedAt             DateTime           @updatedAt

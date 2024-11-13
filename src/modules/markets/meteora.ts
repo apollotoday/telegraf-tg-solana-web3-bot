@@ -4,8 +4,8 @@ import { TOKEN_PROGRAM_ID, ASSOCIATED_TOKEN_PROGRAM_ID, getAssociatedTokenAddres
 
 import AmmImpl, { MAINNET_POOL } from "@mercurial-finance/dynamic-amm-sdk";
 import { Wallet, AnchorProvider, BN } from "@project-serum/anchor";
-import { connection, meteoraDynPool } from "../config";
-import { calculatePartionedSwapAmount } from "../calculationUtils";
+import { connection, meteoraDynPool } from "../../config";
+import { calculatePartionedSwapAmount } from "../../calculationUtils";
 import { Transaction } from "@solana/web3.js";
 import { ComputeBudgetProgram } from "@solana/web3.js";
 
