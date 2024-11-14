@@ -57,18 +57,6 @@ export async function sendAndConfirmRawTransactionAndRetry(transaction: Versione
         connection.sendTransaction(transaction, {
           skipPreflight: true,
         }),
-        connection.sendTransaction(transaction, {
-          skipPreflight: true,
-        }),
-        connection.sendTransaction(transaction, {
-          skipPreflight: true,
-        }),
-        connection.sendTransaction(transaction, {
-          skipPreflight: true,
-        }),
-        connection.sendTransaction(transaction, {
-          skipPreflight: true,
-        }),
       ]);
 
       console.log(`Sent transaction`, { tx1 });
@@ -83,6 +71,7 @@ export async function sendAndConfirmRawTransactionAndRetry(transaction: Versione
     });
     console.log({ txSig, confirmedResult });
     console.log("Successfully sent transaction: ", txSig);
+    
     return { txSig, confirmedResult };
   } catch (e) {
     console.error("Failed to send transaction: ", e);

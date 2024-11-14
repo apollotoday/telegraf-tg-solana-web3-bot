@@ -8,6 +8,7 @@ import { connection, meteoraDynPool } from "../../config";
 import { calculatePartionedSwapAmount } from "../../calculationUtils";
 import { Transaction } from "@solana/web3.js";
 import { ComputeBudgetProgram } from "@solana/web3.js";
+import { sendAndConfirmJitoTransactions } from '../../jitoUtils';
 
 // Connection, Wallet, and AnchorProvider to interact with the network
 
@@ -235,5 +236,5 @@ export async function fakeVolumne(args: { wallet: Keypair; amountLamports: numbe
     type: "sell",
   });
 
-  await sendAndConfirmJitoTransactions([buyRes1.swapTx, buyRes2.swapTx, sellRes.swapTx], args.wallet);
+  // await sendAndConfirmJitoTransactions([buyRes1.swapTx, buyRes2.swapTx, sellRes.swapTx], args.wallet);
 }

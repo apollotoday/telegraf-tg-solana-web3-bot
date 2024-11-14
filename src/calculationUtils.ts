@@ -13,3 +13,17 @@ export function calculatePartionedSwapAmount(totalSwapAmount: number, partCount:
   partAmounts.push(lastPartAmount);
   return partAmounts;
 }
+
+export function getRandomInt(min: number, max: number) {
+  return Math.floor(Math.random() * (max - min + 1)) + min;
+}
+
+export function getRandomFloat(min: number, max: number) {
+  return Math.random() * (max - min) + min;
+}
+
+export const randomAmount = (max: number, min: number, bal: number) => {
+  const maxAmount = max > bal ? bal : max
+
+  return getRandomFloat(min, maxAmount)
+}
