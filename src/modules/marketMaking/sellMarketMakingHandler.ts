@@ -6,7 +6,7 @@ import { getRandomFloat, getRandomInt, randomAmount } from '../../calculationUti
 import { decryptWallet } from '../wallet/walletUtils';
 import reattempt from 'reattempt';
 import { executeJupiterSwap } from '../markets/jupiter';
-import { PublicKey } from '@solana/web3.js';
+import { LAMPORTS_PER_SOL, PublicKey } from '@solana/web3.js';
 import { connection, solTokenMint } from '../../config';
 import prisma from '../../lib/prisma';
 
@@ -15,7 +15,6 @@ export async function handleSellMarketMakingJob(job: MarketMakingJobWithCycleAnd
     console.log(
       `Handling sell job ${job.id} for ${job.cycle.bookedService.usedSplTokenMint} token mint for customer ${job.cycle.botCustomerId}`,
     )
-
 
     if (!job.tokenBought) {
       console.log(`Job ${job.id} has no token bought, skipping`)
@@ -26,12 +25,15 @@ export async function handleSellMarketMakingJob(job: MarketMakingJobWithCycleAnd
     const minSellAmount = job.cycle.sellToBuyValueRatio! * job.tokenBought * (1 - variance);
     const maxSellAmount = job.cycle.sellToBuyValueRatio! * job.tokenBought * (1 + variance);
 
+
     const wallet = await pickRandomWalletFromCustomer({
       customerId: job.cycle.botCustomerId,
       walletType: EWalletType.MARKET_MAKING,
       minSolBalance: 0.005,
       minTokenBalance: minSellAmount,
     })
+
+    const preSolBalanceFromConn = await connection.getBalance(new PublicKey(wallet.pubkey), 'recent')
 
     const inputSellAmount = randomAmount(maxSellAmount, minSellAmount, wallet.latestTokenBalance ?? 0);
 
@@ -63,9 +65,14 @@ export async function handleSellMarketMakingJob(job: MarketMakingJobWithCycleAnd
       )
     })
 
-    const solEarned = solPostBalance - solPreBalance
 
-    console.log(`Finished sell job ${job.id} with txSig ${txSig}, sold ${inputAmount} tokens, expected: ${expectedOutputAmount} SOL, actual: ${solEarned} SOL, post balance: ${solPostBalance} SOL`)
+    const postSolBalanceFromConn = await connection.getBalance(new PublicKey(wallet.pubkey), 'recent')
+
+    const solEarned = postSolBalanceFromConn - preSolBalanceFromConn
+
+    console.log({ postSolBalanceFromConn, preSolBalanceFromConn, solEarned })
+
+    console.log(`Finished sell job ${job.id} with txSig ${txSig}, sold ${inputAmount} tokens, expected: ${expectedOutputAmount / LAMPORTS_PER_SOL} SOL, actual: ${solEarned / LAMPORTS_PER_SOL} SOL, post balance: ${solPostBalance / LAMPORTS_PER_SOL} SOL`)
 
     // SCHEDULE SELL
     const updatedJob = await prisma.marketMakingJob.update({
@@ -84,7 +91,7 @@ export async function handleSellMarketMakingJob(job: MarketMakingJobWithCycleAnd
         },
         solEarned: solEarned,
         sellExpectedSolOutputAmount: expectedOutputAmount,
-        sellOutputSolBalance: solPostBalance,
+        sellOutputSolBalance: postSolBalanceFromConn,
         sellStatus: EJobStatus.FINISHED,
         tokenSold: inputAmount,
         executedAtForSell: new Date(),

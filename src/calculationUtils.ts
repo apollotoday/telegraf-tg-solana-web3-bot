@@ -1,4 +1,16 @@
 import _ from "lodash";
+import crypto from 'crypto';
+
+export function secureRandomNumber(min: number, max: number): number {
+  if (min > max) {
+    throw new Error('The minimum value must be less than the maximum value.')
+  }
+  if (min === max) {
+    return min
+  }
+  // The randomInt function generates a random integer in the given range
+  return crypto.randomInt(min, max)
+}
 
 export function calculatePartionedSwapAmount(totalSwapAmount: number, partCount: number, randomSlippagePercentage: number) {
   let partAmounts = [];

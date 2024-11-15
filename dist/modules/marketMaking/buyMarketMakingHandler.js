@@ -13,6 +13,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.handleBuyMarketMakingJob = handleBuyMarketMakingJob;
+exports.updateBuyJobsWithValues = updateBuyJobsWithValues;
 const client_1 = require("@prisma/client");
 const walletService_1 = require("../wallet/walletService");
 const jupiter_1 = require("../markets/jupiter");
@@ -27,6 +28,7 @@ function handleBuyMarketMakingJob(job) {
         var _a;
         try {
             console.log(`Handling buy job ${job.id} for ${job.cycle.bookedService.usedSplTokenMint} token mint for customer ${job.cycle.botCustomerId}`);
+            const tokenDecimals = job.cycle.bookedService.usedSplToken.decimals;
             const wallet = yield (0, walletService_1.pickRandomWalletFromCustomer)({
                 customerId: job.cycle.botCustomerId,
                 walletType: client_1.EWalletType.MARKET_MAKING,
@@ -46,7 +48,7 @@ function handleBuyMarketMakingJob(job) {
                     outputMint: job.cycle.bookedService.usedSplTokenMint,
                 }, keypair);
             }));
-            console.log(`Finished buy job ${job.id} with txSig ${txSig}, inputAmount ${inputAmount} SOL, expected: ${expectedOutputAmount} tokens, actual: ${actualOutputAmount} tokens, post balance: ${outputTokenBalance}`);
+            console.log(`Finished buy job ${job.id} with txSig ${txSig}, inputAmount ${inputAmount} SOL, expected: ${expectedOutputAmount / tokenDecimals} tokens, actual: ${actualOutputAmount} tokens, post balance: ${outputTokenBalance === null || outputTokenBalance === void 0 ? void 0 : outputTokenBalance.uiAmount}`);
             const minSecondsUntilSell = (0, calculationUtils_1.getRandomInt)(job.cycle.minDurationBetweenBuyAndSellInSeconds, job.cycle.maxDurationBetweenBuyAndSellInSeconds);
             // minSecondsUntilNextJob is the minimum time until the next job starts, minimum is minSecondsUntilSell + 5 seconds
             const minSecondsUntilNextJob = (0, calculationUtils_1.getRandomInt)(minSecondsUntilSell + 5, job.cycle.maxDurationBetweenJobsInSeconds);
@@ -67,7 +69,7 @@ function handleBuyMarketMakingJob(job) {
                     },
                     solSpent: inputAmount,
                     buyExpectedTokenOutputAmount: expectedOutputAmount,
-                    buyOutputTokenBalance: outputTokenBalance,
+                    buyOutputTokenBalance: outputTokenBalance === null || outputTokenBalance === void 0 ? void 0 : outputTokenBalance.uiAmount,
                     buyStatus: client_1.EJobStatus.FINISHED,
                     tokenBought: actualOutputAmount,
                     earliestExecutionTimestampForSell: new Date(Date.now() + minSecondsUntilSell * 1000),
@@ -122,6 +124,58 @@ function handleBuyMarketMakingJob(job) {
         }
         catch (e) {
             console.log(`ERROR while handling buy job ${job.id}: ${e}`);
+        }
+    });
+}
+function updateBuyJobsWithValues() {
+    return __awaiter(this, void 0, void 0, function* () {
+        const buyJobs = yield prisma_1.default.marketMakingJob.findMany({
+            where: {
+                buyTransactionSignature: {
+                    not: null
+                },
+                buyWalletPubkey: {
+                    not: null
+                },
+                tokenBought: 0
+            },
+            include: {
+                cycle: {
+                    include: {
+                        bookedService: true
+                    }
+                }
+            }
+        });
+        for (const job of buyJobs) {
+            console.log(`Updating buy job ${job.id} with signature ${job.buyTransactionSignature}`);
+            if (!job.buyTransactionSignature || !job.buyWalletPubkey) {
+                console.log(`Buy job ${job.id} has no transaction signature or wallet pubkey, skipping`);
+                continue;
+            }
+            const { tokenDifference, solPreBalance, solPostBalance, outputTokenBalance, lamportsDifference, inputTokenBalance } = yield (0, jupiter_1.getBalances)({
+                txSig: job.buyTransactionSignature,
+                tokenMint: job.cycle.bookedService.usedSplTokenMint,
+                ownerPubkey: new web3_js_1.PublicKey(job.buyWalletPubkey),
+            });
+            console.log(`Found token difference ${tokenDifference}, sol pre balance ${solPreBalance}, sol post balance ${solPostBalance}, output token balance ${outputTokenBalance === null || outputTokenBalance === void 0 ? void 0 : outputTokenBalance.uiAmount}, lamports difference ${lamportsDifference}, input token balance ${inputTokenBalance}`);
+            const updatedWallet = yield prisma_1.default.botCustomerWallet.update({
+                where: { pubkey: job.buyWalletPubkey },
+                data: {
+                    latestTokenBalance: {
+                        increment: tokenDifference,
+                    },
+                },
+            });
+            console.log(`Updated wallet ${job.buyWalletPubkey} with latest token balance ${updatedWallet.latestTokenBalance}`);
+            const updatedJob = yield prisma_1.default.marketMakingJob.update({
+                where: { id: job.id },
+                data: {
+                    buyOutputTokenBalance: outputTokenBalance === null || outputTokenBalance === void 0 ? void 0 : outputTokenBalance.uiAmount,
+                    tokenBought: tokenDifference,
+                },
+            });
+            console.log(`Updated buy job ${job.id} with token bought ${updatedJob.tokenBought}`);
         }
     });
 }

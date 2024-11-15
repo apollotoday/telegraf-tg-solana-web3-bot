@@ -5,13 +5,14 @@ import { EJobStatus, EMarketMakingCycleType, EServiceType, EWalletType } from '@
 import prisma from '../src/lib/prisma';
 import { decryptWallet, loadWalletFromU8IntArrayStringified, uint8ArrayToBase58 } from '../src/modules/wallet/walletUtils';
 import { connection } from '../src/config';
-import { LAMPORTS_PER_SOL, PublicKey, SystemProgram } from '@solana/web3.js';
+import { LAMPORTS_PER_SOL, PublicKey, SystemProgram, TransactionInstruction } from '@solana/web3.js';
 import { createTransactionForInstructions } from '../src/modules/solTransaction/solTransactionUtils';
 import { sendAndConfirmTransactionAndRetry } from '../src/modules/solTransaction/solSendTransactionUtils';
 import { createBookedServiceAndWallet } from '../src/modules/customer/bookedService';
 import { getBirdEyeUsdcRate } from '../src/modules/monitor/birdeye';
-import { executeJupiterSwap } from '../src/modules/markets/jupiter';
+import { executeJupiterSwap, getBalances } from '../src/modules/markets/jupiter';
 import { overwriteConsoleLog } from '../src/modules/utils/changeConsoleLogWithTimestamp';
+import { updateBuyJobsWithValues } from '../src/modules/marketMaking/buyMarketMakingHandler';
 
 const program = new Command();
 
@@ -50,6 +51,20 @@ program.command('initDrewMarketMaking').action(async () => {
   console.log(decryptWallet(testWallet.encryptedPrivKey), 'for', testWallet.pubkey);
 
 
+})
+
+program.command('getParsedTx').action(async () => {
+  const detectedTransaction = await connection.getParsedTransaction('5yJEMQTsBguRwsNBbwTX9oV8su5Rcj5BqLVZk4Ynfs63RxUss37XxwE119H94xHSLqqUvafaYYqUgwhmkdhmF78m', {commitment: 'confirmed', maxSupportedTransactionVersion: 200})
+  console.log(detectedTransaction?.meta?.preTokenBalances, detectedTransaction?.meta?.postTokenBalances)
+})
+
+program.command('getBalances').action(async () => {
+  const balances = await getBalances({
+    txSig: '5yJEMQTsBguRwsNBbwTX9oV8su5Rcj5BqLVZk4Ynfs63RxUss37XxwE119H94xHSLqqUvafaYYqUgwhmkdhmF78m',
+    tokenMint: drewTokenMint.toBase58(),
+    ownerPubkey: new PublicKey('62z1RHg3VpzM12fmDRftXyqPkXngEfWzibXPUk94WaM1')
+  })
+  console.log(balances)
 })
 
 program.command('initDrewMarketMakingService').action(async () => {
@@ -247,7 +262,7 @@ program.command('fundMarketMakingWallets').action(async () => {
 
   const amounts = [0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1]
 
-  const transferInstructions = []
+  const transferInstructions: TransactionInstruction[] = []
 
   console.log('Amounts to fund each wallet:', amounts);
 
@@ -303,8 +318,8 @@ program.command('executeJupiterSwap').action(async () => {
 
   const decryptedWallet = decryptWallet(wallet.encryptedPrivKey)
 
-  const { txSig, confirmedResult, actualOutputAmount, slippage, outputTokenBalance } = await executeJupiterSwap({
-    inputAmount: 0.1,
+  const { txSig, confirmedResult, actualOutputAmount, slippage, outputTokenBalance, expectedOutputAmount } = await executeJupiterSwap({
+    inputAmount: 0.14,
     inputMint: 'So11111111111111111111111111111111111111112',
     outputMint: drewTokenMint.toBase58(),
     pubkey: decryptedWallet.publicKey,
@@ -313,9 +328,14 @@ program.command('executeJupiterSwap').action(async () => {
 
   console.log('Transaction sent and confirmed:', txSig);
   console.log('Confirmed result:', confirmedResult);
+  console.log('Expected output amount:', expectedOutputAmount);
   console.log('Actual output amount:', actualOutputAmount);
   console.log('Slippage:', slippage);
   console.log('Output token balance:', outputTokenBalance);
+})
+
+program.command('updateBuyJobWithValues').action(async () => {
+  await updateBuyJobsWithValues()
 })
 
 program.parse(process.argv);

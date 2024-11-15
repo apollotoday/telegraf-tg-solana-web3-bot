@@ -39,7 +39,11 @@ function handleOpenMarketMakingJobs() {
             include: {
                 cycle: {
                     include: {
-                        bookedService: true,
+                        bookedService: {
+                            include: {
+                                usedSplToken: true
+                            }
+                        },
                     }
                 },
             }
@@ -63,7 +67,11 @@ function handleOpenMarketMakingJobs() {
             include: {
                 cycle: {
                     include: {
-                        bookedService: true,
+                        bookedService: {
+                            include: {
+                                usedSplToken: true
+                            }
+                        },
                     }
                 },
             }

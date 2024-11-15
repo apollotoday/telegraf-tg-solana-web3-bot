@@ -6,6 +6,7 @@ import prisma from '../../lib/prisma'
 import { ComputeBudgetProgram, PublicKey, Transaction } from '@solana/web3.js'
 import { sleep } from '../../utils'
 import { createBookedServiceAndWallet } from '../customer/bookedService'
+import { secureRandomNumber } from '../../calculationUtils'
 
 export async function pickRandomWalletFromCustomer({ customerId, walletType, minSolBalance, minTokenBalance }: { customerId: string; walletType: EWalletType; minSolBalance: number; minTokenBalance: number }) {
   const foundWallets = await prisma.botCustomerWallet.findMany({
@@ -24,7 +25,9 @@ export async function pickRandomWalletFromCustomer({ customerId, walletType, min
 
   console.log(`Picking random wallet from ${foundWallets.length} wallets for customerId=${customerId} with type=${walletType} and minSolBalance=${minSolBalance} and minTokenBalance=${minTokenBalance}`)
 
-  const randomWallet = foundWallets[Math.floor(Math.random() * foundWallets.length)]
+  const randomIndex = secureRandomNumber(0, foundWallets.length - 1)
+
+  const randomWallet = foundWallets[randomIndex]
 
   if (!randomWallet) {
     throw new Error(`No wallet found for customerId=${customerId} with type=${walletType} and minSolBalance=${minSolBalance} and minTokenBalance=${minTokenBalance}`)

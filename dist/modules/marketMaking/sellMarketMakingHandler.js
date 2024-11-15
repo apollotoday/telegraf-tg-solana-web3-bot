@@ -40,6 +40,7 @@ function handleSellMarketMakingJob(job) {
                 minSolBalance: 0.005,
                 minTokenBalance: minSellAmount,
             });
+            const preSolBalanceFromConn = yield config_1.connection.getBalance(new web3_js_1.PublicKey(wallet.pubkey), 'recent');
             const inputSellAmount = (0, calculationUtils_1.randomAmount)(maxSellAmount, minSellAmount, (_a = wallet.latestTokenBalance) !== null && _a !== void 0 ? _a : 0);
             console.log(`Using wallet ${wallet.pubkey} for buy job ${job.id} to sell ${inputSellAmount} tokens`);
             const keypair = (0, walletUtils_1.decryptWallet)(wallet.encryptedPrivKey);
@@ -52,8 +53,10 @@ function handleSellMarketMakingJob(job) {
                     outputMint: config_1.solTokenMint,
                 }, keypair);
             }));
-            const solEarned = solPostBalance - solPreBalance;
-            console.log(`Finished sell job ${job.id} with txSig ${txSig}, sold ${inputAmount} tokens, expected: ${expectedOutputAmount} SOL, actual: ${solEarned} SOL, post balance: ${solPostBalance} SOL`);
+            const postSolBalanceFromConn = yield config_1.connection.getBalance(new web3_js_1.PublicKey(wallet.pubkey), 'recent');
+            const solEarned = postSolBalanceFromConn - preSolBalanceFromConn;
+            console.log({ postSolBalanceFromConn, preSolBalanceFromConn, solEarned });
+            console.log(`Finished sell job ${job.id} with txSig ${txSig}, sold ${inputAmount} tokens, expected: ${expectedOutputAmount / web3_js_1.LAMPORTS_PER_SOL} SOL, actual: ${solEarned / web3_js_1.LAMPORTS_PER_SOL} SOL, post balance: ${solPostBalance / web3_js_1.LAMPORTS_PER_SOL} SOL`);
             // SCHEDULE SELL
             const updatedJob = yield prisma_1.default.marketMakingJob.update({
                 where: { id: job.id },
@@ -71,7 +74,7 @@ function handleSellMarketMakingJob(job) {
                     },
                     solEarned: solEarned,
                     sellExpectedSolOutputAmount: expectedOutputAmount,
-                    sellOutputSolBalance: solPostBalance,
+                    sellOutputSolBalance: postSolBalanceFromConn,
                     sellStatus: client_1.EJobStatus.FINISHED,
                     tokenSold: inputAmount,
                     executedAtForSell: new Date(),

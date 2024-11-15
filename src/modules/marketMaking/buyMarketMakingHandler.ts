@@ -1,7 +1,7 @@
 import { EJobStatus, EOnChainTransactionStatus, EWalletType, MarketMakingJob } from '@prisma/client'
 import { pickRandomWalletFromCustomer } from '../wallet/walletService'
 import { MarketMakingJobWithCycleAndBookedService } from './typesMarketMaking'
-import { executeJupiterSwap } from '../markets/jupiter'
+import { executeJupiterSwap, getBalances } from '../markets/jupiter'
 import { getRandomInt, randomAmount } from '../../calculationUtils'
 import { solTokenMint } from '../../config'
 import { decryptWallet } from '../wallet/walletUtils'
@@ -14,6 +14,8 @@ export async function handleBuyMarketMakingJob(job: MarketMakingJobWithCycleAndB
     console.log(
       `Handling buy job ${job.id} for ${job.cycle.bookedService.usedSplTokenMint} token mint for customer ${job.cycle.botCustomerId}`,
     )
+
+    const tokenDecimals = job.cycle.bookedService.usedSplToken.decimals
 
     const wallet = await pickRandomWalletFromCustomer({
       customerId: job.cycle.botCustomerId,
@@ -53,7 +55,7 @@ export async function handleBuyMarketMakingJob(job: MarketMakingJobWithCycleAndB
     })
 
     console.log(
-      `Finished buy job ${job.id} with txSig ${txSig}, inputAmount ${inputAmount} SOL, expected: ${expectedOutputAmount} tokens, actual: ${actualOutputAmount} tokens, post balance: ${outputTokenBalance}`,
+      `Finished buy job ${job.id} with txSig ${txSig}, inputAmount ${inputAmount} SOL, expected: ${expectedOutputAmount / tokenDecimals} tokens, actual: ${actualOutputAmount} tokens, post balance: ${outputTokenBalance?.uiAmount}`,
     )
 
     const minSecondsUntilSell = getRandomInt(
@@ -81,7 +83,7 @@ export async function handleBuyMarketMakingJob(job: MarketMakingJobWithCycleAndB
         },
         solSpent: inputAmount,
         buyExpectedTokenOutputAmount: expectedOutputAmount,
-        buyOutputTokenBalance: outputTokenBalance,
+        buyOutputTokenBalance: outputTokenBalance?.uiAmount,
         buyStatus: EJobStatus.FINISHED,
         tokenBought: actualOutputAmount,
         earliestExecutionTimestampForSell: new Date(Date.now() + minSecondsUntilSell * 1000),
@@ -144,5 +146,65 @@ export async function handleBuyMarketMakingJob(job: MarketMakingJobWithCycleAndB
     }
   } catch (e) {
     console.log(`ERROR while handling buy job ${job.id}: ${e}`)
+  }
+}
+
+export async function updateBuyJobsWithValues() {
+  const buyJobs = await prisma.marketMakingJob.findMany({
+    where: {
+      buyTransactionSignature: {
+        not: null
+      },
+      buyWalletPubkey: {
+        not: null
+      },
+      tokenBought: 0
+    },
+    include: {
+      cycle: {
+        include: {
+          bookedService: true
+        }
+      }
+    }
+  })
+
+  for (const job of buyJobs) {
+    console.log(`Updating buy job ${job.id} with signature ${job.buyTransactionSignature}`)
+
+    if (!job.buyTransactionSignature || !job.buyWalletPubkey) {
+      console.log(`Buy job ${job.id} has no transaction signature or wallet pubkey, skipping`)
+      continue
+    }
+
+    const { tokenDifference, solPreBalance, solPostBalance, outputTokenBalance, lamportsDifference, inputTokenBalance } = await getBalances({
+      txSig: job.buyTransactionSignature,
+      tokenMint: job.cycle.bookedService.usedSplTokenMint,
+      ownerPubkey: new PublicKey(job.buyWalletPubkey),
+    })
+
+    console.log(`Found token difference ${tokenDifference}, sol pre balance ${solPreBalance}, sol post balance ${solPostBalance}, output token balance ${outputTokenBalance?.uiAmount}, lamports difference ${lamportsDifference}, input token balance ${inputTokenBalance}`)
+  
+    
+    const updatedWallet = await prisma.botCustomerWallet.update({
+      where: { pubkey: job.buyWalletPubkey },
+      data: {
+        latestTokenBalance: {
+          increment: tokenDifference,
+        },
+      },
+    })
+
+    console.log(`Updated wallet ${job.buyWalletPubkey} with latest token balance ${updatedWallet.latestTokenBalance}`)
+
+    const updatedJob = await prisma.marketMakingJob.update({
+      where: { id: job.id },
+      data: {
+        buyOutputTokenBalance: outputTokenBalance?.uiAmount,
+        tokenBought: tokenDifference,
+      },
+    })
+
+    console.log(`Updated buy job ${job.id} with token bought ${updatedJob.tokenBought}`)
   }
 }

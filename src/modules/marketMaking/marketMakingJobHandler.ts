@@ -1,10 +1,13 @@
 import { EJobStatus } from '@prisma/client'
 import prisma from '../../lib/prisma'
-import { handleBuyMarketMakingJob } from './buyMarketMakingHandler'
+import { handleBuyMarketMakingJob, updateBuyJobsWithValues } from './buyMarketMakingHandler'
 import { handleSellMarketMakingJob } from './sellMarketMakingHandler'
 
 export async function handleOpenMarketMakingJobs() {
   console.log('Handling open market making jobs')
+
+  await updateBuyJobsWithValues()
+  
   const buyMarketMakingJobs = await prisma.marketMakingJob.findMany({
     where: {
       earliestExecutionTimestampForBuy: {
@@ -24,7 +27,11 @@ export async function handleOpenMarketMakingJobs() {
     include: {
       cycle: {
         include: {
-          bookedService: true,
+          bookedService: {
+            include: {
+              usedSplToken: true
+            }
+          },
         }
       },
     }
@@ -49,7 +56,11 @@ export async function handleOpenMarketMakingJobs() {
     include: {
       cycle: {
         include: {
-          bookedService: true,
+          bookedService: {
+            include: {
+              usedSplToken: true
+            }
+          },
         }
       },
     }

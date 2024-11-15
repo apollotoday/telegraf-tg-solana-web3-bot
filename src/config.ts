@@ -1,8 +1,9 @@
 import { Connection } from "@solana/web3.js";
-import dotenv from "dotenv";
-dotenv.config();
+import dotenv from 'dotenv'
+import path from 'path';
+dotenv.config({ path: path.join(__dirname, '.env') });
 
-export const BotToken = process.env.BOT_TOKEN!;
+export const BotToken = process.env.BOT_TOKEN!
 export const mainRpc = process.env.SOLANA_RPC!;
 export const devRpc = process.env.SOLANA_DEV_RPC!;
 export const net: "mainnet-beta" | "devnet" = process.env.NET! as "mainnet-beta" | "devnet";

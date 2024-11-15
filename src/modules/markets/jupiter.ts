@@ -1,6 +1,7 @@
 import { Keypair, LAMPORTS_PER_SOL, PublicKey, VersionedTransaction } from '@solana/web3.js'
 import { sendAndConfirmRawTransactionAndRetry } from '../../solUtils'
 import { connection, solTokenMint } from '../../config'
+import { sleep } from '../../utils'
 
 export const fetchJupiterQuoteLink = async (
   inputMint: string,
@@ -118,25 +119,51 @@ export async function executeJupiterSwap(
 
   const { txSig, confirmedResult } = await sendAndConfirmRawTransactionAndRetry(transaction)
 
-  const detectedTransaction = await connection.getParsedTransaction(txSig, {commitment: 'confirmed', maxSupportedTransactionVersion: 200})
+  const mintForTokenBalance = inputMint === solTokenMint ? outputMint : inputMint
 
-  const inputTokenBalance = detectedTransaction?.meta?.preTokenBalances?.find(b => b.mint === outputMint && b.owner === pubkey.toString())?.uiTokenAmount.uiAmount
-  const outputTokenBalance = detectedTransaction?.meta?.postTokenBalances?.find(b => b.mint === outputMint && b.owner === pubkey.toString())?.uiTokenAmount.uiAmount
+  await sleep(2500)
 
-  const actualOutputAmount = (outputTokenBalance ?? 0) - (inputTokenBalance ?? 0)
+  const { inputTokenBalance, outputTokenBalance, tokenDifference, lamportsDifference, solPreBalance, solPostBalance } = await getBalances({
+    txSig,
+    tokenMint: mintForTokenBalance,
+    ownerPubkey: pubkey,
+  })
 
-  const solPreBalance = detectedTransaction?.meta?.preTokenBalances?.find(b => b.mint === solTokenMint && b.owner === pubkey.toString())?.uiTokenAmount.uiAmount ?? 0
-  const solPostBalance = detectedTransaction?.meta?.postTokenBalances?.find(b => b.mint === solTokenMint && b.owner === pubkey.toString())?.uiTokenAmount.uiAmount ?? 0
+  console.log('lamports difference', lamportsDifference)
 
   return {
     txSig,
     confirmedResult,
     inputAmount,
     expectedOutputAmount: outputAmount,
-    actualOutputAmount,
-    slippage: (actualOutputAmount / outputAmount) * 100,
+    actualOutputAmount: tokenDifference,
+    slippage: Math.abs(((lamportsDifference - outputAmount) / outputAmount) * 100),
     inputTokenBalance,
     outputTokenBalance,
+    solPreBalance,
+    solPostBalance,
+  }
+}
+
+export async function getBalances({txSig, tokenMint, ownerPubkey}: {txSig: string, tokenMint: string, ownerPubkey: PublicKey}) {
+  const detectedTransaction = await connection.getParsedTransaction(txSig, {commitment: 'confirmed', maxSupportedTransactionVersion: 200})
+
+  const inputTokenBalance = detectedTransaction?.meta?.preTokenBalances?.find(b => b.mint === tokenMint && b.owner === ownerPubkey.toString())?.uiTokenAmount
+  const outputTokenBalance = detectedTransaction?.meta?.postTokenBalances?.find(b => b.mint === tokenMint && b.owner === ownerPubkey.toString())?.uiTokenAmount
+
+  const tokenDifference = (outputTokenBalance?.uiAmount ?? 0) - (inputTokenBalance?.uiAmount ?? 0)
+
+  const lamportsDifference = (isNaN(Number(outputTokenBalance?.amount)) ? 0 : Number(outputTokenBalance?.amount)) - 
+                             (isNaN(Number(inputTokenBalance?.amount)) ? 0 : Number(inputTokenBalance?.amount))
+
+  const solPreBalance = detectedTransaction?.meta?.preTokenBalances?.find(b => b.mint === solTokenMint && b.owner === ownerPubkey.toString())?.uiTokenAmount.uiAmount ?? 0
+  const solPostBalance = detectedTransaction?.meta?.postTokenBalances?.find(b => b.mint === solTokenMint && b.owner === ownerPubkey.toString())?.uiTokenAmount.uiAmount ?? 0
+
+  return {
+    inputTokenBalance,
+    outputTokenBalance,
+    tokenDifference,
+    lamportsDifference,
     solPreBalance,
     solPostBalance,
   }
