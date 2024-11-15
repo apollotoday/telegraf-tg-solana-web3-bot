@@ -127,22 +127,11 @@ export async function handleBuyMarketMakingJob(job: MarketMakingJobWithCycleAndB
       })
     } else {
       console.log(`Market making cycle ${job.cycleId} has not spent more than maxSolSpentForCycle, keeping cycle active`)
-      const nextJob = await prisma.marketMakingJob.create({
-        data: {
-          buyStatus: EJobStatus.OPEN,
-          sellStatus: EJobStatus.OPEN,
-          cycle: {
-            connect: {
-              id: job.cycleId,
-            },
-          },
-          earliestExecutionTimestampForBuy: new Date(Date.now() + minSecondsUntilNextJob * 1000),
-        },
+      
+      await scheduleNextBuyJob({
+        cycleId: job.cycleId,
+        startInSeconds: minSecondsUntilNextJob,
       })
-
-      console.log(
-        `Scheduled next market making buy job ${nextJob.id} for cycle ${job.cycleId} in ${minSecondsUntilNextJob} seconds`,
-      )
     }
   } catch (e) {
     console.log(`ERROR while handling buy job ${job.id}: ${e}`)
@@ -207,4 +196,29 @@ export async function updateBuyJobsWithValues() {
 
     console.log(`Updated buy job ${job.id} with token bought ${updatedJob.tokenBought}`)
   }
+}
+
+export async function scheduleNextBuyJob({
+  cycleId,
+  startInSeconds,
+}: {
+  cycleId: string
+  startInSeconds: number
+}) {
+  const nextJob = await prisma.marketMakingJob.create({
+    data: {
+      buyStatus: EJobStatus.OPEN,
+      sellStatus: EJobStatus.OPEN,
+      cycle: {
+        connect: {
+          id: cycleId,
+        },
+      },
+      earliestExecutionTimestampForBuy: new Date(Date.now() + startInSeconds * 1000),
+    },
+  })
+
+  console.log(`Scheduled next buy job ${nextJob.id} for cycle ${cycleId} in ${startInSeconds} seconds`)
+
+  return nextJob
 }

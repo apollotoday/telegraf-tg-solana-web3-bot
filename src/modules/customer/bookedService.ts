@@ -43,3 +43,19 @@ export async function createBookedServiceAndWallet({
     },
   });
 }
+
+export async function getActiveBookedServiceByBotCustomerId({ botCustomerId, serviceType }: { botCustomerId: string, serviceType: EServiceType }) {
+  const bookedService = await prisma.bookedService.findFirst({
+    where: {
+      botCustomerId,
+      type: serviceType,
+      isActive: true,
+    },
+  });
+
+  if (!bookedService) {
+    throw new Error(`No active booked service found for bot customer ${botCustomerId} and service type ${serviceType}`);
+  }
+
+  return bookedService;
+}

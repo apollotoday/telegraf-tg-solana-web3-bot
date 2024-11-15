@@ -16,6 +16,7 @@ enum EWalletType {
   VOLUME
   FEES
   MARKET_MAKING
+  SNIPING
 }
 
 enum EJobStatus {
@@ -43,6 +44,7 @@ enum EServiceType {
   VOLUME
   RANKING
   MARKET_MAKING
+  SNIPER
 }
 
 model SplToken {
@@ -64,6 +66,8 @@ model BookedService {
   id String @id @default(cuid())
 
   type EServiceType
+
+  isActive Boolean @default(true)
 
   usedSplTokenMint String
   usedSplToken SplToken @relation(fields: [usedSplTokenMint], references: [tokenMint])

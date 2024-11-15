@@ -25,7 +25,6 @@ export async function handleSellMarketMakingJob(job: MarketMakingJobWithCycleAnd
     const minSellAmount = job.cycle.sellToBuyValueRatio! * job.tokenBought * (1 - variance);
     const maxSellAmount = job.cycle.sellToBuyValueRatio! * job.tokenBought * (1 + variance);
 
-
     const wallet = await pickRandomWalletFromCustomer({
       customerId: job.cycle.botCustomerId,
       walletType: EWalletType.MARKET_MAKING,

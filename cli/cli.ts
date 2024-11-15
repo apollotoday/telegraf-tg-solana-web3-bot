@@ -3,16 +3,18 @@ import { createBotCustomer, getBotCustomerByName } from '../src/modules/customer
 import { createAndStoreBotCustomerWallets, pickRandomWalletFromCustomer } from '../src/modules/wallet/walletService';
 import { EJobStatus, EMarketMakingCycleType, EServiceType, EWalletType } from '@prisma/client';
 import prisma from '../src/lib/prisma';
-import { decryptWallet, loadWalletFromU8IntArrayStringified, uint8ArrayToBase58 } from '../src/modules/wallet/walletUtils';
+import { base58ToUint8Array, decryptWallet, loadWalletFromU8IntArrayStringified, uint8ArrayToBase58 } from '../src/modules/wallet/walletUtils';
 import { connection } from '../src/config';
-import { LAMPORTS_PER_SOL, PublicKey, SystemProgram, TransactionInstruction } from '@solana/web3.js';
-import { createTransactionForInstructions } from '../src/modules/solTransaction/solTransactionUtils';
+import { ComputeBudgetProgram, Keypair, LAMPORTS_PER_SOL, PublicKey, SystemProgram, Transaction, TransactionInstruction } from '@solana/web3.js';
+import { createTransactionForInstructions, increaseComputePriceInstruction, increaseComputeUnitInstruction } from '../src/modules/solTransaction/solTransactionUtils';
 import { sendAndConfirmTransactionAndRetry } from '../src/modules/solTransaction/solSendTransactionUtils';
-import { createBookedServiceAndWallet } from '../src/modules/customer/bookedService';
+import { createBookedServiceAndWallet, getActiveBookedServiceByBotCustomerId } from '../src/modules/customer/bookedService';
 import { getBirdEyeUsdcRate } from '../src/modules/monitor/birdeye';
 import { executeJupiterSwap, getBalances } from '../src/modules/markets/jupiter';
 import { overwriteConsoleLog } from '../src/modules/utils/changeConsoleLogWithTimestamp';
 import { updateBuyJobsWithValues } from '../src/modules/marketMaking/buyMarketMakingHandler';
+import { setupMarketMakingCycle } from '../src/modules/marketMaking/marketMakingService';
+import { getTokenBalanceForOwner, transferTokenInstruction } from '../src/modules/utils/splUtils';
 
 const program = new Command();
 
@@ -142,6 +144,35 @@ program.command('initDrewMarketMakingService').action(async () => {
 
 })
 
+program.command('setupMarketMakingCycle').action(async () => {
+  const botCustomer = await getBotCustomerByName('Drew')
+
+  const bookedService = await getActiveBookedServiceByBotCustomerId({
+    botCustomerId: botCustomer.id,
+    serviceType: EServiceType.MARKET_MAKING
+  })
+
+  await setupMarketMakingCycle({
+    bookedService,
+    createInput: {
+      type: EMarketMakingCycleType.MAINTAIN,
+      solSpentForCycle: 0,
+      solEarnedForCycle: 0,
+      maxSolSpentForCycle: 2.5,
+      maxSolEarnedForCycle: 2.5,
+      buyMinAmount: 0.11,
+      buyMaxAmount: 0.63,
+      minDurationBetweenBuyAndSellInSeconds: 10,
+      maxDurationBetweenBuyAndSellInSeconds: 90,
+      minDurationBetweenJobsInSeconds: 50,
+      maxDurationBetweenJobsInSeconds: 190,
+      isActive: true,
+      sellToBuyValueRatio: 0.98,
+      startTimestamp: new Date(),
+    }
+  })
+})
+
 program.command('setRequiredFieldsForDrewMarketMaking').action(async () => {
   const botCustomer = await getBotCustomerByName('Drew')
 
@@ -180,15 +211,7 @@ program.command('inspectCustomerWallets').action(async () => {
 
   const balances = await Promise.all(foundWallets.map(async (w) => {
     const balance = await connection.getBalance(new PublicKey(w.pubkey))
-    await prisma.botCustomerWallet.update({
-      where: {
-        pubkey: w.pubkey
-      },
-      data: {
-        latestSolBalance: balance / LAMPORTS_PER_SOL
-      }
-    })
-
+    const solBalance = balance / LAMPORTS_PER_SOL
 
     const tokenAccounts = await connection.getParsedTokenAccountsByOwner(new PublicKey(w.pubkey), {
       mint: drewTokenMint
@@ -196,7 +219,6 @@ program.command('inspectCustomerWallets').action(async () => {
 
     const drewTokenAccount = tokenAccounts.value.find((ta) => ta.account.data.parsed.info.mint === drewTokenMint.toBase58())
 
-    const solBalance = balance / LAMPORTS_PER_SOL
     const drewTokenBalance = drewTokenAccount?.account.data.parsed.info.tokenAmount.uiAmount ?? 0
 
     console.log(`${w.pubkey} has ${solBalance} SOL & ${drewTokenBalance} DREW`);
@@ -336,6 +358,120 @@ program.command('executeJupiterSwap').action(async () => {
 
 program.command('updateBuyJobWithValues').action(async () => {
   await updateBuyJobsWithValues()
+})
+
+program.command('convertUintPrivateKeyToBase58').action(async () => {
+  const keypair = loadWalletFromU8IntArrayStringified(process.env.KEY_TO_LOAD!)
+  const base58 = uint8ArrayToBase58(keypair.secretKey)
+  console.log(base58)
+})
+
+program.command('convertBase58ToUint8').action(async () => {
+  const base58Key = 'z4PS4JhznMyaknSwVDKWhJYoqAojFHgp4SHGnsVE1fMourqzhsrNQb6SrJ9mFw39LKUCHFckZktzrcqNfZXvZKU';
+  const uint8Array = base58ToUint8Array(base58Key);
+  console.log(uint8Array.toString());
+})
+
+
+program.command('generateSniperWallets').action(async () => {
+  const sniperBotCustomer = await createBotCustomer({
+    name: 'PF_SNIPER'
+  })
+
+  console.log(`created bot customer ${sniperBotCustomer.id}: ${sniperBotCustomer.name}`);
+
+  const botCustomerWalletCreate = await createAndStoreBotCustomerWallets({
+    subWalletCount: 20,
+    walletType: EWalletType.SNIPING,
+    customerId: sniperBotCustomer.id,
+  })
+
+  const botCustomerWallets = await prisma.botCustomerWallet.findMany({
+    where: {
+      botCustomerId: sniperBotCustomer.id,
+      type: EWalletType.SNIPING
+    }
+  })
+
+  const fs = require('fs');
+  const path = require('path');
+
+  const filePath = path.join(__dirname, 'wallet_keys.txt');
+  const header = 'pubkey,private_key\n';
+  fs.writeFileSync(filePath, header);
+
+  for (const wallet of botCustomerWallets) {
+    const decryptedWallet = decryptWallet(wallet.encryptedPrivKey);
+    const line = `${wallet.pubkey},${uint8ArrayToBase58(decryptedWallet.secretKey)}\n`;
+    fs.appendFileSync(filePath, line);
+  }
+
+  console.log(`Exported wallet keys to ${filePath}`);
+
+
+})
+
+program.command('sendFromSniperToMain').action(async () => {
+  const customer = await getBotCustomerByName('PF_SNIPER')
+  const tokenMint = new PublicKey('Bv9jYA2MTLQM4qtUtWsBo6ovCWbeoKEZxnszL1nYpump')
+  const toWallet = new PublicKey('8ts4iTomEGiBfYME18Dz53HAT8XMpAVUEiPiLMwjRU8r')
+
+  const snipingWallets = await prisma.botCustomerWallet.findMany({
+    where: {
+      botCustomerId: customer.id,
+      type: EWalletType.SNIPING  
+    }
+  })
+
+  const transferInstructions: {instruction: TransactionInstruction, keypair: Keypair}[] = []
+
+  for (const snipingWallet of snipingWallets) {
+    const {tokenAccountPubkey, tokenBalance} = await getTokenBalanceForOwner({
+      ownerPubkey: snipingWallet.pubkey,
+      tokenMint: tokenMint.toBase58()
+    })
+
+    console.log(`${snipingWallet.pubkey} has ${tokenBalance?.uiAmount} `);
+
+    if (!!tokenAccountPubkey && tokenBalance?.uiAmount && tokenBalance.uiAmount > 0) {
+      const transferInstruction = await transferTokenInstruction({
+        mint: tokenMint,
+        from: new PublicKey(snipingWallet.pubkey),
+        sourceTokenAccountPubkey: tokenAccountPubkey,
+        to: toWallet,
+        amount: tokenBalance.amount
+      })
+
+      const keypair = decryptWallet(snipingWallet.encryptedPrivKey)
+
+      transferInstructions.push({
+        instruction: transferInstruction,
+        keypair
+      })
+    }
+  }
+
+  const groupedTransferInstructions: {instruction: TransactionInstruction, keypair: Keypair}[][] = [];
+  const groupSize = 7;
+
+  for (let i = 0; i < transferInstructions.length; i += groupSize) {
+    groupedTransferInstructions.push(transferInstructions.slice(i, i + groupSize));
+  }
+
+  for (const group of groupedTransferInstructions) {
+    const allInstructions = group.map((item) => item.instruction)
+    const allSigners = group.map((item) => item.keypair)
+
+    const { transaction, blockhash } = await createTransactionForInstructions({
+      wallet: allSigners[0].publicKey.toBase58(),
+      instructions: allInstructions,
+      signers: allSigners,
+    })
+
+    const { txSig, confirmedResult } = await sendAndConfirmTransactionAndRetry(transaction, blockhash)
+
+    console.log('Transaction sent and confirmed:', txSig, confirmedResult);
+  }
 })
 
 program.parse(process.argv);
