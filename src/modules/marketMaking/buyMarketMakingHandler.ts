@@ -90,7 +90,7 @@ export async function handleBuyMarketMakingJob(job: MarketMakingJobWithCycleAndB
         executedAtForBuy: new Date(),
       },
     })
-    console.log(`Updated market making buy job and scheduled sell for job ${job.id} in ${minSecondsUntilNextJob} seconds`)
+    console.log(`Updated market making buy job and scheduled sell for job ${job.id} in ${minSecondsUntilSell} seconds`)
 
     const updatedWallet = await prisma.botCustomerWallet.update({
       where: { pubkey: wallet.pubkey },
