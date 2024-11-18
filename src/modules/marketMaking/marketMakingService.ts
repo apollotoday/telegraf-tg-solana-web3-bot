@@ -39,3 +39,12 @@ export async function setupMarketMakingCycle({
 
   return marketMakingCycle
 }
+
+
+export async function getActiveMarketMakingCycleByBotCustomerId({
+  botCustomerId,
+}: {
+  botCustomerId: string
+}) {
+  return prisma.marketMakingCycle.findFirst({ where: { botCustomerId, isActive: true } })
+}

@@ -9,7 +9,7 @@
     "db:migrate": "npx prisma generate && env-cmd -f .env.dev npx prisma migrate dev --name",
     "db:migrate-deploy:prod": "env-cmd -f .env npx prisma migrate deploy",
     "build": "tsc --skipLibCheck",
-    "pm2-start": "pm2 start dist/index.js --name 'momentum-bot'"
+    "pm2-start": "pm2 start --node-args='--env-file=.env' dist/index.js --name 'momentum-bot'"
   },
   "dependencies": {
     "@mercurial-finance/dynamic-amm-sdk": "^1.1.7",

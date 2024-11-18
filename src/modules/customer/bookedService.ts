@@ -51,6 +51,9 @@ export async function getActiveBookedServiceByBotCustomerId({ botCustomerId, ser
       type: serviceType,
       isActive: true,
     },
+    include: {
+      usedSplToken: true
+    }
   });
 
   if (!bookedService) {

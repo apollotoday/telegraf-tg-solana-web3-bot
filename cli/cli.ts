@@ -12,9 +12,10 @@ import { createBookedServiceAndWallet, getActiveBookedServiceByBotCustomerId } f
 import { getBirdEyeUsdcRate } from '../src/modules/monitor/birdeye';
 import { executeJupiterSwap, getBalances } from '../src/modules/markets/jupiter';
 import { overwriteConsoleLog } from '../src/modules/utils/changeConsoleLogWithTimestamp';
-import { updateBuyJobsWithValues } from '../src/modules/marketMaking/buyMarketMakingHandler';
-import { setupMarketMakingCycle } from '../src/modules/marketMaking/marketMakingService';
+import { scheduleNextBuyJob, updateBuyJobsWithValues } from '../src/modules/marketMaking/buyMarketMakingHandler';
+import { getActiveMarketMakingCycleByBotCustomerId, setupMarketMakingCycle } from '../src/modules/marketMaking/marketMakingService';
 import { getTokenBalanceForOwner, transferTokenInstruction } from '../src/modules/utils/splUtils';
+import _ from 'lodash';
 
 const program = new Command();
 
@@ -22,24 +23,24 @@ const drewTokenMint = new PublicKey('14h6AkD5uSNzprMKm4yoQuQTymuYVMmmWo8EADEtTNU
 
 overwriteConsoleLog()
 
-program.command('initDrewMarketMaking').action(async () => {
-  const drewBotCustomer = await createBotCustomer({
-    name: 'Drew'
+program.command('initMarketMaking').action(async () => {
+  const botCustomer = await createBotCustomer({
+    name: 'Puff'
   })
 
-  console.log(`created bot customer ${drewBotCustomer.id}: ${drewBotCustomer.name}`);
+  console.log(`created bot customer ${botCustomer.id}: ${botCustomer.name}`);
 
   const botCustomerWallets = await createAndStoreBotCustomerWallets({
-    subWalletCount: 16,
+    subWalletCount: 24,
     walletType: EWalletType.MARKET_MAKING,
-    customerId: drewBotCustomer.id,
+    customerId: botCustomer.id,
   })
 
   console.log(`created ${botCustomerWallets.count} wallets for market making`);
 
   const foundWallets = await prisma.botCustomerWallet.findMany({
     where: {
-      botCustomerId: drewBotCustomer.id,
+      botCustomerId: botCustomer.id,
       type: EWalletType.MARKET_MAKING
     }
   })
@@ -69,23 +70,19 @@ program.command('getBalances').action(async () => {
   console.log(balances)
 })
 
-program.command('initDrewMarketMakingService').action(async () => {
-  const botCustomer = await prisma.botCustomer.findFirst({
-    where: {
-      name: 'Drew'
-    }
-  })
+program.command('initMarketMakingService').action(async () => {
+  const botCustomer = await getBotCustomerByName('Drew')
 
   if (!botCustomer) {
     console.error('bot customer not found');
     return;
   }
 
-  await prisma.splToken.create({
+  const splToken = await prisma.splToken.create({
     data: {
-      name: 'DREW',
-      symbol: 'DREW',
-      tokenMint: drewTokenMint.toBase58(),
+      name: 'PUFF',
+      symbol: 'PUFF',
+      tokenMint: 'G9tt98aYSznRk7jWsfuz9FnTdokxS6Brohdo9hSmjTRB',
       decimals: 9,
       isSPL: true,
     }
@@ -93,31 +90,30 @@ program.command('initDrewMarketMakingService').action(async () => {
 
   const bookedService = await createBookedServiceAndWallet({
     botCustomerId: botCustomer.id,
-    solAmount: 43,
+    solAmount: 59,
     serviceType: EServiceType.MARKET_MAKING,
-    usedSplTokenMint: drewTokenMint.toBase58(),
-
+    usedSplTokenMint: splToken.tokenMint,
   })
 
   console.log(`created booked service ${bookedService.id} for market making`);
 
   const cycle = await prisma.marketMakingCycle.create({
     data: {
-      buyMinAmount: 0.15,
-      buyMaxAmount: 0.59,
-      minDurationBetweenBuyAndSellInSeconds: 14,
-      maxDurationBetweenBuyAndSellInSeconds: 300,
-      minDurationBetweenJobsInSeconds: 300,
-      maxDurationBetweenJobsInSeconds: 350,
+      buyMinAmount: 0.11,
+      buyMaxAmount: 0.72,
+      minDurationBetweenBuyAndSellInSeconds: 10,
+      maxDurationBetweenBuyAndSellInSeconds: 100,
+      minDurationBetweenJobsInSeconds: 30,
+      maxDurationBetweenJobsInSeconds: 200,
       solSpentForCycle: 0,
       maxSolSpentForCycle: 7,
-      maxSolEarnedForCycle: 0,
+      maxSolEarnedForCycle: 7,
       solEarnedForCycle: 0,
-      sellToBuyValueRatio: 0.51,
-      type: EMarketMakingCycleType.PUSH,
+      sellToBuyValueRatio: 0.95,
+      type: EMarketMakingCycleType.PRE_PUSH,
       botCustomerId: botCustomer.id,
       bookedServiceId: bookedService.id,
-      plannedTotalDurationInMinutes: 240,
+      plannedTotalDurationInMinutes: 2400,
       startTimestamp: new Date(),
     }
   })
@@ -135,7 +131,7 @@ program.command('initDrewMarketMakingService').action(async () => {
           id: cycle.id,
         },
       },
-      earliestExecutionTimestampForBuy: new Date(Date.now() + 60 * 1000),
+      earliestExecutionTimestampForBuy: new Date(Date.now() + 360 * 1000),
     },
   })
 
@@ -184,17 +180,22 @@ program.command('setRequiredFieldsForDrewMarketMaking').action(async () => {
   })
 })
 
+
 program.command('inspectCustomerWallets').action(async () => {
-  const botCustomer = await prisma.botCustomer.findFirst({
-    where: {
-      name: 'Drew'
-    }
+  const botCustomer = await getBotCustomerByName('Puff')
+
+  const bookedService = await getActiveBookedServiceByBotCustomerId({
+    botCustomerId: botCustomer.id,
+    serviceType: EServiceType.MARKET_MAKING
   })
 
-  if (!botCustomer) {
-    console.error('bot customer not found');
+  if (!botCustomer || !bookedService) {
+    console.error('bot customer or booked service not found');
     return;
   }
+
+  const tokenMint = bookedService?.usedSplToken?.tokenMint
+  const splToken = bookedService?.usedSplToken
 
   const foundWallets = await prisma.botCustomerWallet.findMany({
     where: {
@@ -207,21 +208,19 @@ program.command('inspectCustomerWallets').action(async () => {
 
   console.log(foundWallets.map((wallet) => wallet.pubkey));
 
-  const mainWallet = loadWalletFromU8IntArrayStringified(process.env.DREW_MAIN_FUNDING_WALLET!)
-
   const balances = await Promise.all(foundWallets.map(async (w) => {
     const balance = await connection.getBalance(new PublicKey(w.pubkey))
     const solBalance = balance / LAMPORTS_PER_SOL
 
     const tokenAccounts = await connection.getParsedTokenAccountsByOwner(new PublicKey(w.pubkey), {
-      mint: drewTokenMint
+      mint: new PublicKey(tokenMint)
     })
 
-    const drewTokenAccount = tokenAccounts.value.find((ta) => ta.account.data.parsed.info.mint === drewTokenMint.toBase58())
+    const tokenAccount = tokenAccounts.value.find((ta) => ta.account.data.parsed.info.mint === tokenMint)
 
-    const drewTokenBalance = drewTokenAccount?.account.data.parsed.info.tokenAmount.uiAmount ?? 0
+    const tokenBalance = tokenAccount?.account.data.parsed.info.tokenAmount.uiAmount ?? 0
 
-    console.log(`${w.pubkey} has ${solBalance} SOL & ${drewTokenBalance} DREW`);
+    console.log(`${w.pubkey} has ${solBalance} SOL & ${tokenBalance} ${splToken.symbol}`);
 
     await prisma.botCustomerWallet.update({
       where: {
@@ -229,33 +228,42 @@ program.command('inspectCustomerWallets').action(async () => {
       },
       data: {
         latestSolBalance: solBalance,
-        latestTokenBalance: drewTokenBalance
+        latestTokenBalance: tokenBalance
       }
     })
 
-    return { solBalance, tokenAmount: drewTokenBalance }
+    return { solBalance, tokenAmount: tokenBalance }
   }))
 
-  const mainWalletBalance = await connection.getBalance(mainWallet.publicKey)
-  const solBalance = balances.reduce((acc, curr) => acc + curr.solBalance, 0) + (mainWalletBalance / LAMPORTS_PER_SOL)
-  const drewTokenBalance = balances.reduce((acc, curr) => acc + (curr.tokenAmount ?? 0), 0)
+  const solBalance = balances.reduce((acc, curr) => acc + curr.solBalance, 0)
+  const tokenBalance = balances.reduce((acc, curr) => acc + (curr.tokenAmount ?? 0), 0)
 
-  const birdEyeUsdcRate: number = (await getBirdEyeUsdcRate(drewTokenMint.toBase58())).data.value ?? 0
+  const birdEyeUsdcRate: number = (await getBirdEyeUsdcRate(tokenMint)).data.value ?? 0
   const solUsdcRate: number = (await getBirdEyeUsdcRate('So11111111111111111111111111111111111111112')).data.value ?? 0
 
-  console.log('DREW/USDC rate:', birdEyeUsdcRate.toFixed(8));
+  console.log(`${splToken.symbol}/USDC rate: `, birdEyeUsdcRate.toFixed(8));
   console.log('SOL/USDC rate:', solUsdcRate.toFixed(2));
   console.log('Total SOL balance:', solBalance.toFixed(2), `(~${(solBalance * solUsdcRate).toFixed(2)} USDC)`);
-  console.log('Total DREW token balance:', drewTokenBalance.toFixed(2), `(~${(drewTokenBalance * birdEyeUsdcRate).toFixed(2)} USDC / ~${(drewTokenBalance * birdEyeUsdcRate / solUsdcRate).toFixed(2)} SOL)`);
+  console.log(`Total ${splToken.symbol} token balance:`, tokenBalance.toFixed(2), `(~${(tokenBalance * birdEyeUsdcRate).toFixed(2)} USDC / ~${(tokenBalance * birdEyeUsdcRate / solUsdcRate).toFixed(2)} SOL)`);
 
 })
 
+
 program.command('fundMarketMakingWallets').action(async () => {
-  const botCustomer = await prisma.botCustomer.findFirst({
+  const botCustomer = await getBotCustomerByName('Puff')
+  const fundingWallet = loadWalletFromU8IntArrayStringified(process.env.PUFF_MAIN_FUNDING_WALLET!);
+  const tokenFundingWallet = loadWalletFromU8IntArrayStringified(process.env.PUFF_MAIN_TOKEN_FUNDING_WALLET!);
+  const tokenMint = 'G9tt98aYSznRk7jWsfuz9FnTdokxS6Brohdo9hSmjTRB'
+  const splToken = await prisma.splToken.findFirst({
     where: {
-      name: 'Drew'
+      tokenMint
     }
   })
+
+  if (!splToken) {
+    console.error('spl token not found');
+    return;
+  }
 
   if (!botCustomer) {
     console.error('bot customer not found');
@@ -268,55 +276,90 @@ program.command('fundMarketMakingWallets').action(async () => {
       type: EWalletType.MARKET_MAKING
     }
   })
-  const fundingWallet = loadWalletFromU8IntArrayStringified(process.env.DREW_MAIN_FUNDING_WALLET!);
 
   console.log(fundingWallet.publicKey.toBase58());
 
-  const balanceOfWallet = await connection.getBalance(fundingWallet.publicKey);
+  const balanceOfWallet = (await connection.getBalance(fundingWallet.publicKey)) / LAMPORTS_PER_SOL;
 
-  console.log(balanceOfWallet);
+  console.log('Balance of funding wallet:', balanceOfWallet);
 
-  const filteredWallets = foundWallets.filter((wallet, index) => {
+  const solFundingWallets = foundWallets.filter((wallet, index) => {
+    return index % 2 === 0
+  })
+
+  const puffFundingWallets = foundWallets.filter((wallet, index) => {
     return index % 2 === 1
   })
 
-  const walletsToFund = filteredWallets;
+  /*
 
-  const amounts = [0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1]
+  const amounts: number[] = []
 
-  const transferInstructions: TransactionInstruction[] = []
+  const amountUsedToFundSOLWallets = balanceOfWallet - puffFundingWallets.length * 0.1 - 1
+
+  const averageAmountToFundSOLWallets = amountUsedToFundSOLWallets / solFundingWallets.length
+
+  let remainingAmount = amountUsedToFundSOLWallets;
+
+  for (let i = 0; i < solFundingWallets.length; i++) {
+    const variance = (Math.random() * 0.4 - 0.2) * averageAmountToFundSOLWallets;
+    const amount = averageAmountToFundSOLWallets + variance;
+
+    if (i === solFundingWallets.length - 1) {
+      amounts.push(remainingAmount);
+    } else {
+      amounts.push(amount);
+      remainingAmount -= amount;
+    }
+  }
+
+  const transferInstructionsForSol: TransactionInstruction[] = []
 
   console.log('Amounts to fund each wallet:', amounts);
 
-  for (let i = 0; i < walletsToFund.length; i++) {
-    const wallet = walletsToFund[i];
+  for (let i = 0; i < solFundingWallets.length; i++) {
+    const wallet = solFundingWallets[i];
     const amount = amounts[i];
     console.log(`Funding wallet ${wallet.pubkey} with ${amount} SOL`);
     // Add your funding logic here
 
-    transferInstructions.push(
+    transferInstructionsForSol.push(
       SystemProgram.transfer({
         fromPubkey: fundingWallet.publicKey,
         toPubkey: new PublicKey(wallet.pubkey),
-        lamports: amount * LAMPORTS_PER_SOL
+        lamports: Math.floor(amount * LAMPORTS_PER_SOL)
       })
     )
+  }
 
-    const updatedWallet = await prisma.botCustomerWallet.update({
-      where: {
-        pubkey: wallet.pubkey
-      },
-      data: {
-        latestSolBalance: amount
-      }
-    })
+  const { transaction: solTransaction, blockhash: solBlockhash } = await createTransactionForInstructions({
+    wallet: fundingWallet.publicKey.toBase58(),
+    instructions: transferInstructionsForSol,
+    signers: [fundingWallet],
+  })
 
-    console.log(`Updated wallet ${updatedWallet.pubkey} with ${updatedWallet.latestSolBalance} SOL`);
+  const { txSig: solTxSig, confirmedResult: solConfirmedResult } = await sendAndConfirmTransactionAndRetry(
+    solTransaction,
+    solBlockhash
+  )
+
+  console.log('SOL FUNDING: Transaction sent and confirmed:', solTxSig, solConfirmedResult);
+
+  const transferInstructionsForSOLFundingTokenWallets: TransactionInstruction[] = []
+
+  for (const puffWallet of puffFundingWallets) {
+    transferInstructionsForSOLFundingTokenWallets.push(
+      SystemProgram.transfer({
+        fromPubkey: fundingWallet.publicKey,
+        toPubkey: new PublicKey(puffWallet.pubkey),
+        lamports: 0.1 * LAMPORTS_PER_SOL
+      })
+    )
   }
 
   const { transaction, blockhash } = await createTransactionForInstructions({
     wallet: fundingWallet.publicKey.toBase58(),
-    instructions: transferInstructions,
+    instructions: transferInstructionsForSOLFundingTokenWallets,
     signers: [fundingWallet],
   })
 
@@ -325,7 +368,66 @@ program.command('fundMarketMakingWallets').action(async () => {
     blockhash
   )
 
-  console.log('Transaction sent and confirmed:', txSig, confirmedResult);
+  console.log('SOL FUNDING for token wallets: Transaction sent and confirmed:', txSig, confirmedResult); */
+
+
+  const tokenBalance = await getTokenBalanceForOwner({
+    ownerPubkey: tokenFundingWallet.publicKey.toBase58(),
+    tokenMint: splToken.tokenMint
+  })
+
+  if (!tokenBalance.tokenAccountPubkey) {
+    console.error('Token account not found');
+    return;
+  }
+
+  const tokenAmount = 1_200_000
+
+  const averageAmountToFundTokenWallets = tokenAmount / puffFundingWallets.length
+
+  const transferTokenInstructions: {instructions: TransactionInstruction[], keypair: Keypair}[] = []
+
+  for (const puffWallet of puffFundingWallets) {
+    const variance = (Math.random() * 0.4 - 0.2) * averageAmountToFundTokenWallets;
+    const amountToFund = averageAmountToFundTokenWallets + variance;
+
+    console.log(`Funding wallet ${puffWallet.pubkey} with ${amountToFund} tokens`);
+
+    const transferTokenInstr = await transferTokenInstruction({
+      mint: new PublicKey(splToken.tokenMint),
+      from: tokenFundingWallet.publicKey,
+      sourceTokenAccountPubkey: new PublicKey(tokenBalance.tokenAccountPubkey),
+      to: new PublicKey(puffWallet.pubkey),
+      amount: Math.floor(amountToFund * Math.pow(10, splToken.decimals))
+    });
+
+    transferTokenInstructions.push({
+      instructions: transferTokenInstr,
+      keypair: tokenFundingWallet
+    });
+  }
+
+  const groupedTransferInstructions: {instructions: TransactionInstruction[], keypair: Keypair}[][] = [];
+  const groupSize = 7;
+
+  for (let i = 0; i < transferTokenInstructions.length; i += groupSize) {
+    groupedTransferInstructions.push(transferTokenInstructions.slice(i, i + groupSize));
+  }
+
+  for (const group of groupedTransferInstructions) {
+    const allInstructions = _.flatten(group.map((item) => item.instructions))
+    const allSigners = group.map((item) => item.keypair)
+
+    const { transaction: tokenTransaction, blockhash: tokenBlockhash } = await createTransactionForInstructions({
+      wallet: allSigners[0].publicKey.toBase58(),
+      instructions: allInstructions,
+      signers: allSigners,
+    })
+
+    const { txSig: tokenTxSig, confirmedResult: tokenConfirmedResult } = await sendAndConfirmTransactionAndRetry(tokenTransaction, tokenBlockhash)
+
+    console.log('Transaction sent and confirmed:', tokenTxSig, tokenConfirmedResult);
+  }
 })
 
 program.command('executeJupiterSwap').action(async () => {
@@ -423,7 +525,7 @@ program.command('sendFromSniperToMain').action(async () => {
     }
   })
 
-  const transferInstructions: {instruction: TransactionInstruction, keypair: Keypair}[] = []
+  const transferInstructions: {instructions: TransactionInstruction[], keypair: Keypair}[] = []
 
   for (const snipingWallet of snipingWallets) {
     const {tokenAccountPubkey, tokenBalance} = await getTokenBalanceForOwner({
@@ -434,7 +536,7 @@ program.command('sendFromSniperToMain').action(async () => {
     console.log(`${snipingWallet.pubkey} has ${tokenBalance?.uiAmount} `);
 
     if (!!tokenAccountPubkey && tokenBalance?.uiAmount && tokenBalance.uiAmount > 0) {
-      const transferInstruction = await transferTokenInstruction({
+      const transferTokenInstructions = await transferTokenInstruction({
         mint: tokenMint,
         from: new PublicKey(snipingWallet.pubkey),
         sourceTokenAccountPubkey: tokenAccountPubkey,
@@ -445,13 +547,13 @@ program.command('sendFromSniperToMain').action(async () => {
       const keypair = decryptWallet(snipingWallet.encryptedPrivKey)
 
       transferInstructions.push({
-        instruction: transferInstruction,
+        instructions: transferTokenInstructions,
         keypair
       })
     }
   }
 
-  const groupedTransferInstructions: {instruction: TransactionInstruction, keypair: Keypair}[][] = [];
+  const groupedTransferInstructions: {instructions: TransactionInstruction[], keypair: Keypair}[][] = [];
   const groupSize = 7;
 
   for (let i = 0; i < transferInstructions.length; i += groupSize) {
@@ -459,7 +561,7 @@ program.command('sendFromSniperToMain').action(async () => {
   }
 
   for (const group of groupedTransferInstructions) {
-    const allInstructions = group.map((item) => item.instruction)
+    const allInstructions = _.flatten(group.map((item) => item.instructions))
     const allSigners = group.map((item) => item.keypair)
 
     const { transaction, blockhash } = await createTransactionForInstructions({
@@ -472,6 +574,23 @@ program.command('sendFromSniperToMain').action(async () => {
 
     console.log('Transaction sent and confirmed:', txSig, confirmedResult);
   }
+})
+
+program.command('scheduleNextBuyJob').action(async () => {
+  const botCustomer = await getBotCustomerByName('Puff')
+  const activeCycle = await getActiveMarketMakingCycleByBotCustomerId({
+    botCustomerId: botCustomer.id
+  })
+
+  if (!activeCycle) {
+    console.error('No active market making cycle found')
+    return
+  }
+
+  await scheduleNextBuyJob({
+    cycleId: activeCycle.id,
+    startInSeconds: 10
+  })
 })
 
 program.parse(process.argv);

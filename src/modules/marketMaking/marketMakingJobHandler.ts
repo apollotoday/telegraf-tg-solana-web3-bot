@@ -43,6 +43,7 @@ export async function handleOpenMarketMakingJobs() {
         lte: new Date(),
         not: null,
       },
+      buyStatus: EJobStatus.FINISHED,
       sellStatus: EJobStatus.OPEN,
       OR: [
         {

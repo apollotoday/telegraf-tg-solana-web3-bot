@@ -1,7 +1,7 @@
 module.exports = {
   apps: [
     {
-      script: './build/index.js',
+      script: './dist/index.js',
       instances: '1',
       exec_mode: 'cluster',
       name: 'momentum-bot',
@@ -16,7 +16,7 @@ module.exports = {
       },
     },
     {
-      script: './build/index.js',
+      script: './dist/index.js',
       instances: '-1',
       exec_mode: 'cluster',
       name: 'replica',

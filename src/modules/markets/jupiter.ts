@@ -148,6 +148,12 @@ export async function executeJupiterSwap(
 export async function getBalances({txSig, tokenMint, ownerPubkey}: {txSig: string, tokenMint: string, ownerPubkey: PublicKey}) {
   const detectedTransaction = await connection.getParsedTransaction(txSig, {commitment: 'confirmed', maxSupportedTransactionVersion: 200})
 
+  if (detectedTransaction?.meta?.err) {
+    console.log('Transaction failed', detectedTransaction.meta.err)
+    
+    throw new Error(`Transaction failed: ${detectedTransaction.meta.err.toString()}`)
+  }
+
   const inputTokenBalance = detectedTransaction?.meta?.preTokenBalances?.find(b => b.mint === tokenMint && b.owner === ownerPubkey.toString())?.uiTokenAmount
   const outputTokenBalance = detectedTransaction?.meta?.postTokenBalances?.find(b => b.mint === tokenMint && b.owner === ownerPubkey.toString())?.uiTokenAmount
 

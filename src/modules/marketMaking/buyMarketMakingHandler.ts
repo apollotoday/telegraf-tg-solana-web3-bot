@@ -21,7 +21,7 @@ export async function handleBuyMarketMakingJob(job: MarketMakingJobWithCycleAndB
       customerId: job.cycle.botCustomerId,
       walletType: EWalletType.MARKET_MAKING,
       minSolBalance: job.cycle.buyMinAmount,
-      minTokenBalance: 0,
+      minTokenBalance: -1,
     })
 
     console.log(`Using wallet ${wallet.pubkey} for buy job ${job.id}`)
@@ -147,7 +147,10 @@ export async function updateBuyJobsWithValues() {
       buyWalletPubkey: {
         not: null
       },
-      tokenBought: 0
+      tokenBought: 0,
+      buyStatus: {
+        not: EJobStatus.FAILED
+      }
     },
     include: {
       cycle: {
@@ -166,35 +169,48 @@ export async function updateBuyJobsWithValues() {
       continue
     }
 
-    const { tokenDifference, solPreBalance, solPostBalance, outputTokenBalance, lamportsDifference, inputTokenBalance } = await getBalances({
-      txSig: job.buyTransactionSignature,
-      tokenMint: job.cycle.bookedService.usedSplTokenMint,
-      ownerPubkey: new PublicKey(job.buyWalletPubkey),
-    })
+    try {
 
-    console.log(`Found token difference ${tokenDifference}, sol pre balance ${solPreBalance}, sol post balance ${solPostBalance}, output token balance ${outputTokenBalance?.uiAmount}, lamports difference ${lamportsDifference}, input token balance ${inputTokenBalance}`)
+
+      const { tokenDifference, solPreBalance, solPostBalance, outputTokenBalance, lamportsDifference, inputTokenBalance } = await getBalances({
+        txSig: job.buyTransactionSignature,
+        tokenMint: job.cycle.bookedService.usedSplTokenMint,
+        ownerPubkey: new PublicKey(job.buyWalletPubkey),
+      })
   
+      console.log(`Found token difference ${tokenDifference}, sol pre balance ${solPreBalance}, sol post balance ${solPostBalance}, output token balance ${outputTokenBalance?.uiAmount}, lamports difference ${lamportsDifference}, input token balance ${inputTokenBalance}`)
     
-    const updatedWallet = await prisma.botCustomerWallet.update({
-      where: { pubkey: job.buyWalletPubkey },
-      data: {
-        latestTokenBalance: {
-          increment: tokenDifference,
+      
+      const updatedWallet = await prisma.botCustomerWallet.update({
+        where: { pubkey: job.buyWalletPubkey },
+        data: {
+          latestTokenBalance: {
+            increment: tokenDifference,
+          },
         },
-      },
-    })
+      })
+  
+      console.log(`Updated wallet ${job.buyWalletPubkey} with latest token balance ${updatedWallet.latestTokenBalance}`)
+  
+      const updatedJob = await prisma.marketMakingJob.update({
+        where: { id: job.id },
+        data: {
+          buyOutputTokenBalance: outputTokenBalance?.uiAmount,
+          tokenBought: tokenDifference,
+        },
+      })
+  
+      console.log(`Updated buy job ${job.id} with token bought ${updatedJob.tokenBought}`)
+    } catch (e: any) {
+      console.log(`Error while updating buy job ${job.id}: ${e}`)
 
-    console.log(`Updated wallet ${job.buyWalletPubkey} with latest token balance ${updatedWallet.latestTokenBalance}`)
-
-    const updatedJob = await prisma.marketMakingJob.update({
-      where: { id: job.id },
-      data: {
-        buyOutputTokenBalance: outputTokenBalance?.uiAmount,
-        tokenBought: tokenDifference,
-      },
-    })
-
-    console.log(`Updated buy job ${job.id} with token bought ${updatedJob.tokenBought}`)
+      if (e.message.includes('Transaction failed')) {
+        await prisma.marketMakingJob.update({
+          where: { id: job.id },
+          data: { buyStatus: EJobStatus.FAILED },
+        })
+      }
+    }
   }
 }
 
