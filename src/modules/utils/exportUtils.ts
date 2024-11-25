@@ -22,7 +22,7 @@ export async function exportSniperWallets(customer: string) {
 
   console.log(`Found ${botCustomerWallets.length} sniper wallets for customer ${sniperBotCustomer.name}`)
 
-  const filePath = path.join(process.cwd(), `${sniperBotCustomer.name}_${new Date().toISOString().split('T')[0]}_wallets.txt`);
+  const filePath = path.join(process.cwd(), `export_wallets/${sniperBotCustomer.name}_${new Date().toISOString().split('T')[0]}_wallets.txt`);
   const header = 'pubkey,private_key\n';
   fs.writeFileSync(filePath, header);
 

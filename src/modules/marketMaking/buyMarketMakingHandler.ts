@@ -121,7 +121,7 @@ export async function handleBuyMarketMakingJob(job: MarketMakingJobWithCycleAndB
 
     console.log(`Updated market making cycle ${job.cycleId} with sol spent for cycle ${updatedCycle.solSpentForCycle}`)
 
-    if (updatedCycle.solSpentForCycle && updatedCycle.solSpentForCycle > updatedCycle.maxSolSpentForCycle) {
+    if (updatedCycle.solSpentForCycle && updatedCycle.solSpentForCycle > updatedCycle.maxSolSpentForCycle && updatedCycle.isActive) {
       console.log(`Market making cycle ${job.cycleId} has spent more than maxSolSpentForCycle, deactivating cycle`)
       await prisma.marketMakingCycle.update({
         where: { id: job.cycleId },
