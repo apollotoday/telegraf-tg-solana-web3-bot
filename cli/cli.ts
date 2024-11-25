@@ -15,6 +15,7 @@ import { overwriteConsoleLog } from '../src/modules/utils/changeConsoleLogWithTi
 import { scheduleNextBuyJob, updateBuyJobsWithValues } from '../src/modules/marketMaking/buyMarketMakingHandler';
 import { getActiveMarketMakingCycleByBotCustomerId, setupMarketMakingCycle } from '../src/modules/marketMaking/marketMakingService';
 import { getTokenBalanceForOwner, transferTokenInstruction } from '../src/modules/utils/splUtils';
+import { exportSniperWallets } from '../src/modules/utils/exportUtils';
 import _ from 'lodash';
 
 const program = new Command();
@@ -180,9 +181,46 @@ program.command('setRequiredFieldsForDrewMarketMaking').action(async () => {
   })
 })
 
+program.command('inspectMarketMakingCycle').option('-c, --customer <customer>', 'The customer to inspect').action(async (opts) => {
+  const customer = opts.customer
 
-program.command('inspectCustomerWallets').action(async () => {
-  const botCustomer = await getBotCustomerByName('Puff')
+  const botCustomer = await getBotCustomerByName(customer)
+
+  const cycle = await getActiveMarketMakingCycleByBotCustomerId({
+    botCustomerId: botCustomer.id
+  })
+
+  if (!cycle) {
+    console.error('no active market making cycle found');
+    return;
+  }
+
+  const jobs = await prisma.marketMakingJob.findMany({
+    where: {
+      cycleId: cycle.id
+    }
+  })
+
+
+
+  const totalBuyAmount = jobs.reduce((acc, curr) => acc + (curr.solSpent ?? 0), 0)
+  const totalSellAmount = jobs.reduce((acc, curr) => acc + (curr.solEarned ?? 0), 0)
+
+  console.log(`total buy amount: ${totalBuyAmount} SOL`)
+  console.log(`total sell amount: ${totalSellAmount} SOL`)
+
+  const buyAmount24Hr = jobs.reduce((acc, curr) => acc + (curr.executedAtForBuy && curr.executedAtForBuy > new Date(Date.now() - 24 * 60 * 60 * 1000) ? curr.solSpent ?? 0 : 0), 0)
+  const sellAmount24Hr = jobs.reduce((acc, curr) => acc + (curr.executedAtForSell && curr.executedAtForSell > new Date(Date.now() - 24 * 60 * 60 * 1000) ? curr.solEarned ?? 0 : 0), 0)
+
+  console.log(`buy amount 24hr: ${buyAmount24Hr} SOL`)
+  console.log(`sell amount 24hr: ${sellAmount24Hr} SOL`)
+})
+
+program.command('inspectCustomerWallets').option('-c, --customer <customer>', 'The customer to inspect').action(async (opts) => {
+
+  const customer = opts.customer
+
+  const botCustomer = await getBotCustomerByName(customer)
 
   const bookedService = await getActiveBookedServiceByBotCustomerId({
     botCustomerId: botCustomer.id,
@@ -474,43 +512,56 @@ program.command('convertBase58ToUint8').action(async () => {
   console.log(uint8Array.toString());
 })
 
+program.command('exportSniperWallets').option('-c, --customer <customer>', 'The customer to get the wallets for').action(async (opts) => {
+  const customer = opts.customer
 
-program.command('generateSniperWallets').action(async () => {
-  const sniperBotCustomer = await createBotCustomer({
-    name: 'PF_SNIPER'
-  })
-
-  console.log(`created bot customer ${sniperBotCustomer.id}: ${sniperBotCustomer.name}`);
-
-  const botCustomerWalletCreate = await createAndStoreBotCustomerWallets({
-    subWalletCount: 20,
-    walletType: EWalletType.SNIPING,
-    customerId: sniperBotCustomer.id,
-  })
-
-  const botCustomerWallets = await prisma.botCustomerWallet.findMany({
-    where: {
-      botCustomerId: sniperBotCustomer.id,
-      type: EWalletType.SNIPING
-    }
-  })
-
-  const fs = require('fs');
-  const path = require('path');
-
-  const filePath = path.join(__dirname, 'wallet_keys.txt');
-  const header = 'pubkey,private_key\n';
-  fs.writeFileSync(filePath, header);
-
-  for (const wallet of botCustomerWallets) {
-    const decryptedWallet = decryptWallet(wallet.encryptedPrivKey);
-    const line = `${wallet.pubkey},${uint8ArrayToBase58(decryptedWallet.secretKey)}\n`;
-    fs.appendFileSync(filePath, line);
+  if (!customer) {
+    console.error('Customer is required')
+    return
   }
 
-  console.log(`Exported wallet keys to ${filePath}`);
+  await exportSniperWallets(customer)
+})
 
 
+program.command('createCustomer').option('-n, --name <name>', 'The name of the new customer').action(async (opts) => {
+  const name = opts.name
+
+  if (!name) {
+    console.error('Customer name is required')
+    return
+  }
+
+  const newCustomer = await createBotCustomer({
+    name: name
+  })
+
+  console.log(`Created new customer with ID ${newCustomer.id} and name ${newCustomer.name}`);
+})
+
+
+
+program.command('generateAndExportSniperWallets').option('-c, --customer <customer>', 'The customer to generate the wallets for').option('-w, --walletCount <walletCount>', 'The number of wallets to generate').action(async (opts) => {
+
+  const customer = opts.customer
+  const walletCount = opts.walletCount ?? 200
+
+  if (!customer) {
+    console.error('Customer is required')
+    return
+  }
+
+  const botCustomer = await getBotCustomerByName(customer)
+
+  console.log(`created bot customer ${botCustomer.id}: ${botCustomer.name}`);
+
+  const botCustomerWalletCreate = await createAndStoreBotCustomerWallets({
+    subWalletCount: walletCount,
+    walletType: EWalletType.SNIPING,
+    customerId: botCustomer.id,
+  })
+
+  await exportSniperWallets(customer)
 })
 
 program.command('sendFromSniperToMain').action(async () => {
@@ -576,8 +627,16 @@ program.command('sendFromSniperToMain').action(async () => {
   }
 })
 
-program.command('scheduleNextBuyJob').action(async () => {
-  const botCustomer = await getBotCustomerByName('Puff')
+program.command('scheduleNextBuyJob').option('-c, --customer <customer>', 'The customer to schedule the next buy job for').action(async (opts) => {
+  const customer = opts.customer
+
+  console.log(`Passed customer: ${customer}`)
+
+  if (!customer) {
+    console.error('Customer is required')
+    return
+  }
+  const botCustomer = await getBotCustomerByName(customer)
   const activeCycle = await getActiveMarketMakingCycleByBotCustomerId({
     botCustomerId: botCustomer.id
   })

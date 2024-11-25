@@ -63,8 +63,10 @@ export async function handleBuyMarketMakingJob(job: MarketMakingJobWithCycleAndB
       job.cycle.maxDurationBetweenBuyAndSellInSeconds,
     )
 
+    const minDurationBetweenJobs = job.cycle.minDurationBetweenJobsInSeconds > minSecondsUntilSell ? job.cycle.minDurationBetweenJobsInSeconds : minSecondsUntilSell + 5
+
     // minSecondsUntilNextJob is the minimum time until the next job starts, minimum is minSecondsUntilSell + 5 seconds
-    const minSecondsUntilNextJob = getRandomInt(minSecondsUntilSell + 5, job.cycle.maxDurationBetweenJobsInSeconds)
+    const minSecondsUntilNextJob = getRandomInt(minDurationBetweenJobs, job.cycle.maxDurationBetweenJobsInSeconds)
 
     // SCHEDULE SELL
     const updatedJob = await prisma.marketMakingJob.update({
