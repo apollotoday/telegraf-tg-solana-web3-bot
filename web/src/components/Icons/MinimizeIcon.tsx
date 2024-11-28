@@ -10,9 +10,9 @@ export const MinimizeIcon = ({ width = 32, height = 32 }) => {
       <path
         d="M5.33333 18.6667H13.3333M13.3333 18.6667V26.6667M13.3333 18.6667L4 28M26.6667 13.3333H18.6667M18.6667 13.3333V5.33333M18.6667 13.3333L28 4"
         stroke="url(#paint0_linear_510_10766)"
-        stroke-width="2.66667"
-        stroke-linecap="round"
-        stroke-linejoin="round"
+        strokeWidth="2.66667"
+        strokeLinecap="round"
+        strokeLinejoin="round"
       />
       <defs>
         <linearGradient
@@ -23,8 +23,8 @@ export const MinimizeIcon = ({ width = 32, height = 32 }) => {
           y2="28"
           gradientUnits="userSpaceOnUse"
         >
-          <stop stop-color="white" />
-          <stop offset="1" stop-color="#D19EFC" />
+          <stop stopColor="white" />
+          <stop offset="1" stopColor="#D19EFC" />
         </linearGradient>
       </defs>
     </svg>

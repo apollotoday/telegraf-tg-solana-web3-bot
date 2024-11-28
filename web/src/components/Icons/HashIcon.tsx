@@ -20,9 +20,9 @@ export const HashIcon = ({ width = 23, height = 27 }) => {
           gradientUnits="userSpaceOnUse"
           gradientTransform="translate(11.2813 14) rotate(78.3778) scale(36.9351 10.0977)"
         >
-          <stop stop-color="white" />
-          <stop offset="0.551808" stop-color="#A2A2A2" />
-          <stop offset="0.888076" stop-color="white" />
+          <stop stopColor="white" />
+          <stop offset="0.551808" stopColor="#A2A2A2" />
+          <stop offset="0.888076" stopColor="white" />
         </radialGradient>
       </defs>
     </svg>
