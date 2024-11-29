@@ -66,3 +66,9 @@ export async function findAndCreateAssociatedTokenAccount(mint: PublicKey, owner
     instruction: createAssociatedTokenAccountInstruction(payer, createdDestTokenAccountAddress, owner, mint),
   }
 }
+
+// Function to parse token amount from buffer (assuming 8 bytes and BigInt)
+export function parseTokenAmount(buffer: Buffer): number {
+  return Number(BigInt(buffer.readBigUInt64LE(0)))
+}
+

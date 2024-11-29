@@ -107,7 +107,7 @@ export async function confirmTransactionSignatureAndRetry(
 export async function sendSol(args: { from: Keypair; to: PublicKey; amount: Sol; feePayer?: Keypair }) {
   const instructions = [
     ComputeBudgetProgram.setComputeUnitPrice({
-      microLamports: 20000,
+      microLamports: 5001,
     }),
     SystemProgram.transfer({
       fromPubkey: args.from.publicKey,
@@ -133,19 +133,30 @@ export async function sendSol(args: { from: Keypair; to: PublicKey; amount: Sol;
   return await sendAndConfirmRawTransactionAndRetry(transaction);
 }
 
-export async function closeWallet(args: { from: Keypair; to: Keypair; waitTime?: number }) {
+export async function closeWallet(args: { from: Keypair; to: Keypair; feePayer?: Keypair; waitTime?: number }) {
   const { waitTime = 5000 } = args;
   const waitPerRetry = 500;
   const retries = Math.floor(waitTime / waitPerRetry);
+  console.log(`Waiting for ${retries} retries`)
   let balance = 0;
 
   for (let i = 0; i < retries; i++) {
-    balance = await connection.getBalance(args.from.publicKey);
-    if (balance > 0) {
+    console.log(`Checking balance for ${args.from.publicKey.toBase58()} for the ${i + 1} time`)
+    balance = await connection.getBalance(args.from.publicKey, 'confirmed');
+    const balanceFound = balance / LAMPORTS_PER_SOL
+    if (balanceFound > (0.1)) {
+      console.log(`Balance is ${balanceFound} SOL, greater than 0.1 SOL, breaking`)
       break;
+    } else {
+      console.log(`Balance is ${balanceFound} SOL, waiting for ${waitPerRetry}ms`)
     }
+
     await sleep(waitPerRetry);
   }
 
-  return await sendSol({ from: args.from, to: args.to.publicKey, amount: Sol.fromLamports(balance), feePayer: args.to });
+  if (balance < (0.1 * LAMPORTS_PER_SOL)) {
+    throw new Error(`Balance is less than 0.1 SOL, cannot close wallet`)
+  }
+
+  return await sendSol({ from: args.from, to: args.to.publicKey, amount: Sol.fromLamports(balance), feePayer: args.feePayer ?? args.to });
 }

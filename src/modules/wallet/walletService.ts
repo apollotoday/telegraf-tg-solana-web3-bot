@@ -104,7 +104,7 @@ export async function createAndStoreBotCustomerWallets({
     subWalletCount,
   })
 
-  return await prisma.botCustomerWallet.createMany({
+  const dbCreateResult = await prisma.botCustomerWallet.createMany({
     data: wallets.map((wallet) => ({
       pubkey: wallet.pubkey,
       encryptedPrivKey: wallet.encryptedPrivKey,
@@ -112,6 +112,11 @@ export async function createAndStoreBotCustomerWallets({
       type: walletType,
     })),
   })
+
+  return {
+    wallets,
+    walletCount: dbCreateResult.count
+  }
 }
 
 export async function getDepositWalletFromCustomer({ botCustomerId }: { botCustomerId: string }) {

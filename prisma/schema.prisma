@@ -17,6 +17,7 @@ enum EWalletType {
   FEES
   MARKET_MAKING
   SNIPING
+  SNIPING_FUNDING
 }
 
 enum EJobStatus {
