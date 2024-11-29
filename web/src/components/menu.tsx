@@ -4,7 +4,7 @@ import Link from "next/link";
 export const HeaderMenu = () => {
   return (
     <div>
-      <ul className="flex gap-[16px]">
+      <ul className="flex gap-[5px] lg:gap-[16px]">
         {Menu.map((list) => {
           return (
             <li
