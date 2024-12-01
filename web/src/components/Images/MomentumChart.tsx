@@ -1,4 +1,4 @@
-export const MomentumChart = ({ width = 437, height = 330 }) => {
+export const MomentumChart = ({ width = "437px", height = "330px" }) => {
   return (
     <svg
       width={width}

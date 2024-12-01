@@ -1,5 +1,5 @@
 import { Box, Flex } from "@chakra-ui/react";
-import { WhiteButton, NoBgButton } from "@/components/Buttons";
+import { NoBgButton, AccessBotButton } from "@/components/Buttons";
 import { ChevronRightIcon } from "@/components/Icons";
 import {
   HashIcon,
@@ -16,10 +16,10 @@ const RankingCard = () => {
       flexDirection={"column"}
       border={"1px solid #202020"}
       borderRadius={"24px"}
-      p={"32px"}
+      p={{ base: "16px", md: "32px" }}
       bgImage={config.background}
       bgSize={"cover"}
-      bgPos={"center"}
+      bgPos={"right"}
       position={"relative"}
     >
       <div className="font-medium text-[20px] leading-[30px] z-[2]">
@@ -29,25 +29,18 @@ const RankingCard = () => {
         {config.description}
       </div>
       <div className="md:absolute top-[66px] right-[64px] z-[1]">
-        <MomentumChart />
+        <MomentumChart width="100%" />
       </div>
       <Flex
         gap={"24px"}
         mt={{ md: "156px" }}
         flexDir={{ base: "column", sm: "row" }}
+        alignItems={"center"}
+        zIndex={10}
       >
-        <WhiteButton width={"197px"}>
-          <Box
-            color={"#1C1C1C"}
-            fontWeight={"600"}
-            fontSize={"16px"}
-            mr={"10px"}
-          >
-            Access Our Bot
-          </Box>
-          <ChevronRightIcon />
-        </WhiteButton>
-        <NoBgButton>
+        <AccessBotButton />
+
+        <NoBgButton w={"194px"}>
           <Box
             color={"#898989"}
             fontWeight={"600"}
@@ -60,7 +53,7 @@ const RankingCard = () => {
         </NoBgButton>
       </Flex>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 mt-[30px] mx-[-32px] z-[10] bg-black">
+      <div className="grid grid-cols-1 md:grid-cols-2 mt-[30px] mx-[-16px] md:mx-[-32px] z-[10] bg-black">
         {config.cards.map((card, index) => {
           return (
             <Flex

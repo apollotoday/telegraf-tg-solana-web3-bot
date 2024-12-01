@@ -4,7 +4,6 @@ import { Box, Flex, VStack } from "@chakra-ui/react";
 import Header from "@/components/Layout/Header";
 import Footer from "@/components/Layout/Footer";
 import { AccessBotButton, NoBgButton, WhiteButton } from "@/components/Buttons";
-import { ChevronRightIcon, HeartIcon, SolanaIcon } from "@/components/Icons";
 import {
   RankingCard,
   BoostCard,
@@ -17,16 +16,20 @@ import {
   TrendUpIcon,
   PlusCircleIcon,
   CoinsIcon,
+  ChevronRightIcon,
+  HeartIcon,
+  SolanaIcon,
 } from "@/components/Icons";
 
 const Home = () => {
   return (
-    <div className="w-screen relative justify-center">
+    <div className="w-full relative justify-center bg-black">
       <Header />
+
       <main className="w-full">
         {/* Hero component */}
-        <div className="min-h-[15px]"></div>
-        <div className="relative text-center w-full">
+        <div className="min-h-[15px] w-full"></div>
+        <div className="relative text-center w-full flex flex-col">
           <div className="absolute top-0 w-full h-[685px] bg-[url('/images/Grid.png')] bg-contain bg-center" />
           <Box
             w={"full"}
@@ -41,6 +44,18 @@ const Home = () => {
             backgroundSize="cover"
             backgroundPosition="center"
             backgroundRepeat="no-repeat"
+            zIndex={5}
+          />
+          <Box
+            bg="radial-gradient(circle, rgba(0, 0, 0, 1) 0%, rgba(0, 0, 0, 1) 100%)"
+            width={"1204px"}
+            height={"533px"}
+            pos={"absolute"}
+            top={"310px"}
+            left={"50%"}
+            borderRadius={"50%"}
+            transform={"translateX(-50%)"}
+            zIndex={7}
           />
           <div className="relative z-10">
             <div className="font-medium text-[60px] leading-[72px] text-center max-w-[906px] mx-auto pt-[59px] bg-gradient-to-r from-white via-gray-400 to-white bg-clip-text text-transparent">
@@ -59,7 +74,7 @@ const Home = () => {
                   <ChevronRightIcon color="grey" />
                 </NoBgButton>
               </div>
-              <Box justifyContent={"center"} display={"flex"}>
+              <Box justifyContent={"center"} display={"flex"} zIndex={5}>
                 <Image
                   src={config.images.botImage}
                   alt="Momentum Bot"
@@ -74,9 +89,10 @@ const Home = () => {
             <div className="font-normal text-[16px] leading-[24px] mt-[24px] text-[#898989]">
               {config.hero.footerDescription}
             </div>
-            <div className="absolute w-[80%] top-[310px] left-1/2 transform -translate-x-1/2 h-[553px] bg-black backdrop-blur-md rounded-full"></div>
+            {/* <div className="absolute w-[80%] top-[310px] left-1/2 transform -translate-x-1/2 h-[553px] bg-black backdrop-blur-md rounded-full"></div> */}
           </div>
         </div>
+
         {/* binary code component */}
         <Box
           width={"full"}
@@ -86,7 +102,9 @@ const Home = () => {
           backgroundPosition="center"
           backgroundRepeat="no-repeat"
         />
-        <div className="grid grid-cols-1 md:grid-cols-2 px-[48px] gap-[18px]">
+
+        {/* card component */}
+        <div className="grid grid-cols-1 md:grid-cols-2 px-[12px] md:px-[48px] gap-[18px]">
           <VolumeCard
             title={config.cards.volume.title}
             description={config.cards.volume.description}
@@ -103,7 +121,7 @@ const Home = () => {
             bgPos={"right"}
           />
         </div>
-        <div className="px-[48px] mt-[18px]">
+        <div className="px-[12px] md:px-[48px] mt-[18px]">
           <RankingCard />
         </div>
 
@@ -113,45 +131,71 @@ const Home = () => {
           justifyContent={"center"}
           alignItems={"center"}
           textAlign={"center"}
+          position={"relative"}
+          mt={"29px"}
+          px={{ base: "20px" }}
+          overflow={"hidden"}
         >
           <Box
-            {...styleConfig.radialGradientText}
-            // color={"white"}
-            fontSize={"32px"}
-            lineHeight={"44px"}
-            fontWeight={500}
-          >
-            {config.launch.title}
-          </Box>
+            w={"full"}
+            h={"903px"}
+            pos={"absolute"}
+            top={0}
+            bgImage={config.launch.background}
+            bgSize={"contain"}
+            bgPos={"center"}
+          />
           <Box
-            maxW={"566px"}
-            fontSize={"16px"}
-            color={"#898989"}
-            lineHeight={"24px"}
-            fontWeight={"400"}
-          >
-            {config.launch.description}
-          </Box>
-          <Box
-            p={"8px 32px"}
-            bgColor={"#151515"}
-            color={"white"}
-            borderRadius={"161px"}
-          >
-            {config.launch.title}
-          </Box>
-        </Flex>
+            bg="radial-gradient(circle, rgba(0, 0, 0, 0) 0%, rgba(0, 0, 0, 1) 60%)"
+            width={"1738px"}
+            height={"100vh"}
+            pos={"absolute"}
+            transform="translateY(-50%)"
+            top={"383px"}
+            zIndex={7}
+          />
+          <div className="z-[5] mt-[50px] md:mt-[239px]">
+            <Box
+              {...styleConfig.radialGradientText}
+              // color={"white"}
+              fontSize={"32px"}
+              lineHeight={"44px"}
+              fontWeight={500}
+            >
+              {config.launch.title}
+            </Box>
+            <Box
+              maxW={"566px"}
+              fontSize={"16px"}
+              color={"#898989"}
+              lineHeight={"24px"}
+              fontWeight={"400"}
+              mt={"24px"}
+            >
+              {config.launch.description}
+            </Box>
+            <Box
+              p={"8px 32px"}
+              bgColor={"#151515"}
+              color={"white"}
+              borderRadius={"161px"}
+              mt={"24px"}
+            >
+              {config.launch.button}
+            </Box>
+          </div>
 
-        {/* Package cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-[32px] px-[80px]">
-          {config.packages.map((pck, index) => {
-            return <PackageCard key={index} {...pck} />;
-          })}
-        </div>
+          {/* Package cards */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-[32px] px-0 md:px-[80px] mt-[51px] z-[10]">
+            {config.packages.map((pck, index) => {
+              return <PackageCard key={index} {...pck} />;
+            })}
+          </div>
+        </Flex>
 
         {/* Try Momentum */}
         <VStack
-          mx={"48px"}
+          mx={{ base: "24px", md: "48px" }}
           bgColor={"#000000"}
           bgImage={config.images.starBackground}
           bgSize={"cover"}
@@ -162,8 +206,9 @@ const Home = () => {
           direction={"column"}
           justifyContent={"center"}
           mt={"47px"}
+          textAlign={"center"}
         >
-          <VStack gap={"24px"}>
+          <VStack gap={"24px"} px={"10px"}>
             <Box
               bgColor={"#151515B3"}
               borderRadius={"161px"}
@@ -174,7 +219,7 @@ const Home = () => {
             >
               {config.tryMomentum.header}
             </Box>
-            <Box fontWeight={"normal"} fontSize={"48px"}>
+            <Box fontWeight={"normal"} fontSize={{ base: "40px", md: "48px" }}>
               {config.tryMomentum.title}
             </Box>
             <Box
@@ -203,7 +248,7 @@ const Home = () => {
               color={"#1C1C1C"}
               fontWeight={"600"}
               fontSize={"16px"}
-              mr={"122px"}
+              mr={{ base: "10px", md: "122px" }}
               lineHeight={"24px"}
             >
               {config.tryMomentum.button}
@@ -212,6 +257,7 @@ const Home = () => {
           </WhiteButton>
           <Box
             mt={"19px"}
+            px={"12px"}
             lineHeight={"20px"}
             color={"#898989"}
             fontSize={"14px"}
@@ -221,7 +267,22 @@ const Home = () => {
           </Box>
         </VStack>
 
-        <VStack pos={"relative"}>
+        <VStack
+          pos={"relative"}
+          textAlign={"center"}
+          px={"10px"}
+          overflow={"hidden"}
+        >
+          <Box
+            bgImage={config.unlock.background}
+            bgSize={"cover"}
+            pos={"absolute"}
+            top={"57px"}
+            w={{ base: "100%", md: "80%" }}
+            h={"610px"}
+            bgPos={"center"}
+            left={{ base: "0px", md: "250px" }}
+          />
           <Box fontSize={"36px"} mt={"111px"}>
             {config.unlock.title}
           </Box>
@@ -237,25 +298,25 @@ const Home = () => {
           >
             {config.unlock.description}
           </Box>
-          <div className="mt-[104px]"></div>
+          <div className="mt-[104px]" />
           <Image
-            src={config.images.botImageT}
+            src={config.images.botImageS}
             alt="Momentum Bot"
             width={521}
             height={535}
             className="z-[1]"
-          ></Image>
+          />
           <Box
-            bgImage="linear-gradient(180deg, #0B0B0B, transparent)"
-            bgClip="text"
-            fontSize={"209.33px"}
-            lineHeight={"156px"}
-            letterSpacing={"-2%"}
-            bottom={"100px"}
+            mx={{ base: "30px", md: "71px" }}
             pos={"absolute"}
-            fontWeight={900}
+            bottom={{ base: "355px", md: "100px" }}
           >
-            {config.name}
+            <Image
+              alt="Momentum"
+              src={config.images.momentum}
+              width={1300}
+              height={156}
+            ></Image>
           </Box>
           <Flex
             color={"#444444"}
@@ -267,6 +328,7 @@ const Home = () => {
             w={"full"}
             bg={"#000000"}
             zIndex={1}
+            display={{ base: "none", md: "flex" }}
           >
             {config.about.first}
             <div className="px-[5px]">{config.about.icon}</div>
@@ -274,7 +336,6 @@ const Home = () => {
           </Flex>
         </VStack>
       </main>
-
       <Footer />
     </div>
   );
@@ -282,10 +343,11 @@ const Home = () => {
 
 const config = {
   images: {
+    momentum: "/images/MOMENTUM.svg",
     grid: "url(/images/Grid.png)",
     botImage: "/images/MomentumBot.png",
-    botImageT: "/images/MomentumBot_T.png",
-    starBackground: "url(/images/StarBackground.SVG)",
+    botImageS: "/images/MomentumBot_s.svg",
+    starBackground: "url(/images/StarBackground.png)",
   },
   name: "MOMENTUM",
   hero: {
@@ -307,10 +369,10 @@ const config = {
       title: "BOOST (combined Volume + Ranking)",
       description:
         "BOOST is crafted for the pushing existing tokens to new levels, combining our effective Ranking Bot with our Volume Bot allowing all crucial metrics to get significantly pushed with the best value for your money available.",
-      background: "url(/images/BoostCardBG.svg)",
+      background: "url(/images/BoostCardBG.png)",
     },
     ranking: {
-      background: "url(/images/StarBackground3.svg)",
+      background: "url(/images/StarBackground3.png)",
       title: "Ranking Bot (Solana)",
       description:
         "Fast Lane to Top Rankings. The Momentum Labs Rank Boost is designed to supercharge your token’s metrics and propel its ranking on Dex Screener by enhancing key factors like:",
@@ -388,6 +450,7 @@ const config = {
     description:
       "Momentum Labs is your key to boosting all crucial metrics to increase your chance for success. With powerful tools to pump your numbers and skyrocket your ranking, we’ll help you take your token launch to the next level!",
     button: "Available for Moonshot & Pump.fun",
+    background: "url(/images/LaunchBG.svg)",
   },
   tryMomentum: {
     header: "Try Momentum",
@@ -401,6 +464,7 @@ const config = {
     title: "Unlock the full potential of Momentum Labs",
     description:
       "Now seamlessly integrated into Telegram. Our user-friendly bot simplifies the process of managing and scaling your Solana project. Want to accelerate your project's growth?",
+    background: "url(/images/FooterBackground.svg)",
   },
   about: {
     first: "Made with",
@@ -411,9 +475,12 @@ const config = {
 
 const styleConfig = {
   radialGradientText: {
-    bgGradient: "radial-gradient(#FFFFFF, #A2A2A2, #FFFFFF)",
+    bgImage: "radial-gradient(#FFFFFF, #A2A2A2, #FFFFFF)",
     bgClip: "text",
     color: "transparent",
+  },
+  radialGradient: {
+    bgColor: "radial-gradient(#FFFFFF, #A2A2A2, #FFFFFF)",
   },
 };
 

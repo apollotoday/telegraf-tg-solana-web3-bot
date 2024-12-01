@@ -26,6 +26,7 @@ const PackageCard = ({
       gap={"24px"}
       border={"1px solid #202020"}
       borderRadius={"24px"}
+      bg={"#000000"}
     >
       <Box
         display={"inline-block"}
@@ -50,7 +51,12 @@ const PackageCard = ({
       <Flex className="gap-[24px]" flexDir={"column"} mb={"24px"}>
         {supports?.map((support, index) => {
           return (
-            <Flex key={index} alignItems={"center"} gap={"24px"}>
+            <Flex
+              key={index}
+              alignItems={"center"}
+              gap={"24px"}
+              textAlign={"left"}
+            >
               <div>{support.Icon}</div>
               <Box
                 fontWeight={400}

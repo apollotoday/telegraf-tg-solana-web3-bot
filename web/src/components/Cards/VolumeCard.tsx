@@ -1,6 +1,5 @@
 import { Box, BoxProps } from "@chakra-ui/react";
-import { WhiteButton } from "@/components/Buttons";
-import { ChevronRightIcon } from "@/components/Icons";
+import { AccessBotButton } from "@/components/Buttons";
 
 type VolumeCardType = BoxProps & {
   title: string;
@@ -14,7 +13,7 @@ const VolumeCard = ({ title, description, ...props }: VolumeCardType) => {
       flexDirection={"column"}
       border={"1px solid #202020"}
       borderRadius={"24px"}
-      p={"32px"}
+      p={{ base: "16px", md: "32px" }}
       height={"443px"}
       {...props}
     >
@@ -22,12 +21,7 @@ const VolumeCard = ({ title, description, ...props }: VolumeCardType) => {
       <div className="max-w-[334px] font-nomal text-[14px] leading-[24px] text-[#898989] mt-[8px]">
         {description}
       </div>
-      <WhiteButton width={"197px"} mt={"auto"}>
-        <Box color={"#1C1C1C"} fontWeight={"600"} fontSize={"16px"} mr={"10px"}>
-          Access Our Bot
-        </Box>
-        <ChevronRightIcon />
-      </WhiteButton>
+      <AccessBotButton mt={"auto"} />
     </Box>
   );
 };

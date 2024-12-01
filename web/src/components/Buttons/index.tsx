@@ -74,6 +74,7 @@ export const AccessBotButton = ({ ...props }: AccessBotButtonTypes) => {
       w={"194px"}
       px={"24px"}
       bgColor={"white"}
+      border={"1px solid black"}
       borderRadius={"100px"}
       {...props}
     >
