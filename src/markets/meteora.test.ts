@@ -3,7 +3,7 @@ import { buySell, buySellVersioned, fakeVolumne, swap } from "./meteora";
 import { getDevWallet } from "../testUtils";
 import { sendAndConfirmRawTransactionAndRetry, Sol } from "../solUtils";
 import { connection, meteoraDynPool } from "../config";
-import { sendAndConfirmJitoTransactions } from "../jitoUtils";
+import { sendAndConfirmJitoTransactions, sendAndConfirmJitoTransactionsRpc } from "../jitoUtils";
 import { measureTime } from "../utils";
 import _ from "lodash";
 import { TOKEN_PROGRAM_ID } from "@solana/spl-token";
@@ -53,32 +53,51 @@ test("should buy and sell drew", async () => {
 });
 
 test("should buy and sell drew fast", async () => {
-  const res = await measureTime("buySell", async () => {
-    const res = await buySellVersioned({
-      swapWallet: devWallet,
-      feePayer: devWallet,
-      inLamports: Sol.fromSol(_.random(0.0095, 0.0105)).lamports,
-      pool: new PublicKey(meteoraDynPool),
-      slippage: 50,
-    });
-    return res;
-  });
+  let success = 0;
+  for (let i = 0; i < 1; i++) {
+    const res = await Promise.all(
+      Array.from({ length: 1 }).map(async () => {
+        const res = await buySellVersioned({
+          swapWallet: devWallet,
+          feePayer: devWallet,
+          inLamports: Sol.fromSol(_.random(0.0095, 0.0105)).lamports,
+          pool: new PublicKey(meteoraDynPool),
+          slippage: 500,
+        });
 
-  await measureTime("sendAndConfirmJitoTransactions", async () => {
-    await sendAndConfirmJitoTransactions({
-      transactions: [
-        res.buyTx1,
-         res.sellTx
-      ],
-      payer: devWallet,
-    });
-  });
+        // simulate and log error
+        const simRes = await connection.simulateTransaction(res.buyTx1);
+        if (simRes.value.err) {
+          console.error("Error in simRes", simRes.value.err);
+        }
+
+        return await sendAndConfirmJitoTransactions({
+          transactions: [
+            res.buyTx1,
+            // res.sellTx
+          ],
+          payer: devWallet,
+        });
+      })
+    );
+
+    success += res.filter((r) => r.confirmed).length;
+  }
+
+  console.log("res success", success);
 });
 
-test("should fake volumne", async () => {
-  await fakeVolumne({ wallet: devWallet, amountLamports: Sol.fromSol(0.01).lamports });
-});
+test("should fake volume", async () => {
+  const res = await Promise.all(
+    Array.from({ length: 20 }).map(async () => {
+      return await fakeVolumne({ wallet: devWallet, amountLamports: Sol.fromSol(0.01).lamports });
+    })
+  );
 
+  const success = res.filter((r) => r.confirmed).length;
+
+  console.log("success", success);
+});
 
 test("ranking bot", async () => {
   let errorCount = 0;

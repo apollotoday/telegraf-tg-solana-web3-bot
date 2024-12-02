@@ -7,7 +7,7 @@ export const mainRpc = process.env.SOLANA_RPC!;
 export const devRpc = process.env.SOLANA_DEV_RPC!;
 export const net: "mainnet-beta" | "devnet" = process.env.NET! as "mainnet-beta" | "devnet";
 export const connection = new Connection(net == "mainnet-beta" ? mainRpc : devRpc);
-export const jitoFee = 500000; // 47000
+export const jitoFee = 5000000; // 47000
 export const solAddr = "So11111111111111111111111111111111111111112";
 export const tokenAddr = "14h6AkD5uSNzprMKm4yoQuQTymuYVMmmWo8EADEtTNUT";
 

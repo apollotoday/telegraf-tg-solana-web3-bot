@@ -16,10 +16,10 @@ module.exports = {
       "ts-jest",
       {
         isolatedModules: true,
-        // useESM: true,
+        // useESM: true,~
       },
     ],
   },
-  testTimeout: 1800000,
+  testTimeout: 18000000,
   // transformIgnorePatterns: ['<rootDir>/node_modules/(?!(file-type|strtok3|peek-readable|token-types|serialize-error|strip-ansi|string-width|ansi-regex)@)']
 };

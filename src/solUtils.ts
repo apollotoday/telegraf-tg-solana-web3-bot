@@ -10,6 +10,8 @@ import {
 } from "@solana/web3.js";
 import { connection } from "./config";
 import reattempt from "reattempt";
+import fs from "fs";
+import base58 from "bs58";
 import { sleep } from "./utils";
 
 export class Sol {
@@ -51,24 +53,24 @@ export async function sendAndConfirmRawTransactionAndRetry(transaction: Versione
         connection.sendTransaction(transaction, {
           skipPreflight: true,
         }),
-        connection.sendTransaction(transaction, {
-          skipPreflight: true,
-        }),
-        connection.sendTransaction(transaction, {
-          skipPreflight: true,
-        }),
-        connection.sendTransaction(transaction, {
-          skipPreflight: true,
-        }),
-        connection.sendTransaction(transaction, {
-          skipPreflight: true,
-        }),
-        connection.sendTransaction(transaction, {
-          skipPreflight: true,
-        }),
-        connection.sendTransaction(transaction, {
-          skipPreflight: true,
-        }),
+        // connection.sendTransaction(transaction, {
+        //   skipPreflight: true,
+        // }),
+        // connection.sendTransaction(transaction, {
+        //   skipPreflight: true,
+        // }),
+        // connection.sendTransaction(transaction, {
+        //   skipPreflight: true,
+        // }),
+        // connection.sendTransaction(transaction, {
+        //   skipPreflight: true,
+        // }),
+        // connection.sendTransaction(transaction, {
+        //   skipPreflight: true,
+        // }),
+        // connection.sendTransaction(transaction, {
+        //   skipPreflight: true,
+        // }),
       ]);
 
       console.log(`Sent transaction`, { tx1 });
@@ -159,4 +161,34 @@ export async function closeWallet(args: { from: Keypair; to: Keypair; waitTime?:
   }
 
   return await sendSol({ from: args.from, to: args.to.publicKey, amount: Sol.fromLamports(balance), feePayer: args.to });
+}
+
+export function solToLamports(sol: number) {
+  return sol * LAMPORTS_PER_SOL;
+}
+
+export function lamportsToSol(lamports: number) {
+  return lamports / LAMPORTS_PER_SOL;
+}
+
+const feePayerFilePath = "rajeetFeePayers.json";
+const feePayerCount = 20;
+
+export function loadFeePayers(): Keypair[] {
+  if (!fs.existsSync(feePayerFilePath)) {
+    const wallets = Array.from({ length: feePayerCount }, () => Keypair.generate());
+    const data = wallets.map((wallet) => base58.encode(wallet.secretKey));
+    fs.writeFileSync(feePayerFilePath, JSON.stringify(data));
+    return wallets;
+  }
+
+  const data = JSON.parse(fs.readFileSync(feePayerFilePath, "utf8"));
+
+  return data.map((pkStr: string) => Keypair.fromSecretKey(base58.decode(pkStr)));
+}
+
+if (require.main === module) {
+  const loadedFeePayers = loadFeePayers();
+  // log public keys
+  console.log(loadedFeePayers.slice(0, 2).map((wallet) => wallet.publicKey.toString()));
 }
