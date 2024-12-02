@@ -171,10 +171,9 @@ export function lamportsToSol(lamports: number) {
   return lamports / LAMPORTS_PER_SOL;
 }
 
-const feePayerFilePath = "rajeetFeePayers.json";
-const feePayerCount = 20;
+const feePayerFilePath = "rajeetFeePayers2.json";
 
-export function loadFeePayers(): Keypair[] {
+export function loadFeePayers(feePayerCount = 20): Keypair[] {
   if (!fs.existsSync(feePayerFilePath)) {
     const wallets = Array.from({ length: feePayerCount }, () => Keypair.generate());
     const data = wallets.map((wallet) => base58.encode(wallet.secretKey));

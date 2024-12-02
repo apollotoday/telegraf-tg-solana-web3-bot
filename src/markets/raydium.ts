@@ -720,6 +720,10 @@ export async function fakeVolumneTransaction(args: {
   const buy2FeePayer = args.buy2FeePayer ?? args.wallet;
   const sellFeePayer = args.sellFeePayer ?? args.wallet;
 
+  console.log("buy1FeePayer", buy1FeePayer.publicKey.toBase58());
+  console.log("buy2FeePayer", buy2FeePayer.publicKey.toBase58());
+  console.log("sellFeePayer", sellFeePayer.publicKey.toBase58());
+
   const [buyRes, buyRes2, sellRes] = await Promise.all([
     swapRaydium({
       amount: buyAmount1,
@@ -761,12 +765,27 @@ export async function fakeVolumneTransaction(args: {
     });
   }
 
-  if (buyRes.tx && buyRes2.tx && sellRes.tx) {
+  function sendFundsBack(feePayer: Keypair) {
+    return SystemProgram.transfer({
+      fromPubkey: buy1FeePayer.publicKey,
+      toPubkey: args.wallet.publicKey,
+      lamports: solToLamports(0.0005),
+    });
+  }
+
+  if (
+    buyRes.tx
+    // &&  buyRes2.tx && sellRes.tx
+  ) {
     const res = await sendAndConfirmJitoTransactions({
-      transactions: [buyRes.tx, buyRes2.tx, sellRes.tx],
+      transactions: [
+        buyRes.tx,
+         buyRes2.tx, sellRes.tx
+      ],
       payer: args.wallet,
-      signers: [args.wallet],
+      // signers: [args.wallet],
       feeTxInstructions: [
+        // sendFundsBack(buy1FeePayer),
         // fundFeePayer(feePayer2), fundFeePayer(feePayer3)
       ],
     });

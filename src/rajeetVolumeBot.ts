@@ -4,11 +4,32 @@ import { getDevWallet } from "./testUtils";
 import { sleep } from "./utils";
 import { connection } from "./config";
 import { fakeVolumneTransaction } from "./markets/raydium";
+import asyncBatch from "async-batch";
 
 export async function runRajeetVolumneBot() {
   const wallet = getDevWallet();
+  const wallet2 = getDevWallet(2);
 
-  const feePayerPool = loadFeePayers();
+  const feePayerPool = loadFeePayers(5);
+
+  async function fundFeePayerIfNeeded(feePayer: Keypair) {
+    const balanceLamports = await connection.getBalance(feePayer.publicKey);
+    const balance = balanceLamports / LAMPORTS_PER_SOL;
+    if (balance < 0.00002) {
+      await sendSol({ from: wallet, to: feePayer.publicKey, amount: Sol.fromSol(0.002) });
+      await sleep(2000);
+    }
+  }
+
+  console.log("fund all fee payers");
+  // await asyncBatch(
+  //   feePayerPool,
+  //   async (feePayer) => {
+  //     await fundFeePayerIfNeeded(feePayer);
+  //   },
+  //   10
+  // );
+  console.log("finished funding all fee payers");
 
   while (true) {
     let buy1FeePayer = feePayerPool[Math.floor(Math.random() * feePayerPool.length)];
@@ -18,14 +39,6 @@ export async function runRajeetVolumneBot() {
     console.log(`buy1FeePayer: ${buy1FeePayer.publicKey.toBase58()}`);
 
     // fund fee payer function if balance is less than 0.0001 sol
-    async function fundFeePayerIfNeeded(feePayer: Keypair) {
-      const balanceLamports = await connection.getBalance(feePayer.publicKey);
-      const balance = balanceLamports / LAMPORTS_PER_SOL;
-      if (balance < 0.00002) {
-        await sendSol({ from: wallet, to: feePayer.publicKey, amount: Sol.fromSol(0.001) });
-      }
-      return {};
-    }
 
     await Promise.all([fundFeePayerIfNeeded(buy1FeePayer), fundFeePayerIfNeeded(buy2FeePayer), fundFeePayerIfNeeded(sellFeePayer)]);
 
@@ -33,16 +46,17 @@ export async function runRajeetVolumneBot() {
     await fakeVolumneTransaction({
       pool: puffPool,
       wallet,
-      swapAmount: 0.001,
-      buy1FeePayer,
-      buy2FeePayer,
-      sellFeePayer,
+      swapAmount: 0.01,
+      // buy1FeePayer: wallet2
+      buy1FeePayer: buy1FeePayer,
+      // buy2FeePayer,
+      // sellFeePayer,
     });
 
     // await fundFeePayerIfNeeded(buyFeePayer);
     // await fundFeePayerIfNeeded(sellFeePayer);
 
-    await sleep(5000);
+    // await sleep(5000);
   }
 }
 

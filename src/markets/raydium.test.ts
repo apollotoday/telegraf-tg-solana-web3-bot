@@ -1,4 +1,13 @@
-import { ComputeBudgetInstruction, ComputeBudgetProgram, Keypair, PublicKey, SystemProgram, TransactionMessage, VersionedTransaction } from "@solana/web3.js";
+import {
+  ComputeBudgetInstruction,
+  ComputeBudgetProgram,
+  Keypair,
+  PublicKey,
+  SystemProgram,
+  Transaction,
+  TransactionMessage,
+  VersionedTransaction,
+} from "@solana/web3.js";
 import { Percent, TokenAmount } from "@raydium-io/raydium-sdk";
 import { fakeVolumneTransaction, getRaydiumPoolsByTokenAddress, swapRaydium } from "./raydium";
 import reattempt from "reattempt";
@@ -102,13 +111,32 @@ test("swap raydium with different fee payer", async () => {
       const feePayer2 = Keypair.generate();
       const feePayer3 = Keypair.generate();
 
+      console.log("feePayer1", feePayer1.publicKey.toBase58());
+
       function transferFeePayerFunds(args: { feePayer: Keypair }) {
         return SystemProgram.transfer({
           fromPubkey: devWallet.publicKey,
           toPubkey: args.feePayer.publicKey,
+          lamports: Sol.fromSol(0.002).lamports,
+        });
+      }
+
+      function transferFeePayerBack(args: { feePayer: Keypair }) {
+        return SystemProgram.transfer({
+          fromPubkey: args.feePayer.publicKey,
+          toPubkey: devWallet.publicKey,
           lamports: Sol.fromSol(0.001).lamports,
         });
       }
+
+      const sendBackTx = new VersionedTransaction(
+        new TransactionMessage({
+          instructions: [transferFeePayerBack({ feePayer: feePayer1 })],
+          payerKey: feePayer1.publicKey,
+          recentBlockhash: (await connection.getLatestBlockhash()).blockhash,
+        }).compileToV0Message()
+      );
+      sendBackTx.sign([feePayer1]);
 
       const [buyRes, buyRes2, sellRes] = await Promise.all([
         swapRaydium({
@@ -119,6 +147,7 @@ test("swap raydium with different fee payer", async () => {
           feePayer: feePayer1,
           poolId: puffPool,
           slippage: new Percent(10, 100),
+          // additionalInstructions: [transferFeePayerBack({ feePayer: feePayer1 })],
         }),
         swapRaydium({
           amount: buyAmount2,
@@ -142,7 +171,7 @@ test("swap raydium with different fee payer", async () => {
 
       if (buyRes.tx && buyRes2.tx && sellRes.tx) {
         const res = await sendAndConfirmJitoTransactions({
-          transactions: [buyRes.tx, buyRes2.tx, sellRes.tx],
+          transactions: [buyRes.tx, buyRes2.tx, sellRes.tx, sendBackTx],
           payer: devWallet,
           // signers: [devwallet2],
           feeTxInstructions: [
