@@ -13,6 +13,7 @@ import { connection } from '../../config'
 import { getErrorFromRPCResponse } from './web3ErrorLogs'
 import { sendAndConfirmTransactionAndRetry } from './solSendTransactionUtils'
 import _ from 'lodash'
+import reattempt from 'reattempt'
 
 export function increaseComputePriceInstruction(microLamports?: number) {
   return ComputeBudgetProgram.setComputeUnitPrice({
@@ -111,21 +112,29 @@ export async function groupSendAndConfirmTransactions(
     groupedTransferInstructions.push(transferInstructions.slice(i, i + groupSize))
   }
 
-  for (const group of groupedTransferInstructions) {
-    const allInstructions = _.flatten(group.map((item) => item.instructions))
-    const allSigners = group.map((item) => item.keypair)
+  const transactionResults = await Promise.all(
+    groupedTransferInstructions.map(async (group) => {
+      return await reattempt.run({ times: 7, delay: 100 }, async () => {
+        const allInstructions = _.flatten(group.map((item) => item.instructions))
+        const allSigners = group.map((item) => item.keypair)
 
-    const { transaction: tokenTransaction, blockhash: tokenBlockhash } = await createTransactionForInstructions({
-      wallet: feePayer.publicKey.toBase58(),
-      instructions: allInstructions,
-      signers: [feePayer, ...allSigners],
-    })
+        const { transaction: tokenTransaction, blockhash: tokenBlockhash } = await createTransactionForInstructions({
+          wallet: feePayer.publicKey.toBase58(),
+          instructions: allInstructions,
+          signers: [feePayer, ...allSigners],
+        })
 
-    const { txSig: tokenTxSig, confirmedResult: tokenConfirmedResult } = await sendAndConfirmTransactionAndRetry(
-      tokenTransaction,
-      tokenBlockhash,
-    )
+        const { txSig, confirmedResult } = await sendAndConfirmTransactionAndRetry(
+          tokenTransaction,
+          tokenBlockhash,
+        )
 
-    console.log('Transaction sent and confirmed:', tokenTxSig, tokenConfirmedResult)
-  }
+        console.log('Transaction sent and confirmed:', txSig, confirmedResult)
+
+        return { txSig, confirmedResult }
+      })
+    }),
+  )
+
+  return transactionResults
 }

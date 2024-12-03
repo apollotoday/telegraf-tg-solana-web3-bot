@@ -1,48 +1,38 @@
-import { Command } from 'commander'
-import { createBotCustomer, getBotCustomerByName } from '../src/modules/customer/botCustomer'
-import { createAndStoreBotCustomerWallets, pickRandomWalletFromCustomer } from '../src/modules/wallet/walletService'
 import { EJobStatus, EMarketMakingCycleType, EServiceType, EWalletType } from '@prisma/client'
+import { createCloseAccountInstruction, TOKEN_PROGRAM_ID } from '@solana/spl-token'
+import { Keypair, LAMPORTS_PER_SOL, PublicKey, SystemProgram, TransactionInstruction } from '@solana/web3.js'
+import { Command } from 'commander'
+import _ from 'lodash'
+import reattempt from 'reattempt'
+import { connection } from '../src/config'
 import prisma from '../src/lib/prisma'
+import { createBookedServiceAndWallet, getActiveBookedServiceByBotCustomerId } from '../src/modules/customer/bookedService'
+import { createBotCustomer, getBotCustomerByName } from '../src/modules/customer/botCustomer'
+import { scheduleNextBuyJob, updateBuyJobsWithValues } from '../src/modules/marketMaking/buyMarketMakingHandler'
+import {
+  getActiveMarketMakingCycleByBotCustomerId,
+  setupMarketMakingCycle,
+} from '../src/modules/marketMaking/marketMakingService'
+import { executeJupiterSwap, getBalances } from '../src/modules/markets/jupiter'
+import { getBirdEyeUsdcRate } from '../src/modules/monitor/birdeye'
+import { sendAndConfirmTransactionAndRetry } from '../src/modules/solTransaction/solSendTransactionUtils'
+import {
+  createTransactionForInstructions,
+  groupSendAndConfirmTransactions,
+} from '../src/modules/solTransaction/solTransactionUtils'
+import { overwriteConsoleLog } from '../src/modules/utils/changeConsoleLogWithTimestamp'
+import { exportSniperWallets, exportWallets, jsonToTextForFundingWallets } from '../src/modules/utils/exportUtils'
+import { getTokenBalanceForOwner, parseTokenAmount, transferTokenInstruction } from '../src/modules/utils/splUtils'
+import { createAndStoreBotCustomerWallets, pickRandomWalletFromCustomer } from '../src/modules/wallet/walletService'
 import {
   base58ToUint8Array,
   decryptWallet,
   loadWalletFromU8IntArrayStringified,
   uint8ArrayToBase58,
 } from '../src/modules/wallet/walletUtils'
-import { connection } from '../src/config'
-import {
-  ComputeBudgetProgram,
-  Keypair,
-  LAMPORTS_PER_SOL,
-  PublicKey,
-  SystemProgram,
-  Transaction,
-  TransactionInstruction,
-} from '@solana/web3.js'
-import {
-  createTransactionForInstructions,
-  groupSendAndConfirmTransactions,
-  increaseComputePriceInstruction,
-  increaseComputeUnitInstruction,
-} from '../src/modules/solTransaction/solTransactionUtils'
-import fs from 'fs'
-import { sendAndConfirmTransactionAndRetry } from '../src/modules/solTransaction/solSendTransactionUtils'
-import { createBookedServiceAndWallet, getActiveBookedServiceByBotCustomerId } from '../src/modules/customer/bookedService'
-import { getBirdEyeUsdcRate } from '../src/modules/monitor/birdeye'
-import { executeJupiterSwap, getBalances } from '../src/modules/markets/jupiter'
-import { overwriteConsoleLog } from '../src/modules/utils/changeConsoleLogWithTimestamp'
-import { scheduleNextBuyJob, updateBuyJobsWithValues } from '../src/modules/marketMaking/buyMarketMakingHandler'
-import {
-  getActiveMarketMakingCycleByBotCustomerId,
-  setupMarketMakingCycle,
-} from '../src/modules/marketMaking/marketMakingService'
-import { getTokenBalanceForOwner, parseTokenAmount, transferTokenInstruction } from '../src/modules/utils/splUtils'
-import { exportWallets, exportSniperWallets, jsonToTextForFundingWallets } from '../src/modules/utils/exportUtils'
-import _ from 'lodash'
-import reattempt from 'reattempt'
 import { closeWallet, sendSol, Sol } from '../src/solUtils'
 import { sleep } from '../src/utils'
-import { createCloseAccountInstruction, TOKEN_PROGRAM_ID } from '@solana/spl-token'
+import { getSplTokenByMint } from '../src/modules/splToken/splTokenDBService'
 
 const program = new Command()
 
@@ -52,7 +42,7 @@ overwriteConsoleLog()
 
 program.command('initMarketMaking').action(async () => {
   const botCustomer = await createBotCustomer({
-    name: 'Puff',
+    name: 'Rajeet',
   })
 
   console.log(`created bot customer ${botCustomer.id}: ${botCustomer.name}`)
@@ -99,7 +89,7 @@ program.command('getBalances').action(async () => {
 })
 
 program.command('initMarketMakingService').action(async () => {
-  const botCustomer = await getBotCustomerByName('Drew')
+  const botCustomer = await getBotCustomerByName('SniperOne')
 
   if (!botCustomer) {
     console.error('bot customer not found')
@@ -108,17 +98,17 @@ program.command('initMarketMakingService').action(async () => {
 
   const splToken = await prisma.splToken.create({
     data: {
-      name: 'PUFF',
-      symbol: 'PUFF',
-      tokenMint: 'G9tt98aYSznRk7jWsfuz9FnTdokxS6Brohdo9hSmjTRB',
-      decimals: 9,
+      name: 'JEET',
+      symbol: 'JEET',
+      tokenMint: '337BWWbicojq2CQuRayWBvaF7VNKt2XzQkLxM6L4pump',
+      decimals: 6,
       isSPL: true,
     },
   })
 
   const bookedService = await createBookedServiceAndWallet({
     botCustomerId: botCustomer.id,
-    solAmount: 59,
+    solAmount: 20,
     serviceType: EServiceType.MARKET_MAKING,
     usedSplTokenMint: splToken.tokenMint,
   })
@@ -127,18 +117,18 @@ program.command('initMarketMakingService').action(async () => {
 
   const cycle = await prisma.marketMakingCycle.create({
     data: {
-      buyMinAmount: 0.11,
-      buyMaxAmount: 0.72,
+      buyMinAmount: 0.1,
+      buyMaxAmount: 0.4,
       minDurationBetweenBuyAndSellInSeconds: 10,
-      maxDurationBetweenBuyAndSellInSeconds: 100,
-      minDurationBetweenJobsInSeconds: 30,
-      maxDurationBetweenJobsInSeconds: 200,
+      maxDurationBetweenBuyAndSellInSeconds: 20,
+      minDurationBetweenJobsInSeconds: 15,
+      maxDurationBetweenJobsInSeconds: 60,
       solSpentForCycle: 0,
-      maxSolSpentForCycle: 7,
-      maxSolEarnedForCycle: 7,
+      maxSolSpentForCycle: 10,
+      maxSolEarnedForCycle: 10,
       solEarnedForCycle: 0,
-      sellToBuyValueRatio: 0.95,
-      type: EMarketMakingCycleType.PRE_PUSH,
+      sellToBuyValueRatio: 0.85,
+      type: EMarketMakingCycleType.PUSH,
       botCustomerId: botCustomer.id,
       bookedServiceId: bookedService.id,
       plannedTotalDurationInMinutes: 2400,
@@ -164,6 +154,50 @@ program.command('initMarketMakingService').action(async () => {
   })
 
   console.log(`scheduled first buy job ${nextJob.id} for market making cycle ${cycle.id}`)
+})
+
+program.command('migrateSniperToMarketMaking').action(async () => {
+  const botCustomer = await getBotCustomerByName('SniperOne')
+
+  const botCustomerWallets = await prisma.botCustomerWallet.findMany({
+    where: {
+      botCustomerId: botCustomer.id,
+      type: EWalletType.SNIPING,
+    },
+  })
+
+  console.log(`found ${botCustomerWallets.length} sniper wallets`)
+
+  const newWallets: string[] = []
+
+  for (const wallet of botCustomerWallets) {
+    const keypair = decryptWallet(wallet.encryptedPrivKey)
+
+    const balance = await connection.getBalance(keypair.publicKey)
+
+    console.log(`Wallet: ${keypair.publicKey.toBase58()} -> Balance: ${balance / LAMPORTS_PER_SOL} SOL`)
+
+    if (balance > 0.05 * LAMPORTS_PER_SOL) {
+      console.log(`Migrating wallet ${keypair.publicKey.toBase58()} with balance ${balance / LAMPORTS_PER_SOL} SOL`)
+
+      await prisma.botCustomerWallet.update({
+        where: {
+          pubkey: wallet.pubkey,
+        },
+        data: {
+          type: EWalletType.MARKET_MAKING,
+        },
+      })
+
+      newWallets.push(keypair.publicKey.toBase58())
+
+      console.log(`Wallet ${keypair.publicKey.toBase58()} migrated to market making`)
+    } else {
+      console.log(`Skipping wallet ${keypair.publicKey.toBase58()} with balance ${balance / LAMPORTS_PER_SOL} SOL`)
+    }
+  }
+
+  console.log(`New wallets migrated: ${newWallets.length}`)
 })
 
 program.command('setupMarketMakingCycle').action(async () => {
@@ -251,12 +285,15 @@ program
     console.log(`sell amount 24hr: ${sellAmount24Hr} SOL`)
   })
 
+program.command('inspectSniperWallets').action(async () => {
+  const botCustomer = await getBotCustomerByName('SniperOne')
+})
+
 program
   .command('inspectCustomerWallets')
   .option('-c, --customer <customer>', 'The customer to inspect')
   .action(async (opts) => {
     const customer = opts.customer
-
     const botCustomer = await getBotCustomerByName(customer)
 
     const bookedService = await getActiveBookedServiceByBotCustomerId({
@@ -275,7 +312,9 @@ program
     const foundWallets = await prisma.botCustomerWallet.findMany({
       where: {
         botCustomerId: botCustomer.id,
-        type: EWalletType.MARKET_MAKING,
+        type: {
+          in: [EWalletType.SNIPING, EWalletType.MARKET_MAKING, /*EWalletType.SNIPING_FUNDING, */ EWalletType.SERVICE_FUNDING],
+        },
       },
     })
 
@@ -395,33 +434,30 @@ program
 
       const from = decryptWallet(marketMakingWallet.encryptedPrivKey)
 
-      const {tokenAccountPubkey, tokenBalance} = await getTokenBalanceForOwner({
+      const { tokenAccountPubkey, tokenBalance } = await getTokenBalanceForOwner({
         ownerPubkey: from.publicKey.toBase58(),
         tokenMint: splToken.tokenMint,
       })
-      
+
       if (!tokenAccountPubkey) {
         console.log('Token account not found for wallet', marketMakingWallet.pubkey)
         continue
       }
-      
-      const transferTokenInstr = Number(tokenBalance.amount) > 0 ? await transferTokenInstruction({
-        mint: new PublicKey(splToken.tokenMint),
-        from: from.publicKey,
-        sourceTokenAccountPubkey: new PublicKey(tokenAccountPubkey),
-        to: targetWallet,
-          amount: tokenBalance.amount,
-        }) : []
+
+      const transferTokenInstr =
+        Number(tokenBalance.amount) > 0
+          ? await transferTokenInstruction({
+              mint: new PublicKey(splToken.tokenMint),
+              from: from.publicKey,
+              sourceTokenAccountPubkey: new PublicKey(tokenAccountPubkey),
+              to: targetWallet,
+              amount: tokenBalance.amount,
+            })
+          : []
 
       console.log(`${marketMakingWallet.pubkey} has ${tokenBalance.amount} ${splToken.symbol}`)
 
-
-      const closeInstruction = createCloseAccountInstruction(
-        new PublicKey(tokenAccountPubkey),
-        targetWallet,
-        from.publicKey,
-        []
-      );
+      const closeInstruction = createCloseAccountInstruction(new PublicKey(tokenAccountPubkey), targetWallet, from.publicKey, [])
 
       tokenTransferInstructions.push({
         instructions: [...transferTokenInstr, closeInstruction],
@@ -459,7 +495,7 @@ program
             toPubkey: targetWallet,
             lamports: Math.floor(solBalance * LAMPORTS_PER_SOL),
           }),
-        ],  
+        ],
         keypair: from,
       })
     }
@@ -476,7 +512,7 @@ program
       },
       data: {
         isActive: false,
-      }
+      },
     })
 
     await prisma.botCustomerWallet.updateMany({
@@ -726,7 +762,7 @@ program.command('convertBase58ToUint8').action(async () => {
 })
 
 program.command('getTokenHolders').action(async () => {
-  const mintPubKey = new PublicKey('3jW9nijTqcHVenUtEqJBiGvi3pPQg2bD5agALgZfpump')
+  const mintPubKey = new PublicKey('337BWWbicojq2CQuRayWBvaF7VNKt2XzQkLxM6L4pump')
 
   // Get the 250 largest holders
   // Fetch all token accounts associated with the token mint
@@ -757,6 +793,8 @@ program.command('getTokenHolders').action(async () => {
     }
   })
 
+  const splToken = await getSplTokenByMint(mintPubKey.toBase58())
+
   console.log(holders)
 
   const wallets = await prisma.botCustomerWallet.findMany({
@@ -768,25 +806,37 @@ program.command('getTokenHolders').action(async () => {
   })
 
   let ourTotalTokenBalance = 0
+  const walletsWithBalance: { pubkey: string; amount: number }[] = []
 
   for (const holder of holders) {
     const wallet = wallets.find((w) => w.pubkey === holder.address)
 
-    console.log(`${holder.address} -> ${holder.amount} -> ${wallet?.pubkey}`)
+    const holderAmount = holder.amount / Math.pow(10, splToken.decimals)
+
+    console.log(`${holder.address} -> ${holderAmount} -> ${wallet?.pubkey}`)
 
     if (wallet?.pubkey) {
-      ourTotalTokenBalance += holder.amount
+      ourTotalTokenBalance += holderAmount
+
+      if (holderAmount > 0) {
+        walletsWithBalance.push({
+          pubkey: wallet.pubkey,
+          amount: holderAmount,
+        })
+      }
     }
   }
 
-  console.log(`Our total token balance: ${ourTotalTokenBalance}`)
+  console.log(`Our total token balance: ${ourTotalTokenBalance.toLocaleString()} ${splToken.symbol}`)
 
-  const totalOfAllHolders = holders.reduce((acc, holder) => acc + holder.amount, 0)
-  console.log(`Total of all holders: ${totalOfAllHolders}`)
+  const totalOfAllHolders = holders.reduce((acc, holder) => acc + holder.amount / Math.pow(10, splToken.decimals), 0)
+  console.log(`Total of all holders: ${totalOfAllHolders.toLocaleString()} ${splToken.symbol}`)
 
-  console.log(`Difference: ${(ourTotalTokenBalance / totalOfAllHolders) * 100}%`)
+  console.log(`Our holdings: ${((ourTotalTokenBalance * 100) / totalOfAllHolders).toFixed(2)}%`)
 
   console.log(`Total holders including past ${holders.length}`)
+
+  console.log(walletsWithBalance)
 })
 
 program
@@ -827,7 +877,7 @@ program
   .option('-w, --walletCount <walletCount>', 'The number of wallets to generate')
   .action(async (opts) => {
     const customer = opts.customer
-    const walletCount = opts.walletCount ?? 5
+    const walletCount = opts.walletCount ?? 15
 
     const botCustomer = await getBotCustomerByName(customer)
 
@@ -964,6 +1014,8 @@ program
 
     let totalBalance = 0
 
+    console.log(`${serviceFundingWallets.length} service funding wallets found`)
+
     for (const wallet of serviceFundingWallets) {
       const balance = await connection.getBalance(new PublicKey(wallet.pubkey))
 
@@ -984,10 +1036,11 @@ program
   .option('-maxAmount, --maxAmount <maxAmount>', 'The maximum amount to fund the sniping wallets')
   .action(async (opts) => {
     const customer = opts.customer
-    const walletCount = opts.walletCount ?? 40
+    const walletCount = opts.walletCount ?? 45
     const fundingCycles = opts.fundingCycles ?? 5
     const minAmount = opts.minAmount ?? 0.41
-    const maxAmount = opts.maxAmount ?? 0.58
+    const maxAmount = opts.maxAmount ?? 0.52
+    const newWallets = opts.newWallets ?? false
 
     const botCustomer = await getBotCustomerByName(customer)
 
@@ -1062,7 +1115,7 @@ program
             await Promise.all(
               serviceFundingWallets.map(async (wallet) => {
                 const balance = await reattempt.run({ times: 5, delay: 1000 }, async () => {
-                  return await connection.getBalance(new PublicKey(wallet.pubkey))
+                  return await connection.getBalance(new PublicKey(wallet.pubkey), 'confirmed')
                 })
 
                 return {
@@ -1207,6 +1260,95 @@ program
 
     await exportSniperWallets(customer)
   })
+
+program.command('sendFromMainToSniperForPumpFun').action(async () => {
+  const customer = await getBotCustomerByName('PF_SNIPER')
+
+  const [activeBookedService, marketMakingWallets, splToken] = await Promise.all([
+    getActiveBookedServiceByBotCustomerId({
+      botCustomerId: customer.id,
+      serviceType: EServiceType.SNIPER,
+    }),
+    prisma.botCustomerWallet.findMany({
+      where: {
+        botCustomerId: customer.id,
+        type: EWalletType.MARKET_MAKING,
+      },
+    }),
+    prisma.splToken.create({
+      data: {
+        name: 'CHILLCAT',
+        symbol: 'CHILLCAT',
+        tokenMint: 'Bv9jYA2MTLQM4qtUtWsBo6ovCWbeoKEZxnszL1nYpump',
+        decimals: 6,
+        isSPL: true,
+      },
+    }),
+  ])
+  const tokenMint = new PublicKey(splToken.tokenMint)
+
+  if (!activeBookedService.mainWallet) {
+    console.error('No main wallet found for active booked service')
+    return
+  }
+
+  const mainWallet = activeBookedService.mainWallet
+  const from = decryptWallet(mainWallet.encryptedPrivKey)
+
+  const { tokenAccountPubkey, tokenBalance } = await getTokenBalanceForOwner({
+    ownerPubkey: mainWallet.pubkey,
+    tokenMint: tokenMint.toBase58(),
+  })
+
+  if (!tokenAccountPubkey || !tokenBalance || tokenBalance.amount === 0) {
+    console.error('No token balance found for main wallet')
+    return
+  }
+
+  const avgAmount = tokenBalance.amount / marketMakingWallets.length
+
+  let remainingAmount = tokenBalance.amount
+  const transferInstructions: { instructions: TransactionInstruction[]; keypair: Keypair }[] = []
+
+  for (let i = 0; i < marketMakingWallets.length; i++) {
+    let amountToSend
+    if (i === marketMakingWallets.length - 1) {
+      amountToSend = remainingAmount
+    } else {
+      const variance = avgAmount * (Math.random() * 0.4 - 0.2)
+      amountToSend = avgAmount + variance
+      remainingAmount -= amountToSend
+    }
+
+    const transferTokenInstr =
+      Number(amountToSend) > 0
+        ? await transferTokenInstruction({
+            mint: tokenMint,
+            from: from.publicKey,
+            sourceTokenAccountPubkey: new PublicKey(tokenAccountPubkey),
+            to: new PublicKey(marketMakingWallets[i].pubkey),
+            amount: amountToSend,
+          })
+        : []
+
+    transferInstructions.push({
+      instructions: transferTokenInstr,
+      keypair: from,
+    })
+
+    console.log(`${marketMakingWallets[i].pubkey} will receive ${amountToSend} ${tokenMint.toBase58()}`)
+  }
+
+  const transactionResults = await groupSendAndConfirmTransactions(transferInstructions, from, 6)
+
+  console.log(
+    'Transaction sent and confirmed:',
+    transactionResults.map((item) => item.txSig),
+    `with ${transactionResults.filter((item) => !item.confirmedResult.value.err).length} successes and ${
+      transactionResults.filter((item) => !!item.confirmedResult.value.err).length
+    } failures`,
+  )
+})
 
 program.command('sendFromSniperToMain').action(async () => {
   const customer = await getBotCustomerByName('PF_SNIPER')

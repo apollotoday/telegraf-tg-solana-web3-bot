@@ -15,15 +15,15 @@ export async function exportSniperWallets(customer: string) {
   const botCustomerWallets = await prisma.botCustomerWallet.findMany({
     where: {
       botCustomerId: sniperBotCustomer.id,
-      type: EWalletType.SNIPING,
+      type: EWalletType.MARKET_MAKING,
     },
   })
 
   console.log(`Found ${botCustomerWallets.length} sniper wallets for customer ${sniperBotCustomer.name}`)
-
+  const isoDate = new Date().toISOString().split('.')[0]
   const filePath = path.join(
     process.cwd(),
-    `export_wallets/${sniperBotCustomer.name}_${new Date().toISOString().split('T')[0]}_wallets.txt`,
+    `export_wallets/${sniperBotCustomer.name}_${isoDate}_wallets.txt`,
   )
   const header = 'pubkey,private_key\n'
   fs.writeFileSync(filePath, header)
@@ -57,7 +57,7 @@ export async function exportWallets({ customerName, wallets, type }: { customerN
 
   const txtFilePath = path.join(
     process.cwd(),
-    `export_wallets/${type.toLowerCase()}/${customerName}_${new Date().toISOString().split('T')[0]}_wallets.txt`,
+    `export_wallets/${type.toLowerCase()}/${customerName}_${isoDate}_wallets.txt`,
   )
   const txtHeader = 'pubkey,private_key\n'
   fs.writeFileSync(txtFilePath, txtHeader)

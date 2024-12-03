@@ -52,7 +52,8 @@ export async function getActiveBookedServiceByBotCustomerId({ botCustomerId, ser
       isActive: true,
     },
     include: {
-      usedSplToken: true
+      usedSplToken: true,
+      mainWallet: true,
     }
   });
 
