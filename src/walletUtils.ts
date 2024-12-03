@@ -1,65 +1,64 @@
-import { Keypair } from '@solana/web3.js'
-import * as CryptoJS from 'crypto-js'
-import bs58 from 'bs58'
-import pako from 'pako'
+import { Keypair } from "@solana/web3.js";
+import * as CryptoJS from "crypto-js";
+import bs58 from "bs58";
+import pako from "pako";
 
-const secret = 'knininiin'
+const secret = "knininiin";
 
 export function generateAndEncryptWallet() {
-  const keypair = Keypair.generate()
+  const keypair = Keypair.generate();
 
-  const encryptedPrivKey = encryptPrivateKey(keypair.secretKey, secret)
+  const encryptedPrivKey = encryptPrivateKey(keypair.secretKey, secret);
 
   return {
     pubkey: keypair.publicKey.toBase58(),
-    encryptedPrivKey
-  }
+    encryptedPrivKey,
+  };
 }
 
 export function decryptWallet(encryptedPrivKey: string) {
-  return Keypair.fromSecretKey(
-    decryptPrivateKey(encryptedPrivKey, secret)
-  )
+  return Keypair.fromSecretKey(decryptPrivateKey(encryptedPrivKey, secret));
 }
 
-
-export function encryptPrivateKey(
-  privateKey: Uint8Array,
-  secret: string
-): string {
+export function encryptPrivateKey(privateKey: Uint8Array, secret: string): string {
   // Compress the private key using pako (gzip)
-  const compressedPrivateKey = pako.deflate(privateKey)
+  const compressedPrivateKey = pako.deflate(privateKey);
 
   // Convert the compressed private key to a base64 string
-  const compressedBase64 = Buffer.from(compressedPrivateKey).toString('base64')
+  const compressedBase64 = Buffer.from(compressedPrivateKey).toString("base64");
 
   // Encrypt the base64 string using AES
-  const encrypted = CryptoJS.AES.encrypt(compressedBase64, secret).toString()
+  const encrypted = CryptoJS.AES.encrypt(compressedBase64, secret).toString();
 
   // Convert the encrypted string to a buffer
-  const encryptedBuffer = Buffer.from(encrypted, 'base64')
+  const encryptedBuffer = Buffer.from(encrypted, "base64");
 
   // Encode the buffer using Base58
-  return bs58.encode(encryptedBuffer)
+  return bs58.encode(encryptedBuffer);
 }
 
-export function decryptPrivateKey(
-  encryptedPrivateKey: string,
-  secret: string
-): Uint8Array {
+export function decryptPrivateKey(encryptedPrivateKey: string, secret: string): Uint8Array {
   // Decode the encrypted private key using Base58
-  const encryptedBuffer = bs58.decode(encryptedPrivateKey)
+  const encryptedBuffer = bs58.decode(encryptedPrivateKey);
 
   // Convert the buffer to a base64 string
-  const encryptedBase64 = Buffer.from(encryptedBuffer).toString('base64')
+  const encryptedBase64 = Buffer.from(encryptedBuffer).toString("base64");
 
   // Decrypt the base64 string using AES
-  const decryptedBytes = CryptoJS.AES.decrypt(encryptedBase64, secret)
-  const compressedBase64 = decryptedBytes.toString(CryptoJS.enc.Utf8)
+  const decryptedBytes = CryptoJS.AES.decrypt(encryptedBase64, secret);
+  const compressedBase64 = decryptedBytes.toString(CryptoJS.enc.Utf8);
 
   // Convert the decrypted base64 string to a Uint8Array
-  const compressedPrivateKey = Buffer.from(compressedBase64, 'base64')
+  const compressedPrivateKey = Buffer.from(compressedBase64, "base64");
 
   // Decompress the private key using pako (gzip)
-  return new Uint8Array(pako.inflate(compressedPrivateKey))
+  return new Uint8Array(pako.inflate(compressedPrivateKey));
+}
+
+export function loadWalletFromEnv(name: string) {
+  const pkStr = process.env[`${name}`]!;
+
+  if (!pkStr) throw new Error(`${name} not found in env`);
+
+  return Keypair.fromSecretKey(bs58.decode(pkStr));
 }

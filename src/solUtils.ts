@@ -171,7 +171,7 @@ export function lamportsToSol(lamports: number) {
   return lamports / LAMPORTS_PER_SOL;
 }
 
-const feePayerFilePath = "rajeetFeePayers2.json";
+const feePayerFilePath = "rajeetFeePayers.json";
 
 export function loadFeePayers(feePayerCount = 20): Keypair[] {
   if (!fs.existsSync(feePayerFilePath)) {
