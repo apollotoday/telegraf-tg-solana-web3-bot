@@ -102,11 +102,11 @@ export async function createTransactionForInstructions({
 }
 
 export async function groupSendAndConfirmTransactions(
-  transferInstructions: { instructions: TransactionInstruction[]; keypair: Keypair }[],
+  transferInstructions: { instructions: TransactionInstruction[]; keypair?: Keypair }[],
   feePayer: Signer,
   groupSize: number = 6,
 ) {
-  const groupedTransferInstructions: { instructions: TransactionInstruction[]; keypair: Keypair }[][] = []
+  const groupedTransferInstructions: { instructions: TransactionInstruction[]; keypair?: Keypair }[][] = []
 
   for (let i = 0; i < transferInstructions.length; i += groupSize) {
     groupedTransferInstructions.push(transferInstructions.slice(i, i + groupSize))
@@ -116,7 +116,7 @@ export async function groupSendAndConfirmTransactions(
     groupedTransferInstructions.map(async (group) => {
       return await reattempt.run({ times: 7, delay: 100 }, async () => {
         const allInstructions = _.flatten(group.map((item) => item.instructions))
-        const allSigners = group.map((item) => item.keypair)
+        const allSigners = group.map((item) => item.keypair).filter((item) => !!item)
 
         const { transaction: tokenTransaction, blockhash: tokenBlockhash } = await createTransactionForInstructions({
           wallet: feePayer.publicKey.toBase58(),

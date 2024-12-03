@@ -40,6 +40,7 @@ export async function createBookedServiceAndWallet({
     },
     include: {
       mainWallet: true,
+      usedSplToken: true,
     },
   });
 }

@@ -133,26 +133,30 @@ export async function sendSol(args: { from: Keypair; to: PublicKey; amount: Sol;
   return await sendAndConfirmRawTransactionAndRetry(transaction);
 }
 
-export async function closeWallet(args: { from: Keypair; to: Keypair; feePayer?: Keypair; waitTime?: number }) {
+export async function waitUntilBalanceIsGreaterThan(args: { from: PublicKey; amount: number; waitTime?: number }) {
   const { waitTime = 5000 } = args;
   const waitPerRetry = 500;
   const retries = Math.floor(waitTime / waitPerRetry);
-  console.log(`Waiting for ${retries} retries`)
-  let balance = 0;
 
   for (let i = 0; i < retries; i++) {
-    console.log(`Checking balance for ${args.from.publicKey.toBase58()} for the ${i + 1} time`)
-    balance = await connection.getBalance(args.from.publicKey, 'confirmed');
+    const balance = await connection.getBalance(args.from, 'confirmed');
     const balanceFound = balance / LAMPORTS_PER_SOL
-    if (balanceFound > (0.1)) {
-      console.log(`Balance is ${balanceFound} SOL, greater than 0.1 SOL, breaking`)
-      break;
-    } else {
-      console.log(`Balance is ${balanceFound} SOL, waiting for ${waitPerRetry}ms`)
+    if (balanceFound > args.amount) {
+      console.log(`Balance is ${balanceFound} SOL, greater than ${args.amount} SOL, breaking`)
+      return { balanceFound: true, balance: balanceFound }
     }
 
+    console.log(`Balance is still ${balanceFound} SOL, waiting for ${waitPerRetry}ms`)
     await sleep(waitPerRetry);
   }
+
+  return { balanceFound: false }
+}
+
+export async function closeWallet(args: { from: Keypair; to: Keypair; feePayer?: Keypair; waitTime?: number }) {
+  await waitUntilBalanceIsGreaterThan({ from: args.from.publicKey, amount: 0.1, waitTime: args.waitTime })
+
+  const balance = await connection.getBalance(args.from.publicKey, 'confirmed');
 
   if (balance < (0.1 * LAMPORTS_PER_SOL)) {
     throw new Error(`Balance is less than 0.1 SOL, cannot close wallet`)
