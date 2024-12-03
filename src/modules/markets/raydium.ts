@@ -33,12 +33,9 @@ import { BN } from "@project-serum/anchor";
 import { toBufferBE } from "bigint-buffer";
 import { TransactionMessage, VersionedTransaction } from "@solana/web3.js";
 // import { connection, puffAddr, solAddr } from "../../config"
-import { connection, net } from "../config";
-import { calculatePartionedSwapAmount } from "../calculationUtils";
-import { sendAndConfirmJitoTransactions } from "../jitoUtils";
-import { getDevWallet } from "../testUtils";
-import { solToLamports } from "../solUtils";
-import _ from "lodash";
+import { connection, net } from "../../config";
+import { calculatePartionedSwapAmount } from "../../calculationUtils";
+import { sendAndConfirmJitoTransactions } from "../../jitoUtils";
 
 export type BuyFromPoolInput = {
   poolKeys: LiquidityPoolKeys;
