@@ -10,12 +10,12 @@ export async function getTokenBalanceForOwner({ ownerPubkey, tokenMint }: { owne
   const tokenAccount = tokenAccounts.value.find((ta) => ta.account.data.parsed.info.mint === tokenMint)
 
   const tokenBalance = tokenAccount?.account.data.parsed.info.tokenAmount
-  const uiTokenBalance = tokenAccount?.account.data.parsed.info.uiAmount
 
   return {
     tokenBalance,
-    uiTokenBalance,
     tokenAccountPubkey: tokenAccount?.pubkey,
+    uiAmount: tokenBalance?.uiAmount,
+    tokenAmount: tokenBalance?.amount,
   }
 }
 

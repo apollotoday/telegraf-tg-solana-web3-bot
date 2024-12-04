@@ -41,7 +41,7 @@ export const randomAmount = (max: number, min: number, bal: number) => {
 }
 
 export function distributeTotalAmountRandomlyAcrossWallets(totalAmount: number, walletCount: number, finalSplitCount: number) {
-  const avgAmount = totalAmount / (walletCount - 5)
+  const avgAmount = totalAmount / (walletCount - finalSplitCount)
   const walletsToReceive: number[] = []
 
   let remainingAmount = totalAmount

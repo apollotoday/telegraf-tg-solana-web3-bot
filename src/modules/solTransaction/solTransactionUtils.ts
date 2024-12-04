@@ -58,6 +58,45 @@ export const getSimulationComputeUnits = async (
   return rpcResponse.value.unitsConsumed || null
 }
 
+export async function createQuickTransactionForInstructions({
+  instructions,
+  signers,
+  wallet,
+  priorityFeeLamports,
+  unitLimit,
+}: {
+  instructions: TransactionInstruction[]
+  signers: Signer[]
+  wallet: string,
+  priorityFeeLamports?: number,
+  unitLimit?: number,
+}) {
+  const blockhash = await connection.getLatestBlockhash({
+    commitment: 'confirmed',
+  })
+
+  const transaction = new Transaction({
+    feePayer: new PublicKey(wallet),
+    ...blockhash,
+  }).add(
+    increaseComputePriceInstruction(priorityFeeLamports ?? undefined),
+    increaseComputeUnitInstruction(unitLimit ?? undefined),
+    ...instructions,
+  )
+
+  if (signers.length > 0) {
+    console.log(
+      `Partial signing with `,
+      signers.map((s) => s.publicKey.toBase58()),
+    )
+    await transaction.partialSign(...signers)
+  }
+
+  console.log('Debug log for Solana transaction:', `Wallet: ${wallet}`, `Instructions count: ${transaction.instructions.length}`)
+
+  return { transaction, blockhash }
+}
+
 export async function createTransactionForInstructions({
   instructions,
   signers,
@@ -65,7 +104,8 @@ export async function createTransactionForInstructions({
 }: {
   instructions: TransactionInstruction[]
   signers: Signer[]
-  wallet: string
+  wallet: string,
+
 }) {
   const blockhash = await connection.getLatestBlockhash({
     commitment: 'confirmed',

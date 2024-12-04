@@ -4,11 +4,66 @@ import { decryptWallet } from '../wallet/walletUtils'
 import { connection } from '../../config'
 import { AnchorProvider } from '@coral-xyz/anchor'
 import NodeWallet from '@coral-xyz/anchor/dist/cjs/nodewallet'
-import { Keypair, LAMPORTS_PER_SOL } from '@solana/web3.js'
+import { Keypair, LAMPORTS_PER_SOL, PublicKey } from '@solana/web3.js'
 import fs from 'fs/promises'
 import { getTokenBalanceForOwner } from '../utils/splUtils'
 
 const SLIPPAGE_BASIS_POINTS = BigInt(10000)
+
+
+export async function sellPumpFunTokens({
+  mainWallet,
+  tokenMint,
+  tokenAmount,
+}: {
+  mainWallet: BotCustomerWallet
+  tokenMint: string
+  tokenAmount: number
+}) {
+  const keypair = decryptWallet(mainWallet.encryptedPrivKey)
+  const wallet = new NodeWallet(keypair)
+
+  const provider = new AnchorProvider(connection, wallet, { commitment: 'confirmed' })
+  const pumpFunSDKInstance = new PumpFunSDK(provider)
+
+  await pumpFunSDKInstance.sell(keypair, new PublicKey(tokenMint), BigInt(tokenAmount), SLIPPAGE_BASIS_POINTS, { unitLimit: 250_000, unitPrice: 250_000 })
+}
+
+export async function sellAllPumpFunTokensFromMultipleWalletsInstruction({
+  wallets,
+  tokenMint,
+}: {
+  wallets: Keypair[]
+  tokenMint: string
+}) {
+  return Promise.all(wallets.map(async (wallet) => {
+    const provider = new AnchorProvider(connection, new NodeWallet(wallet), { commitment: 'confirmed' })
+    const pumpFunSDKInstance = new PumpFunSDK(provider)
+    const tokenBalance = await getTokenBalanceForOwner({
+      ownerPubkey: wallet.publicKey.toBase58(),
+      tokenMint,
+    })
+    const tx = await pumpFunSDKInstance.getSellInstructionsByTokenAmount(wallet.publicKey, new PublicKey(tokenMint), BigInt(tokenBalance.tokenBalance.amount), SLIPPAGE_BASIS_POINTS, 'confirmed')
+    return tx.instructions
+  }))
+}
+
+export async function buyPumpFunTokens({
+  mainWallet,
+  tokenMint,
+  solAmount,
+}: {
+  mainWallet: Keypair
+  tokenMint: string
+  solAmount: number
+}) {
+  const wallet = new NodeWallet(mainWallet)
+
+  const provider = new AnchorProvider(connection, wallet, { commitment: 'confirmed' })
+  const pumpFunSDKInstance = new PumpFunSDK(provider)
+
+  await pumpFunSDKInstance.buy(mainWallet, new PublicKey(tokenMint), BigInt(solAmount * LAMPORTS_PER_SOL), SLIPPAGE_BASIS_POINTS, { unitLimit: 250_000, unitPrice: 250_000 })
+}
 
 export async function setupPumpFunToken({
   mainWallet,
@@ -72,7 +127,7 @@ export async function setupPumpFunToken({
           ownerPubkey: keypair.publicKey.toBase58(),
           tokenMint: mint.publicKey.toBase58(),
         })
-        console.log(`Token balance for ${tokenSymbol}:`, splTokenAccount.uiTokenBalance)
+        console.log(`Token balance for ${tokenSymbol}:`, splTokenAccount.tokenBalance.uiAmount)
 
         return {
           bondingCurveAccount,

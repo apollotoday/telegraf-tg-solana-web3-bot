@@ -17,6 +17,7 @@ import { executeJupiterSwap, getBalances } from '../src/modules/markets/jupiter'
 import { getBirdEyeUsdcRate } from '../src/modules/monitor/birdeye'
 import { sendAndConfirmTransactionAndRetry } from '../src/modules/solTransaction/solSendTransactionUtils'
 import {
+  createQuickTransactionForInstructions,
   createTransactionForInstructions,
   groupSendAndConfirmTransactions,
 } from '../src/modules/solTransaction/solTransactionUtils'
@@ -33,7 +34,7 @@ import {
 import { closeWallet, sendSol, Sol, waitUntilBalanceIsGreaterThan } from '../src/solUtils'
 import { sleep } from '../src/utils'
 import { getSplTokenByMint } from '../src/modules/splToken/splTokenDBService'
-import { setupPumpFunToken } from '../src/modules/pumpfun/pumpfunService'
+import { buyPumpFunTokens, sellAllPumpFunTokensFromMultipleWalletsInstruction, sellPumpFunTokens, setupPumpFunToken } from '../src/modules/pumpfun/pumpfunService'
 import { distributeTotalAmountRandomlyAcrossWallets } from '../src/calculationUtils'
 
 const program = new Command()
@@ -1264,16 +1265,127 @@ program
     await exportSniperWallets(customer)
   })
 
+program.command('sellPumpFunFromDistributed').action(async () => {
+  const tokenMint = '7k9msjoUnoSQN2ZZwA64mQ9UCp7DA2SMMYTvgwUEqAmQ'
+  const fundingWallet = loadWalletFromU8IntArrayStringified(process.env.FUNDING_WALLET!)
+  const wallets = [
+    '26AvpuwJYbHoTZaUPcfJCvnQsQUJCwqvbPhKDHacVh5Y',
+    '2DQdsowaZHYNKhQKNySasA1B3d3ZdyVHtv3aKYRRPA9Y',
+    '2G6sK963L6MiNBuHmJUp7Wz6QBDQowh2nFTWTv1sYUEZ',
+    '2hz3ogYi5vYqHKXxZ1v3ACQQi7gva85dSk6fsoPUeRV6',
+    '2jHnfdczhWk98RsvTE7QjxVvsoXqfnYuWbqpEQvLfLAd',
+    '2msMdAsLp6sFFhDx1mJPcbenaUPVaxafUgbYJNoU1XMG',
+    '2so2yrAJDbd19FSAETJ2nJWzRQs3L1Ao57kgr7A6jQes',
+    '2w9ZHjGmAvC5DnFBxUMCNwjQ9RB7EC4iwViPYUXYMzAK',
+    '384XxqdXrdzSDn2pt8oMN6AmxACrCdTDrsr3nNL8pkCc',
+    '3BTxmBAEX1ueAMbEjwaPMzyhBz5V8R4yJk6Wd5mRREH8',
+  ]
+
+  const marketMakingWallets = await prisma.botCustomerWallet.findMany({
+    where: {
+      pubkey: {
+        in: wallets,
+      },
+    },
+  })
+
+  const keypairs = marketMakingWallets.map((wallet) => decryptWallet(wallet.encryptedPrivKey))
+
+  const instructions = await sellAllPumpFunTokensFromMultipleWalletsInstruction({
+    wallets: keypairs,
+    tokenMint,
+  })
+
+
+
+  const { transaction: tokenTransaction, blockhash: tokenBlockhash } = await createQuickTransactionForInstructions({
+    wallet: fundingWallet.publicKey.toBase58(),
+    instructions: _.flatten(instructions),
+    signers: [fundingWallet, ...keypairs],
+    priorityFeeLamports: 500_000,
+    unitLimit: 500_000,
+  })
+})
+
+program.command('sellPumpFunTokens').action(async () => {
+  const tokenSymbol = 'VENUS'
+  const customer = await getBotCustomerByName(tokenSymbol)
+
+  const activeBookedService = await getActiveBookedServiceByBotCustomerId({ botCustomerId: customer.id, serviceType: EServiceType.SNIPER })
+
+  const tokenBalance = await getTokenBalanceForOwner({
+    ownerPubkey: activeBookedService.mainWallet.pubkey,
+    tokenMint: '7yM89M2JQZrnp6G3otC6RA9NKSb7Tkxxjy122YiFXJvr',
+  })
+
+  console.log(`Token balance for ${tokenSymbol}: ${tokenBalance.tokenBalance.amount}`)
+
+  const amountToSell = Math.floor(Number(tokenBalance.tokenBalance.amount) - 1000)
+
+  console.log(`Selling ${amountToSell} tokens`)
+
+  await sellPumpFunTokens({
+    mainWallet: activeBookedService.mainWallet,
+    tokenMint: activeBookedService.usedSplTokenMint,
+    tokenAmount: amountToSell,
+  })
+})
+
+program.command('sellMultiplePumpFunTokens').action(async () => {
+  const tokenSymbol = 'VENUS'
+  const customer = await getBotCustomerByName(tokenSymbol)
+  const activeBookedService = await getActiveBookedServiceByBotCustomerId({ botCustomerId: customer.id, serviceType: EServiceType.SNIPER })
+  const fundingWallet = loadWalletFromU8IntArrayStringified(process.env.FUNDING_WALLET!)
+  const mainWallet = decryptWallet(activeBookedService.mainWallet.encryptedPrivKey)
+
+  const allSellInstructions = await sellAllPumpFunTokensFromMultipleWalletsInstruction({
+    wallets: [fundingWallet, mainWallet],
+    tokenMint: activeBookedService.usedSplTokenMint,
+  })
+
+  const instrsToSend = _.flatten(allSellInstructions)
+
+  const { transaction: tokenTransaction, blockhash: tokenBlockhash } = await createQuickTransactionForInstructions({
+    wallet: fundingWallet.publicKey.toBase58(),
+    instructions: instrsToSend,
+    signers: [fundingWallet, mainWallet],
+    priorityFeeLamports: 500_000,
+    unitLimit: 500_000,
+  })
+
+  const { txSig: tokenTxSig, confirmedResult: tokenConfirmedResult } = await sendAndConfirmTransactionAndRetry(
+    tokenTransaction,
+    tokenBlockhash,
+  )
+
+  console.log('Transaction sent and confirmed:', tokenTxSig, tokenConfirmedResult)
+})
+
+program.command('buyPumpFunTokens').action(async () => {
+  const tokenSymbol = 'VENUS'
+  const customer = await getBotCustomerByName(tokenSymbol)
+  const activeBookedService = await getActiveBookedServiceByBotCustomerId({ botCustomerId: customer.id, serviceType: EServiceType.SNIPER })
+  const fundingWallet = loadWalletFromU8IntArrayStringified(process.env.FUNDING_WALLET!)
+
+  await buyPumpFunTokens({
+    mainWallet: fundingWallet,
+    tokenMint: activeBookedService.usedSplTokenMint,
+    solAmount: 0.45,
+  })
+})
+
 program.command('setupPumpFun').action(async () => {
   const fromCustomer = await getBotCustomerByName('SniperOne')
   const tokenSymbol = 'VENUS'
   const tokenImage = './assets/venus.jpeg'
   const description = 'This cat named Venus is perhaps among the most famous felines on the planet thanks to her unique markings..'
   const twitter = 'https://x.com/Rainmaker1973/status/1855933490690470332'
+  const shouldDistributeTokens = false
   const fundingWallet = loadWalletFromU8IntArrayStringified(process.env.FUNDING_WALLET!)
 
   let customer = await getBotCustomerByName(tokenSymbol)
   let activeBookedService = !!customer ? await getActiveBookedServiceByBotCustomerId({ botCustomerId: customer.id, serviceType: EServiceType.SNIPER }) : null
+
   const newSPLToken = Keypair.generate()
   
   const splToken = await prisma.splToken.create({
@@ -1356,6 +1468,10 @@ program.command('setupPumpFun').action(async () => {
     return
   }
 
+  const mainWalletKey = activeBookedService?.mainWallet ? decryptWallet(activeBookedService.mainWallet.encryptedPrivKey) : null
+
+  console.log(`Using main wallet: ${uint8ArrayToBase58(mainWalletKey?.secretKey!)}`)
+
   console.log(`Setting up pump fun token for ${tokenSymbol}`)
 
   const mainWallet = activeBookedService.mainWallet
@@ -1365,7 +1481,7 @@ program.command('setupPumpFun').action(async () => {
       botCustomerId: customer.id,
       type: EWalletType.MARKET_MAKING,
     },
-    take: 5
+    take: 10
   })
 
   const tokenMint = new PublicKey(splToken.tokenMint)
@@ -1377,7 +1493,7 @@ program.command('setupPumpFun').action(async () => {
     description,
     twitter,
     tokenImage,
-    solAmount: 0.01
+    solAmount: 0.55
   })
 
   if (!pumpFunTokenBalance) {
@@ -1386,7 +1502,9 @@ program.command('setupPumpFun').action(async () => {
   }
 
   const { splTokenAccount } = pumpFunTokenBalance
-  const { tokenAccountPubkey, tokenBalance } = splTokenAccount
+  const { tokenAccountPubkey, tokenBalance, uiAmount } = splTokenAccount
+
+  console.log(`Token balance for main wallet: ${uiAmount}`)
 
   if (!tokenAccountPubkey || !tokenBalance || tokenBalance.amount === 0) {
     console.error('No token balance found for main wallet')
@@ -1395,6 +1513,11 @@ program.command('setupPumpFun').action(async () => {
 
   const amountsToReceive = distributeTotalAmountRandomlyAcrossWallets(tokenBalance.amount, marketMakingWallets.length, 1) // change to 5 from 1 wallet
   const transferInstructions: { instructions: TransactionInstruction[]; keypair?: Keypair }[] = []
+
+  if (!shouldDistributeTokens) {
+    console.log(`Not distributing tokens, skipping`)
+    return
+  }
 
   for (let i = 0; i < marketMakingWallets.length; i++) {
     if (i >= amountsToReceive.length) {
@@ -1411,7 +1534,7 @@ program.command('setupPumpFun').action(async () => {
         from: mainWalletKeypair.publicKey,
         sourceTokenAccountPubkey: new PublicKey(tokenAccountPubkey),
         to: new PublicKey(marketMakingWallets[i].pubkey),
-        amount: amountToSend,
+        amount: Math.floor(amountToSend),
       })
 
       transferInstructions.push({
@@ -1434,21 +1557,21 @@ program.command('setupPumpFun').action(async () => {
 program.command('randomDistribution').action(async () => {
 
   const totalAmount = 1_000_000_000
-  const walletCount = 115
+  const walletCount = 126
 
   const walletsToReceive = distributeTotalAmountRandomlyAcrossWallets(totalAmount, walletCount, 5)
   console.log(walletsToReceive)
 })
 
-program.command('sendFromSniperToMain').action(async () => {
-  const customer = await getBotCustomerByName('PF_SNIPER')
-  const tokenMint = new PublicKey('Bv9jYA2MTLQM4qtUtWsBo6ovCWbeoKEZxnszL1nYpump')
-  const toWallet = new PublicKey('8ts4iTomEGiBfYME18Dz53HAT8XMpAVUEiPiLMwjRU8r')
+program.command('closeTokenAccountsForMarketMakingWallets').action(async () => {
+  const customer = await getBotCustomerByName('VENUS')
+  const tokenMint = new PublicKey('7k9msjoUnoSQN2ZZwA64mQ9UCp7DA2SMMYTvgwUEqAmQ')
+  const toWallet = new PublicKey('9FPqaSBG8EY1KuANnWbLqDhtwuakDfhJ1v5cKG2uvaRj')
 
   const snipingWallets = await prisma.botCustomerWallet.findMany({
     where: {
       botCustomerId: customer.id,
-      type: EWalletType.SNIPING,
+      type: EWalletType.MARKET_MAKING,
     },
   })
 
@@ -1462,7 +1585,35 @@ program.command('sendFromSniperToMain').action(async () => {
 
     console.log(`${snipingWallet.pubkey} has ${tokenBalance?.uiAmount} `)
 
-    if (!!tokenAccountPubkey && tokenBalance?.uiAmount && tokenBalance.uiAmount > 0) {
+    //await createCloseAccountInstruction({ botCustomerId: customer.id })
+  }
+
+  
+})
+
+program.command('sendFromSniperToMain').action(async () => {
+  const customer = await getBotCustomerByName('VENUS')
+  const tokenMint = new PublicKey('7k9msjoUnoSQN2ZZwA64mQ9UCp7DA2SMMYTvgwUEqAmQ')
+  const toWallet = new PublicKey('9FPqaSBG8EY1KuANnWbLqDhtwuakDfhJ1v5cKG2uvaRj')
+
+  const snipingWallets = await prisma.botCustomerWallet.findMany({
+    where: {
+      botCustomerId: customer.id,
+      type: EWalletType.MARKET_MAKING,
+    },
+  })
+
+  const transferInstructions: { instructions: TransactionInstruction[]; keypair: Keypair }[] = []
+
+  for (const snipingWallet of snipingWallets) {
+    const { tokenAccountPubkey, tokenBalance } = await getTokenBalanceForOwner({
+      ownerPubkey: snipingWallet.pubkey,
+      tokenMint: tokenMint.toBase58(),
+    })
+
+    console.log(`${snipingWallet.pubkey} has ${tokenBalance?.uiAmount} `)
+
+    if (!!tokenAccountPubkey && !!tokenBalance && tokenBalance?.uiAmount && tokenBalance.uiAmount > 0) {
       const transferTokenInstructions = await transferTokenInstruction({
         mint: tokenMint,
         from: new PublicKey(snipingWallet.pubkey),
