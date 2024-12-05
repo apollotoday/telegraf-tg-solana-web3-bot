@@ -6,7 +6,7 @@ import { connection, goatPool, rugPool } from "../../config";
 import asyncBatch from "async-batch";
 import _ from "lodash";
 import { loadWalletFromEnv } from "../wallet/walletUtils";
-import { fakeVolumneTransaction } from "../markets/raydium";
+import { fakeVolumneTransactionFeePayerPool } from "../markets/raydium";
 
 export async function runRajeetVolumneBot(args: { wallet: Keypair; pool: PublicKey }) {
   // const wallet = getDevWallet();
@@ -51,7 +51,7 @@ export async function runRajeetVolumneBot(args: { wallet: Keypair; pool: PublicK
       await Promise.all([fundFeePayerIfNeeded(buy1FeePayer), fundFeePayerIfNeeded(buy2FeePayer), fundFeePayerIfNeeded(sellFeePayer)]);
 
       const swapAmount = _.random(1.00001, 1.599999);
-      await fakeVolumneTransaction({
+      await fakeVolumneTransactionFeePayerPool({
         pool: args.pool,
         wallet: args.wallet,
         swapAmount: swapAmount,

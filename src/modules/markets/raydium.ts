@@ -37,6 +37,7 @@ import { connection, net } from "../../config";
 import { calculatePartionedSwapAmount } from "../../calculationUtils";
 import { sendAndConfirmJitoTransactions } from "../../jitoUtils";
 import _ from "lodash";
+import { solToLamports } from "../../solUtils";
 
 export type BuyFromPoolInput = {
   poolKeys: LiquidityPoolKeys;
@@ -218,7 +219,7 @@ export class BaseRay {
     const updateCPIx = ComputeBudgetProgram.setComputeUnitPrice({ microLamports: 1_000_000 });
     const updateCLIx = ComputeBudgetProgram.setComputeUnitLimit({ units: 100_000 });
     const { amountIn, amountOut, poolKeys, user, fixedSide, tokenAccountIn, tokenAccountOut, feePayer } = input;
-    this.cacheIxs.push(updateCPIx, updateCLIx);
+    this.cacheIxs.push(updateCPIx,updateCLIx);
 
     const inToken = (amountIn as TokenAmount).token.mint;
 
@@ -728,7 +729,96 @@ export async function computeRaydiumAmounts(input: {
   };
 }
 
-export async function fakeVolumneTransaction(args: {
+export async function fakeVolumneTransaction(args: { pool: PublicKey; swapAmount: number; wallet: Keypair; differentFeePayer?: boolean }) {
+  const swapAmount = args.swapAmount;
+
+  const feePayers = Array.from({ length: 3 }, (_, i) => {
+    const wallet = Keypair.generate();
+
+    const sendFundsIntr = SystemProgram.transfer({
+      fromPubkey: args.wallet.publicKey,
+      toPubkey: wallet.publicKey,
+      lamports: solToLamports(0.002),
+    });
+    const sendFundsBackInstr = SystemProgram.transfer({
+      fromPubkey: wallet.publicKey,
+      toPubkey: args.wallet.publicKey,
+      lamports: solToLamports(0.00189),
+    });
+
+    return {
+      wallet,
+      sendFundsIntr,
+      sendFundsBackInstr,
+    };
+  });
+
+  // console.log("buy1FeePayer", buy1FeePayer.publicKey.toBase58());
+  // console.log("buy2FeePayer", buy2FeePayer.publicKey.toBase58());
+  // console.log("sellFeePayer", sellFeePayer.publicKey.toBase58());
+
+  const buyAmountRes = await computeRaydiumAmounts({
+    amount: swapAmount,
+    amountSide: "in",
+    type: "buy",
+    keypair: args.wallet,
+    poolId: args.pool,
+    slippage: new Percent(100, 100),
+  });
+
+  const outAmount = Number(buyAmountRes.amountOut.toExact());
+
+  const outAmount1 = Math.floor(outAmount * _.random(0.4, 0.6));
+
+  const outAmount2 = outAmount - outAmount1;
+
+  const [buyRes, buyRes2, sellRes] = await Promise.all([
+    swapRaydium({
+      amount: outAmount1,
+      amountSide: "out",
+      type: "buy",
+      keypair: args.wallet,
+      feePayer: args.differentFeePayer ? feePayers[0].wallet : undefined,
+      additionalInstructions: args.differentFeePayer ? [feePayers[0].sendFundsBackInstr] : [],
+      poolId: args.pool,
+      slippage: new Percent(10, 100),
+    }),
+    swapRaydium({
+      amount: outAmount2,
+      amountSide: "out",
+      type: "buy",
+      keypair: args.wallet,
+      feePayer: args.differentFeePayer ? feePayers[1].wallet : undefined,
+      additionalInstructions: args.differentFeePayer ? [feePayers[1].sendFundsBackInstr] : [],
+      poolId: args.pool,
+      slippage: new Percent(10, 100),
+    }),
+    swapRaydium({
+      amount: outAmount,
+      amountSide: "in",
+      type: "sell",
+      keypair: args.wallet,
+      feePayer: args.differentFeePayer ? feePayers[2].wallet : undefined,
+      additionalInstructions: args.differentFeePayer ? [feePayers[2].sendFundsBackInstr] : [],
+      poolId: args.pool,
+      slippage: new Percent(10, 100),
+    }),
+  ]);
+
+  if (buyRes.tx && buyRes2.tx && sellRes.tx) {
+    const res = await sendAndConfirmJitoTransactions({
+      transactions: [buyRes.tx, buyRes2.tx, sellRes.tx],
+      payer: args.wallet,
+      // signers: [args.wallet],
+      feeTxInstructions: [...(args.differentFeePayer ? feePayers.map((e) => e.sendFundsIntr) : [])],
+    });
+    return res;
+  } else {
+    throw new Error("failed to prepare swap transaction");
+  }
+}
+
+export async function fakeVolumneTransactionFeePayerPool(args: {
   pool: PublicKey;
   swapAmount: number;
   wallet: Keypair;

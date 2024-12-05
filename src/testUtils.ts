@@ -14,9 +14,9 @@ export function getDevWallet(nr = 1) {
 export async function fundTestWallet(args: { amount: Sol }) {
   const testWallet = Keypair.generate();
 
-//   console.log(`created test wallet: ${testWallet.publicKey.toBase58()}`);
+  //   console.log(`created test wallet: ${testWallet.publicKey.toBase58()}`);
 
-//   const devWallet = getDevWallet();
+  //   const devWallet = getDevWallet();
 
   // fund test wallet
   // await sendSol({ from: devWallet, to: testWallet.publicKey, amount: args.amount });

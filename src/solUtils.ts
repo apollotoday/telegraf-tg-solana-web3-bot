@@ -13,6 +13,7 @@ import reattempt from "reattempt";
 import fs from "fs";
 import base58 from "bs58";
 import { sleep } from "./utils";
+import _ from "lodash";
 
 export class Sol {
   constructor(public lamports: number) {
@@ -29,6 +30,10 @@ export class Sol {
 
   static fromSol(sol: number): Sol {
     return new Sol(sol * 10 ** 9);
+  }
+
+  static randomFromSol(min: number, max: number): Sol {
+    return new Sol(_.random(min * 10 ** 9, max * 10 ** 9));
   }
 }
 
@@ -85,7 +90,7 @@ export async function sendAndConfirmRawTransactionAndRetry(transaction: Versione
     });
     console.log({ txSig, confirmedResult });
     console.log("Successfully sent transaction: ", txSig);
-    
+
     return { txSig, confirmedResult };
   } catch (e) {
     console.error("Failed to send transaction: ", e);
@@ -151,25 +156,25 @@ export async function closeWallet(args: { from: Keypair; to: Keypair; feePayer?:
   const { waitTime = 5000 } = args;
   const waitPerRetry = 500;
   const retries = Math.floor(waitTime / waitPerRetry);
-  console.log(`Waiting for ${retries} retries`)
+  console.log(`Waiting for ${retries} retries`);
   let balance = 0;
 
   for (let i = 0; i < retries; i++) {
-    console.log(`Checking balance for ${args.from.publicKey.toBase58()} for the ${i + 1} time`)
-    balance = await connection.getBalance(args.from.publicKey, 'confirmed');
-    const balanceFound = balance / LAMPORTS_PER_SOL
-    if (balanceFound > (0.1)) {
-      console.log(`Balance is ${balanceFound} SOL, greater than 0.1 SOL, breaking`)
+    console.log(`Checking balance for ${args.from.publicKey.toBase58()} for the ${i + 1} time`);
+    balance = await connection.getBalance(args.from.publicKey, "confirmed");
+    const balanceFound = balance / LAMPORTS_PER_SOL;
+    if (balanceFound > 0.1) {
+      console.log(`Balance is ${balanceFound} SOL, greater than 0.1 SOL, breaking`);
       break;
     } else {
-      console.log(`Balance is ${balanceFound} SOL, waiting for ${waitPerRetry}ms`)
+      console.log(`Balance is ${balanceFound} SOL, waiting for ${waitPerRetry}ms`);
     }
 
     await sleep(waitPerRetry);
   }
 
-  if (balance < (0.1 * LAMPORTS_PER_SOL)) {
-    throw new Error(`Balance is less than 0.1 SOL, cannot close wallet`)
+  if (balance < 0.1 * LAMPORTS_PER_SOL) {
+    throw new Error(`Balance is less than 0.1 SOL, cannot close wallet`);
   }
 
   return await sendSol({ from: args.from, to: args.to.publicKey, amount: Sol.fromLamports(balance), feePayer: args.feePayer ?? args.to });

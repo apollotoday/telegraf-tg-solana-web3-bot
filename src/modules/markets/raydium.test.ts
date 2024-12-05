@@ -9,7 +9,7 @@ import {
   VersionedTransaction,
 } from "@solana/web3.js";
 import { Percent, TokenAmount } from "@raydium-io/raydium-sdk";
-import { fakeVolumneTransaction, getRaydiumPoolsByTokenAddress, swapRaydium } from "./raydium";
+import { fakeVolumneTransaction, fakeVolumneTransactionFeePayerPool, getRaydiumPoolsByTokenAddress, swapRaydium } from "./raydium";
 import reattempt from "reattempt";
 import { getDevWallet } from "../../testUtils";
 import { sendAndConfirmJitoTransactions } from "../../jitoUtils";
@@ -17,6 +17,8 @@ import { sendAndConfirmRawTransactionAndRetry, Sol } from "../../solUtils";
 import _ from "lodash";
 import { calculatePartionedSwapAmount } from "../../calculationUtils";
 import { connection } from "../../config";
+import { sleep } from "../../utils";
+import { loadWalletFromEnv } from "../wallet/walletUtils";
 
 const devWallet = getDevWallet();
 const devwallet2 = getDevWallet(2);
@@ -100,7 +102,7 @@ test("swap raydium with different fee payer", async () => {
       const sellAmountPercentage = 0.98;
       const sellAmount = swapAmount * sellAmountPercentage;
 
-      const buyAmount1Random = _.random(0.4, 0.6);
+      const buyAmount1Random = _.random(0.04, 0.06, true);
       const buyAmount1 = swapAmount * buyAmount1Random;
       const buyAmount2 = swapAmount - buyAmount1;
 
@@ -112,30 +114,24 @@ test("swap raydium with different fee payer", async () => {
 
       console.log("feePayer1", feePayer1.publicKey.toBase58());
 
+      const randomFee = Sol.fromSol(0.002);
+
       function transferFeePayerFunds(args: { feePayer: Keypair }) {
         return SystemProgram.transfer({
           fromPubkey: devWallet.publicKey,
           toPubkey: args.feePayer.publicKey,
-          lamports: Sol.fromSol(0.002).lamports,
+          lamports: randomFee.lamports,
         });
       }
 
+      const feeBack = Sol.fromSol(0.00189);
       function transferFeePayerBack(args: { feePayer: Keypair }) {
         return SystemProgram.transfer({
           fromPubkey: args.feePayer.publicKey,
           toPubkey: devWallet.publicKey,
-          lamports: Sol.fromSol(0.001).lamports,
+          lamports: feeBack.lamports,
         });
       }
-
-      const sendBackTx = new VersionedTransaction(
-        new TransactionMessage({
-          instructions: [transferFeePayerBack({ feePayer: feePayer1 })],
-          payerKey: feePayer1.publicKey,
-          recentBlockhash: (await connection.getLatestBlockhash()).blockhash,
-        }).compileToV0Message()
-      );
-      sendBackTx.sign([feePayer1]);
 
       const [buyRes, buyRes2, sellRes] = await Promise.all([
         swapRaydium({
@@ -146,14 +142,14 @@ test("swap raydium with different fee payer", async () => {
           feePayer: feePayer1,
           poolId: puffPool,
           slippage: new Percent(10, 100),
-          // additionalInstructions: [transferFeePayerBack({ feePayer: feePayer1 })],
+          additionalInstructions: [transferFeePayerBack({ feePayer: feePayer1 })],
         }),
         swapRaydium({
           amount: buyAmount2,
           amountSide: "in",
           type: "buy",
           keypair: devWallet,
-          feePayer: feePayer2,
+          // feePayer: feePayer2,
           poolId: puffPool,
           slippage: new Percent(10, 100),
         }),
@@ -162,7 +158,7 @@ test("swap raydium with different fee payer", async () => {
           amountSide: "in",
           type: "sell",
           keypair: devWallet,
-          feePayer: feePayer3,
+          // feePayer: feePayer3,
           poolId: puffPool,
           slippage: new Percent(10, 100),
         }),
@@ -170,13 +166,18 @@ test("swap raydium with different fee payer", async () => {
 
       if (buyRes.tx && buyRes2.tx && sellRes.tx) {
         const res = await sendAndConfirmJitoTransactions({
-          transactions: [buyRes.tx, buyRes2.tx, sellRes.tx, sendBackTx],
+          transactions: [
+            buyRes.tx,
+            // buyRes2.tx,
+            // sellRes.tx,
+            // sendBackTx,
+          ],
           payer: devWallet,
           // signers: [devwallet2],
           feeTxInstructions: [
             transferFeePayerFunds({ feePayer: feePayer1 }),
-            transferFeePayerFunds({ feePayer: feePayer2 }),
-            transferFeePayerFunds({ feePayer: feePayer3 }),
+            // transferFeePayerFunds({ feePayer: feePayer2 }),
+            // transferFeePayerFunds({ feePayer: feePayer3 }),
             // SystemProgram.transfer({
             //   fromPubkey: devwallet2.publicKey,
             //   toPubkey: devWallet.publicKey,
@@ -196,16 +197,74 @@ test("swap raydium with different fee payer", async () => {
 
 test("fake volumne transaction", async () => {
   const feePayer = Keypair.generate();
+  const wallet = loadWalletFromEnv("RIGGGED_VOLUMNE_BOT");
 
   // await sendSol({ from: devWallet, to: feePayer.publicKey, amount: Sol.fromSol(0.001) });
 
   const pool = new PublicKey("9Tb2ohu5P16BpBarqd3N27WnkF51Ukfs8Z1GzzLDxVZW");
 
-  await Promise.all(
-    Array.from({ length: 3 }).map(async () => {
-      const res = await fakeVolumneTransaction({ pool: pool, wallet: devWallet, swapAmount: _.random(0.010000001, 0.019999999) });
-    })
-  );
+  const res = await fakeVolumneTransaction({ pool: pool, wallet: devWallet, swapAmount: Sol.randomFromSol(1, 2).sol, differentFeePayer: true });
+});
+
+test("fake volumne transaction scale", async () => {
+  const feePayer = Keypair.generate();
+
+  // await sendSol({ from: devWallet, to: feePayer.publicKey, amount: Sol.fromSol(0.001) });
+
+  const wallet = loadWalletFromEnv("RIGGGED_VOLUMNE_BOT");
+  const pool = new PublicKey("9Tb2ohu5P16BpBarqd3N27WnkF51Ukfs8Z1GzzLDxVZW");
+
+  let lastBlockhash = await connection.getLatestBlockhash();
+
+  let successCount = 0;
+  let totalVolumneSol = 0;
+
+  let allPromises = [];
+
+  const solbalanceStart = await connection.getBalance(wallet.publicKey);
+  console.log("solbalanceStart", Sol.fromLamports(solbalanceStart).sol);
+
+  for (let i = 0; i < 50; i++) {
+    let startTime = new Date().getTime();
+    while (true) {
+      let newBlockhas = await connection.getLatestBlockhash();
+      if (lastBlockhash.blockhash !== newBlockhas.blockhash) {
+        lastBlockhash = newBlockhas;
+        break;
+      }
+      await sleep(50);
+    }
+    console.log(`time to get new blockhash: ${new Date().getTime() - startTime}ms`);
+
+    let swapAmount = Sol.fromSol(3.1) ?? Sol.randomFromSol(0.1, 0.2).sol;
+    swapAmount = Sol.fromSol(2);
+    const res = fakeVolumneTransaction({ pool: pool, wallet: wallet, swapAmount: swapAmount.sol, differentFeePayer: true }).then((res) => {
+      if (res.confirmed) {
+        successCount++;
+        totalVolumneSol += swapAmount.sol;
+      }
+    });
+    allPromises.push(res);
+  }
+
+  await Promise.all(allPromises);
+  console.log("successCount", successCount);
+  console.log("totalVolumneSol", totalVolumneSol);
+  const solbalanceEnd = await connection.getBalance(wallet.publicKey);
+  console.log("sol spent", Sol.fromLamports(solbalanceStart - solbalanceEnd).sol);
+
+  // let successCount = 0;
+  // await Promise.all(
+  //   Array.from({ length: 5 }).map(async () => {
+  //     try {
+  //       const res = await fakeVolumneTransaction({ pool: pool, wallet: devWallet, swapAmount: Sol.randomFromSol(0.1, 0.2).sol, differentFeePayer: true });
+  //       if (res.confirmed) successCount++;
+  //     } catch (error) {
+  //       console.log("error", error);
+  //     }
+  //   })
+  // );
+  // console.log("successCount", successCount);
 });
 
 test("send simple tx", async () => {
