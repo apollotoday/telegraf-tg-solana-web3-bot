@@ -199,9 +199,13 @@ test("fake volumne transaction", async () => {
 
   // await sendSol({ from: devWallet, to: feePayer.publicKey, amount: Sol.fromSol(0.001) });
 
-  const puffPool = new PublicKey("9Tb2ohu5P16BpBarqd3N27WnkF51Ukfs8Z1GzzLDxVZW");
+  const pool = new PublicKey("9Tb2ohu5P16BpBarqd3N27WnkF51Ukfs8Z1GzzLDxVZW");
 
-  const res = await fakeVolumneTransaction({ pool: puffPool, wallet: devWallet, swapAmount: 0.01, buy1FeePayer: feePayer });
+  await Promise.all(
+    Array.from({ length: 3 }).map(async () => {
+      const res = await fakeVolumneTransaction({ pool: pool, wallet: devWallet, swapAmount: _.random(0.010000001, 0.019999999) });
+    })
+  );
 });
 
 test("send simple tx", async () => {

@@ -1,16 +1,21 @@
 import { Keypair, LAMPORTS_PER_SOL, PublicKey, TransactionMessage, VersionedTransaction } from "@solana/web3.js";
-import { loadFeePayers, sendAndConfirmRawTransactionAndRetry, sendSol, Sol } from "./solUtils";
-import { getDevWallet } from "./testUtils";
-import { sleep } from "./utils";
-import { connection, puffPool } from "./config";
-import { computeRaydiumAmounts, createSwapRaydiumInstructions, fakeVolumneTransaction, swapRaydium } from "./markets/raydium";
+import { loadFeePayers, sendAndConfirmRawTransactionAndRetry, sendSol, Sol } from "../../solUtils";
+import { getDevWallet } from "../../testUtils";
+import { sleep } from "../../utils";
+import { connection, goatPool, rugPool } from "../../config";
 import asyncBatch from "async-batch";
-import { loadWalletFromEnv } from "./walletUtils";
+
 import _ from "lodash";
 import { Percent } from "@raydium-io/raydium-sdk";
-import { sendAndConfirmJitoTransactions } from "./jitoUtils";
+import { sendAndConfirmJitoTransactions } from "../../jitoUtils";
+import { computeRaydiumAmounts, swapRaydium } from "../markets/raydium";
+import { loadWalletFromEnv } from "../wallet/walletUtils";
 
 export async function makeShootingStar(args: { wallet: Keypair; pool: PublicKey; buyAmount: number }) {
+  const solAmount = await connection.getBalance(args.wallet.publicKey);
+
+  console.log("solAmount", solAmount / LAMPORTS_PER_SOL);
+
   const buyAmount = await computeRaydiumAmounts({
     amount: args.buyAmount,
     amountSide: "in",
@@ -20,7 +25,7 @@ export async function makeShootingStar(args: { wallet: Keypair; pool: PublicKey;
     slippage: new Percent(10, 100),
   });
 
-  const outAmount = Number(buyAmount.amountOut.toExact())
+  const outAmount = Number(buyAmount.amountOut.toExact());
 
   const [buyRes, sellRes] = await Promise.all([
     swapRaydium({
@@ -61,10 +66,10 @@ export async function makeShootingStar(args: { wallet: Keypair; pool: PublicKey;
 }
 
 if (require.main === module) {
-  const wallet = getDevWallet();
+  // const wallet = getDevWallet();
   // const wallet2 = getDevWallet(2);
 
-  // const wallet = loadWalletFromEnv("RAJEET_VOLUMNE_BOT");
+  const wallet = loadWalletFromEnv("VOLUMNE_TICKS");
 
-  makeShootingStar({ wallet, pool: puffPool, buyAmount: 0.05 });
+  makeShootingStar({ wallet, pool: rugPool, buyAmount: 19.5 });
 }

@@ -1,9 +1,8 @@
 import { Keypair } from "@solana/web3.js";
+import { connection } from "./config";
 import { closeWallet, sendSol, Sol } from "./solUtils";
 import { getDevWallet } from "./testUtils";
-import { send } from "process";
 import { sleep } from "./utils";
-import { connection } from "./config";
 
 test("close wallet", async () => {
   const devWallet = getDevWallet();

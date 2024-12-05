@@ -36,6 +36,7 @@ import { TransactionMessage, VersionedTransaction } from "@solana/web3.js";
 import { connection, net } from "../../config";
 import { calculatePartionedSwapAmount } from "../../calculationUtils";
 import { sendAndConfirmJitoTransactions } from "../../jitoUtils";
+import _ from "lodash";
 
 export type BuyFromPoolInput = {
   poolKeys: LiquidityPoolKeys;
@@ -684,7 +685,7 @@ export async function createSwapRaydiumInstructions(input: {
     instructions: txInfo.ixs,
     signers: txInfo.signers,
     amountIn,
-    amountOut
+    amountOut,
   };
 }
 
@@ -699,7 +700,7 @@ export async function computeRaydiumAmounts(input: {
   const user = input.keypair.publicKey;
   const baseRay = new BaseRay();
   const slippage = input.slippage;
-  
+
   const poolKeys = await getPoolkeys(connection, input.poolId.toBase58()).catch((getPoolKeysError) => {
     console.log({ getPoolKeysError });
     return null;
@@ -723,7 +724,7 @@ export async function computeRaydiumAmounts(input: {
 
   return {
     ...swapAmountInfo,
-    poolKeys
+    poolKeys,
   };
 }
 
@@ -739,9 +740,6 @@ export async function fakeVolumneTransaction(args: {
   const sellAmountPercentage = 0.98;
   const sellAmount = swapAmount * sellAmountPercentage;
 
-  const buyAmount1 = _.random(0.4, 0.6) * swapAmount;
-  const buyAmount2 = swapAmount - buyAmount1;
-
   const buy1FeePayer = args.buy1FeePayer ?? args.wallet;
   const buy2FeePayer = args.buy2FeePayer ?? args.wallet;
   const sellFeePayer = args.sellFeePayer ?? args.wallet;
@@ -750,10 +748,25 @@ export async function fakeVolumneTransaction(args: {
   console.log("buy2FeePayer", buy2FeePayer.publicKey.toBase58());
   console.log("sellFeePayer", sellFeePayer.publicKey.toBase58());
 
+  const buyAmountRes = await computeRaydiumAmounts({
+    amount: swapAmount,
+    amountSide: "in",
+    type: "buy",
+    keypair: args.wallet,
+    poolId: args.pool,
+    slippage: new Percent(10, 100),
+  });
+
+  const outAmount = Number(buyAmountRes.amountOut.toExact());
+
+  const outAmount1 = Math.floor(outAmount * _.random(0.4, 0.6));
+
+  const outAmount2 = outAmount - outAmount1;
+
   const [buyRes, buyRes2, sellRes] = await Promise.all([
     swapRaydium({
-      amount: buyAmount1,
-      amountSide: "in",
+      amount: outAmount1,
+      amountSide: "out",
       type: "buy",
       keypair: args.wallet,
       feePayer: buy1FeePayer,
@@ -761,8 +774,8 @@ export async function fakeVolumneTransaction(args: {
       slippage: new Percent(10, 100),
     }),
     swapRaydium({
-      amount: buyAmount2,
-      amountSide: "in",
+      amount: outAmount2,
+      amountSide: "out",
       type: "buy",
       keypair: args.wallet,
       feePayer: buy2FeePayer,
@@ -770,8 +783,8 @@ export async function fakeVolumneTransaction(args: {
       slippage: new Percent(10, 100),
     }),
     swapRaydium({
-      amount: sellAmount,
-      amountSide: "out",
+      amount: outAmount,
+      amountSide: "in",
       type: "sell",
       keypair: args.wallet,
       feePayer: sellFeePayer,
@@ -816,4 +829,16 @@ export async function fakeVolumneTransaction(args: {
   } else {
     throw new Error("failed to prepare swap transaction");
   }
+}
+
+export async function getTokensForPool(poolId: PublicKey): Promise<{ baseToken: PublicKey; quoteToken: PublicKey }> {
+  const poolKeys = await getPoolkeys(connection, poolId.toBase58());
+  if (!poolKeys) {
+    throw new Error("Pool not found");
+  }
+
+  return {
+    baseToken: poolKeys.baseMint,
+    quoteToken: poolKeys.quoteMint,
+  };
 }

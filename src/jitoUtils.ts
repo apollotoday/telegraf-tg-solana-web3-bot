@@ -10,7 +10,7 @@ import {
 } from "@solana/web3.js";
 import axios, { AxiosError } from "axios";
 import base58 from "bs58";
-import { connection, jitoFee } from "./config";
+import { connection, jitoFee as configJitoFee } from "./config";
 import { sleep } from "./utils";
 const { JitoJsonRpcClient } = require("jito-js-rpc");
 
@@ -19,11 +19,13 @@ export const sendAndConfirmJitoTransactions = async ({
   payer,
   signers,
   feeTxInstructions,
+  ...args
 }: {
   transactions: VersionedTransaction[] | Transaction[];
   payer: Keypair;
   signers?: Keypair[];
   feeTxInstructions?: TransactionInstruction[];
+  jitoFee?: number;
 }) => {
   const tipAccounts = [
     "Cw8CFyM9FkoMi7K7Crf6HNQqf4uEMzpKw6QNghXLvLkY",
@@ -36,6 +38,8 @@ export const sendAndConfirmJitoTransactions = async ({
     "DfXygSm4jCyNCybVYYK6DwvWqjKee8pbDmJGcLWNDXjh",
   ];
   const jitoFeeWallet = new PublicKey(tipAccounts[Math.floor(tipAccounts.length * Math.random())]);
+
+  const jitoFee = args.jitoFee ?? configJitoFee;
 
   // console.log(`Selected Jito fee wallet: ${jitoFeeWallet.toBase58()}`);
 
