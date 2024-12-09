@@ -1,5 +1,3 @@
-"use client";
-
 import { Box, Button, ButtonProps, Flex } from "@chakra-ui/react";
 import { ChevronRightIcon } from "@/components/Icons";
 

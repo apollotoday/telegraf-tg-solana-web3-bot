@@ -29,7 +29,7 @@ const Home = () => {
       <main className="w-full">
         {/* Hero component */}
         <div className="min-h-[15px] w-full"></div>
-        <div className="relative text-center w-full flex flex-col">
+        <div className="relative text-center w-full flex flex-col overflow-hidden">
           <div className="absolute top-0 w-full h-[685px] bg-[url('/images/Grid.png')] bg-contain bg-center" />
           <Box
             w={"full"}
@@ -83,10 +83,10 @@ const Home = () => {
                 ></Image>
               </Box>
             </div>
-            <div className="font-medium text-[36px] leading-[44px] mt-[120px]">
+            <div className="font-medium text-[36px] leading-[44px] mt-[120px] px-[20px]">
               {config.hero.footerTitle}
             </div>
-            <div className="font-normal text-[16px] leading-[24px] mt-[24px] text-[#898989]">
+            <div className="font-normal text-[16px] leading-[24px] mt-[24px] text-[#898989] px-[20px]">
               {config.hero.footerDescription}
             </div>
             {/* <div className="absolute w-[80%] top-[310px] left-1/2 transform -translate-x-1/2 h-[553px] bg-black backdrop-blur-md rounded-full"></div> */}
@@ -96,12 +96,12 @@ const Home = () => {
         {/* binary code component */}
         <Box
           width={"full"}
-          height={"392px"}
-          bgImage="url('/images/BinaryCode.png')"
-          backgroundSize="cover"
-          backgroundPosition="center"
-          backgroundRepeat="no-repeat"
-        />
+          height={{ base: "200px", md: "392px" }}
+          // my={{ lg: "40px" }}
+          pos={"relative"}
+        >
+          <Image fill alt="Binary Code" src={"/images/BinaryCode.svg"}></Image>
+        </Box>
 
         {/* card component */}
         <div className="grid grid-cols-1 md:grid-cols-2 px-[12px] md:px-[48px] gap-[18px]">
@@ -146,12 +146,15 @@ const Home = () => {
             bgPos={"center"}
           />
           <Box
-            bg="radial-gradient(circle, rgba(0, 0, 0, 0) 0%, rgba(0, 0, 0, 1) 60%)"
-            width={"1738px"}
-            height={"100vh"}
+            bg={{
+              base: "radial-gradient(circle, rgba(0, 0, 0, 0) 0%, rgba(0, 0, 0, 1) 100%)",
+              md: "radial-gradient(circle, rgba(0, 0, 0, 0) 0%, rgba(0, 0, 0, 1) 60%)",
+            }}
+            width={"100%"}
+            height={"100vw"}
             pos={"absolute"}
-            transform="translateY(-50%)"
-            top={"383px"}
+            transform={{ md: "translateY(-50%)" }}
+            top={{ base: "0px", md: "383px" }}
             zIndex={7}
           />
           <div className="z-[5] mt-[50px] md:mt-[239px]">
@@ -283,7 +286,7 @@ const Home = () => {
             bgPos={"center"}
             left={{ base: "0px", md: "250px" }}
           />
-          <Box fontSize={"36px"} mt={"111px"}>
+          <Box fontSize={"44px"} mt={"111px"}>
             {config.unlock.title}
           </Box>
           <Box
@@ -327,13 +330,28 @@ const Home = () => {
             height={"70px"}
             w={"full"}
             bg={"#000000"}
-            zIndex={1}
+            zIndex={3}
             display={{ base: "none", md: "flex" }}
           >
             {config.about.first}
             <div className="px-[5px]">{config.about.icon}</div>
-            {config.about.last}
+            {config.about.last} &nbsp;
+            <a href={config.about.url} className="hover:underline">
+              {config.about.urlText}
+            </a>
           </Flex>
+          <Box
+            bg={"black"}
+            filter={"blur(20px)"}
+            width={"1069px"}
+            height={"200px"}
+            pos={"absolute"}
+            left={"50%"}
+            borderRadius={"50%"}
+            transform={"translate(-50%, 50%)"}
+            bottom={"100px"}
+            zIndex={2}
+          />
         </VStack>
       </main>
       <Footer />
@@ -469,7 +487,9 @@ const config = {
   about: {
     first: "Made with",
     icon: <HeartIcon />,
-    last: "by duoversestudio.com",
+    last: "by",
+    urlText: "duoversestudio.com",
+    url: "https://duoversestudio.com",
   },
 };
 
