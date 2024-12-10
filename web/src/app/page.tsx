@@ -47,16 +47,16 @@ const Home = () => {
             zIndex={5}
           />
           <Box
-            bg="radial-gradient(circle, rgba(0, 0, 0, 1) 0%, rgba(0, 0, 0, 1) 100%)"
+            bgImage={config.images.heroMask}
             width={"1204px"}
             height={"533px"}
             pos={"absolute"}
             top={"310px"}
             left={"50%"}
-            borderRadius={"50%"}
+            bgSize={"cover"}
             transform={"translateX(-50%)"}
-            zIndex={7}
-          />
+            zIndex={4}
+          ></Box>
           <div className="relative z-10">
             <div className="font-medium text-[60px] leading-[72px] text-center max-w-[906px] mx-auto pt-[59px] bg-gradient-to-r from-white via-gray-400 to-white bg-clip-text text-transparent">
               {config.hero.title}
@@ -74,20 +74,36 @@ const Home = () => {
                   <ChevronRightIcon color="grey" />
                 </NoBgButton>
               </div>
-              <Box justifyContent={"center"} display={"flex"} zIndex={5}>
+              <Box
+                justifyContent={"center"}
+                display={"flex"}
+                zIndex={6}
+                pos={"relative"}
+              >
                 <Image
                   src={config.images.botImage}
                   alt="Momentum Bot"
                   width={521}
                   height={535}
-                ></Image>
+                />
+                <Box
+                  pos={"absolute"}
+                  w={"1344px"}
+                  h={"955px"}
+                  bgColor={"#000000"}
+                  borderRadius={"143px"}
+                  filter={"blur(60px)"}
+                  top={"262px"}
+                ></Box>
               </Box>
             </div>
-            <div className="font-medium text-[36px] leading-[44px] mt-[120px] px-[20px]">
-              {config.hero.footerTitle}
-            </div>
-            <div className="font-normal text-[16px] leading-[24px] mt-[24px] text-[#898989] px-[20px]">
-              {config.hero.footerDescription}
+            <div className="mt-[150px] relative z-[7]">
+              <div className="font-medium text-[36px] leading-[44px]  px-[20px]">
+                {config.hero.footerTitle}
+              </div>
+              <div className="font-normal text-[16px] leading-[24px] mt-[24px] text-[#898989] px-[20px]">
+                {config.hero.footerDescription}
+              </div>
             </div>
             {/* <div className="absolute w-[80%] top-[310px] left-1/2 transform -translate-x-1/2 h-[553px] bg-black backdrop-blur-md rounded-full"></div> */}
           </div>
@@ -286,7 +302,7 @@ const Home = () => {
             bgPos={"center"}
             left={{ base: "0px", md: "250px" }}
           />
-          <Box fontSize={"44px"} mt={"111px"}>
+          <Box fontSize={"36px"} mt={"111px"}>
             {config.unlock.title}
           </Box>
           <Box
@@ -366,6 +382,7 @@ const config = {
     botImage: "/images/MomentumBot.png",
     botImageS: "/images/MomentumBot_s.svg",
     starBackground: "url(/images/StarBackground.png)",
+    heroMask: "url(/images/Backdrop.svg)",
   },
   name: "MOMENTUM",
   hero: {
