@@ -40,7 +40,7 @@ const Home = () => {
             top={"174px"}
             left={"50%"}
             transform={"translateX(-50%)"}
-            bgImage="url('/images/Frame37408.png')"
+            bgImage={config.hero.rectanglesBg}
             backgroundSize="cover"
             backgroundPosition="center"
             backgroundRepeat="no-repeat"
@@ -83,8 +83,8 @@ const Home = () => {
                 <Image
                   src={config.images.botImage}
                   alt="Momentum Bot"
-                  width={521}
-                  height={535}
+                  width={721}
+                  height={735}
                 />
                 <Box
                   pos={"absolute"}
@@ -92,8 +92,8 @@ const Home = () => {
                   h={"955px"}
                   bgColor={"#000000"}
                   borderRadius={"143px"}
-                  filter={"blur(60px)"}
-                  top={"262px"}
+                  filter={"blur(80px)"}
+                  top={"360px"}
                 ></Box>
               </Box>
             </div>
@@ -379,7 +379,7 @@ const config = {
   images: {
     momentum: "/images/MOMENTUM.svg",
     grid: "url(/images/Grid.png)",
-    botImage: "/images/MomentumBot.png",
+    botImage: "/images/MomentumBot.svg",
     botImageS: "/images/MomentumBot_s.svg",
     starBackground: "url(/images/StarBackground.png)",
     heroMask: "url(/images/Backdrop.svg)",
@@ -392,6 +392,7 @@ const config = {
     footerTitle: "Built for forward projects",
     footerDescription:
       "We offer toolkits to help you make an impact and set a new standard.",
+    rectanglesBg: "url(/images/Rectangles.svg)",
   },
   cards: {
     volume: {
