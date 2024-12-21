@@ -22,6 +22,18 @@ export function decryptWallet(encryptedPrivKey: string) {
   )
 }
 
+export function uint8ArrayToBase58(uint8Array: Uint8Array) {
+  return bs58.encode(uint8Array)
+}
+
+export function base58ToUint8Array(base58: string) {
+  return bs58.decode(base58)
+}
+
+
+export function loadWalletFromU8IntArrayStringified(data: string) {
+  return Keypair.fromSecretKey(Uint8Array.from(JSON.parse(data)))
+}
 
 export function encryptPrivateKey(
   privateKey: Uint8Array,
