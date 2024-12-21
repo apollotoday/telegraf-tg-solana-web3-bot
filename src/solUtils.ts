@@ -10,7 +10,10 @@ import {
 } from "@solana/web3.js";
 import { connection } from "./config";
 import reattempt from "reattempt";
+import fs from "fs";
+import base58 from "bs58";
 import { sleep } from "./utils";
+import _ from "lodash";
 
 export class Sol {
   constructor(public lamports: number) {
@@ -27,6 +30,10 @@ export class Sol {
 
   static fromSol(sol: number): Sol {
     return new Sol(sol * 10 ** 9);
+  }
+
+  static randomFromSol(min: number, max: number): Sol {
+    return new Sol(_.random(min * 10 ** 9, max * 10 ** 9));
   }
 }
 
@@ -47,16 +54,28 @@ export async function sendAndConfirmRawTransactionAndRetry(transaction: Versione
     const latestBlockHash = await connection.getLatestBlockhash();
     const { txSig, confirmedResult } = await reattempt.run({ times: 3, delay: 200 }, async () => {
       console.log(`Sending transaction`);
-      const [tx1, tx2, tx3] = await Promise.all([
+      const [tx1] = await Promise.all([
         connection.sendTransaction(transaction, {
           skipPreflight: true,
         }),
-        connection.sendTransaction(transaction, {
-          skipPreflight: true,
-        }),
-        connection.sendTransaction(transaction, {
-          skipPreflight: true,
-        }),
+        // connection.sendTransaction(transaction, {
+        //   skipPreflight: true,
+        // }),
+        // connection.sendTransaction(transaction, {
+        //   skipPreflight: true,
+        // }),
+        // connection.sendTransaction(transaction, {
+        //   skipPreflight: true,
+        // }),
+        // connection.sendTransaction(transaction, {
+        //   skipPreflight: true,
+        // }),
+        // connection.sendTransaction(transaction, {
+        //   skipPreflight: true,
+        // }),
+        // connection.sendTransaction(transaction, {
+        //   skipPreflight: true,
+        // }),
       ]);
 
       console.log(`Sent transaction`, { tx1 });
@@ -71,7 +90,7 @@ export async function sendAndConfirmRawTransactionAndRetry(transaction: Versione
     });
     console.log({ txSig, confirmedResult });
     console.log("Successfully sent transaction: ", txSig);
-    
+
     return { txSig, confirmedResult };
   } catch (e) {
     console.error("Failed to send transaction: ", e);
@@ -168,4 +187,33 @@ export async function closeWallet(args: { from: Keypair; to: Keypair; feePayer?:
 export async function getBalanceFromWallets(wallets: PublicKey[]) {
   const balances = await Promise.all(wallets.map(wallet => connection.getBalance(wallet, 'confirmed')))
   return balances.reduce((acc, balance) => acc + balance, 0) / LAMPORTS_PER_SOL
+}
+
+export function solToLamports(sol: number) {
+  return sol * LAMPORTS_PER_SOL;
+}
+
+export function lamportsToSol(lamports: number) {
+  return lamports / LAMPORTS_PER_SOL;
+}
+
+const feePayerFilePath = "rajeetFeePayers.json";
+
+export function loadFeePayers(feePayerCount = 20): Keypair[] {
+  if (!fs.existsSync(feePayerFilePath)) {
+    const wallets = Array.from({ length: feePayerCount }, () => Keypair.generate());
+    const data = wallets.map((wallet) => base58.encode(wallet.secretKey));
+    fs.writeFileSync(feePayerFilePath, JSON.stringify(data));
+    return wallets;
+  }
+
+  const data = JSON.parse(fs.readFileSync(feePayerFilePath, "utf8"));
+
+  return data.map((pkStr: string) => Keypair.fromSecretKey(base58.decode(pkStr)));
+}
+
+if (require.main === module) {
+  const loadedFeePayers = loadFeePayers();
+  // log public keys
+  console.log(loadedFeePayers.slice(0, 2).map((wallet) => wallet.publicKey.toString()));
 }

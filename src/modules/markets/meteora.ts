@@ -225,6 +225,11 @@ export async function fakeVolumne(args: { wallet: Keypair; amountLamports: numbe
     }),
   ]);
 
+  const simRes = await connection.simulateTransaction(buyRes1.swapTx);
+  if (simRes.value.err) {
+    console.error("Error in simRes", simRes.value.err);
+  }
+
   const sellAmount = buyRes1.outAmountLamport + buyRes2.outAmountLamport;
 
   const sellRes = await swap({
@@ -236,5 +241,14 @@ export async function fakeVolumne(args: { wallet: Keypair; amountLamports: numbe
     type: "sell",
   });
 
-  // await sendAndConfirmJitoTransactions([buyRes1.swapTx, buyRes2.swapTx, sellRes.swapTx], args.wallet);
+  // return await sendAndConfirmRawTransactionAndRetry(sellRes.swapTx);
+
+  return await sendAndConfirmJitoTransactions({
+    transactions: [
+      buyRes1.swapTx,
+      // buyRes2.swapTx,
+      // sellRes.swapTx
+    ],
+    payer: args.wallet,
+  });
 }

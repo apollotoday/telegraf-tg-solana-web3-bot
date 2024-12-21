@@ -36,6 +36,8 @@ import { TransactionMessage, VersionedTransaction } from "@solana/web3.js";
 import { connection, net } from "../../config";
 import { calculatePartionedSwapAmount } from "../../calculationUtils";
 import { sendAndConfirmJitoTransactions } from "../../jitoUtils";
+import _ from "lodash";
+import { solToLamports } from "../../solUtils";
 
 export type BuyFromPoolInput = {
   poolKeys: LiquidityPoolKeys;
@@ -217,7 +219,7 @@ export class BaseRay {
     const updateCPIx = ComputeBudgetProgram.setComputeUnitPrice({ microLamports: 1_000_000 });
     const updateCLIx = ComputeBudgetProgram.setComputeUnitLimit({ units: 100_000 });
     const { amountIn, amountOut, poolKeys, user, fixedSide, tokenAccountIn, tokenAccountOut, feePayer } = input;
-    this.cacheIxs.push(updateCPIx, updateCLIx);
+    this.cacheIxs.push(updateCPIx,updateCLIx);
 
     const inToken = (amountIn as TokenAmount).token.mint;
 
@@ -238,11 +240,6 @@ export class BaseRay {
       this.cacheIxs.push(syncWSolAta);
     }
     // -------------------
-    console.log(
-      "buyfrompool",
-      amountOut.raw.toNumber() / Math.pow(10, amountOut.token.decimals),
-      amountIn.raw.toNumber() / Math.pow(10, amountIn.token.decimals)
-    );
 
     let rayIxs = Liquidity.makeSwapInstruction({
       poolKeys,
@@ -612,10 +609,6 @@ export async function getRaydiumPoolsByTokenAddress(tokenAddress: string): Promi
 }
 
 // Usage example
-const tokenAddress = "YourTokenAddressHere"; // Replace with the token address you're interested in
-getRaydiumPoolsByTokenAddress(tokenAddress).then((pools) => {
-  console.log("Pools containing the token:", pools);
-});
 
 export type SwapInput = {
   keypair: Keypair;
@@ -628,73 +621,33 @@ export type SwapInput = {
   slippage: Percent;
 };
 
-export async function swapRay(input: SwapInput) {
-  if (input.sellToken) {
-    if (input.sellToken == "base") {
-      input.buyToken = "quote";
-    } else {
-      input.buyToken = "base";
-    }
-  }
-
-  const user = input.keypair.publicKey;
-  const baseRay = new BaseRay();
-  const slippage = input.slippage;
-  const poolKeys = await getPoolkeys(connection, input.poolId.toBase58()).catch((getPoolKeysError) => {
-    console.log({ getPoolKeysError });
-    return null;
-  });
-  if (!poolKeys) {
-    throw new Error("pool not found");
-  }
-
-  const { amount, amountSide, buyToken } = input;
-  // console.log('tx handler swap input', amount, amountSide, buyToken)
-  const swapAmountInfo = await baseRay
-    .computeBuyAmount({
-      amount,
-      buyToken,
-      inputAmountType: amountSide,
-      poolKeys,
-      user,
-      slippage,
-    })
-    .catch((computeBuyAmountError) => console.log({ computeBuyAmountError }));
-
-  if (!swapAmountInfo) throw new Error("failed to calculate the amount");
-
-  const { amountIn, amountOut, fixedSide, tokenAccountIn, tokenAccountOut } = swapAmountInfo;
-
-  console.log(`swap ${amountIn.toFixed(4)} ${amountIn.token.mint} to ${amountOut.toFixed(4)} ${amountOut.token.mint}`);
-
+export async function swapRaydium(input: {
+  keypair: Keypair;
+  poolId: PublicKey;
+  feePayer?: Keypair;
+  type: "buy" | "sell";
+  amountSide: "in" | "out";
+  amount: number;
+  slippage: Percent;
+  additionalInstructions?: TransactionInstruction[];
+  additionalSigners?: Signer[];
+}) {
   const feePayer = input?.feePayer ?? input.keypair;
   console.log("feePayer", feePayer.publicKey.toBase58());
 
-  const txInfo = await baseRay
-    .buyFromPool({ amountIn, amountOut, fixedSide, poolKeys, tokenAccountIn, tokenAccountOut, user, feePayer: feePayer.publicKey })
-    .catch((buyFromPoolError) => {
-      console.log({ buyFromPoolError });
-      return null;
-    });
+  const { instructions, signers, amountIn, amountOut } = await createSwapRaydiumInstructions(input);
 
-  if (!txInfo) throw new Error("failed to prepare swap transaction");
-
-  const recentBlockhash = (await connection.getLatestBlockhash("finalized")).blockhash;
+  const recentBlockhash = (await connection.getLatestBlockhash()).blockhash;
 
   const txMsg = new TransactionMessage({
-    instructions: txInfo.ixs,
-    payerKey: input?.feePayer?.publicKey ?? user,
+    instructions: [...instructions, ...(input.additionalInstructions ?? [])],
+    payerKey: feePayer.publicKey,
     recentBlockhash,
   }).compileToV0Message();
 
   const tx = new VersionedTransaction(txMsg);
 
-  tx.sign([feePayer, input.keypair, ...txInfo.signers]);
-
-  {
-    const buysimRes = await connection.simulateTransaction(tx);
-    // console.log('swap log', buysimRes.value.logs?.slice(-10))
-  }
+  tx.sign([feePayer, input.keypair, ...signers, ...(input.additionalSigners ?? [])]);
 
   return {
     tx,
@@ -703,7 +656,7 @@ export async function swapRay(input: SwapInput) {
   };
 }
 
-export async function swapRaydium(input: {
+export async function createSwapRaydiumInstructions(input: {
   keypair: Keypair;
   poolId: PublicKey;
   feePayer?: Keypair;
@@ -714,7 +667,41 @@ export async function swapRaydium(input: {
 }) {
   const user = input.keypair.publicKey;
   const baseRay = new BaseRay();
+  const feePayer = input?.feePayer ?? input.keypair;
+
+  const { amountIn, amountOut, tokenAccountIn, tokenAccountOut, poolKeys } = await computeRaydiumAmounts(input);
+
+  console.log(`swap ${amountIn.toFixed(4)} ${amountIn.token.mint} to ${amountOut.toFixed(4)} ${amountOut.token.mint}`);
+
+  const txInfo = await baseRay
+    .buyFromPool({ amountIn, amountOut, fixedSide: input.amountSide, poolKeys, tokenAccountIn, tokenAccountOut, user, feePayer: feePayer.publicKey })
+    .catch((buyFromPoolError) => {
+      console.log({ buyFromPoolError });
+      return null;
+    });
+
+  if (!txInfo) throw new Error("failed to prepare swap transaction");
+
+  return {
+    instructions: txInfo.ixs,
+    signers: txInfo.signers,
+    amountIn,
+    amountOut,
+  };
+}
+
+export async function computeRaydiumAmounts(input: {
+  keypair: Keypair;
+  poolId: PublicKey;
+  type: "buy" | "sell";
+  amountSide: "in" | "out";
+  amount: number;
+  slippage: Percent;
+}) {
+  const user = input.keypair.publicKey;
+  const baseRay = new BaseRay();
   const slippage = input.slippage;
+
   const poolKeys = await getPoolkeys(connection, input.poolId.toBase58()).catch((getPoolKeysError) => {
     console.log({ getPoolKeysError });
     return null;
@@ -723,10 +710,6 @@ export async function swapRaydium(input: {
     throw new Error("pool not found");
   }
 
-  console.log("base mint", poolKeys.baseMint.toBase58());
-  console.log("quote mint", poolKeys.quoteMint.toBase58());
-
-  // console.log('tx handler swap input', amount, amountSide, buyToken)
   const swapAmountInfo = await baseRay
     .computeAmount({
       amount: input.amount,
@@ -740,81 +723,84 @@ export async function swapRaydium(input: {
 
   if (!swapAmountInfo) throw new Error("failed to calculate the amount");
 
-  const { amountIn, amountOut, tokenAccountIn, tokenAccountOut } = swapAmountInfo;
-
-  console.log(`swap ${amountIn.toFixed(4)} ${amountIn.token.mint} to ${amountOut.toFixed(4)} ${amountOut.token.mint}`);
-
-  const feePayer = input?.feePayer ?? input.keypair;
-  console.log("feePayer", feePayer.publicKey.toBase58());
-
-  const txInfo = await baseRay
-    .buyFromPool({ amountIn, amountOut, fixedSide: input.amountSide, poolKeys, tokenAccountIn, tokenAccountOut, user, feePayer: feePayer.publicKey })
-    .catch((buyFromPoolError) => {
-      console.log({ buyFromPoolError });
-      return null;
-    });
-
-  if (!txInfo) throw new Error("failed to prepare swap transaction");
-
-  const recentBlockhash = (await connection.getLatestBlockhash("finalized")).blockhash;
-
-  const txMsg = new TransactionMessage({
-    instructions: txInfo.ixs,
-    payerKey: input?.feePayer?.publicKey ?? user,
-    recentBlockhash,
-  }).compileToV0Message();
-
-  const tx = new VersionedTransaction(txMsg);
-
-  tx.sign([feePayer, input.keypair, ...txInfo.signers]);
-
-  {
-    const buysimRes = await connection.simulateTransaction(tx);
-    // console.log('swap log', buysimRes.value.logs?.slice(-10))
-  }
-
   return {
-    tx,
-    amountIn,
-    amountOut,
+    ...swapAmountInfo,
+    poolKeys,
   };
 }
 
-export async function fakeVolumneTransaction(args: { swapAmount: number; wallet: Keypair; feePayer1: Keypair; feePayer2: Keypair; feePayer3: Keypair }) {
-  const puffPool = new PublicKey("9Tb2ohu5P16BpBarqd3N27WnkF51Ukfs8Z1GzzLDxVZW");
-
+export async function fakeVolumneTransaction(args: { pool: PublicKey; swapAmount: number; wallet: Keypair; differentFeePayer?: boolean }) {
   const swapAmount = args.swapAmount;
-  const sellAmountPercentage = 0.98;
-  const sellAmount = swapAmount * sellAmountPercentage;
-  const randomSlippagePercentage = 0.1;
-  const [buyAmount1, buyAmount2] = calculatePartionedSwapAmount(swapAmount, 2, randomSlippagePercentage);
+
+  const feePayers = Array.from({ length: 3 }, (_, i) => {
+    const wallet = Keypair.generate();
+
+    const sendFundsIntr = SystemProgram.transfer({
+      fromPubkey: args.wallet.publicKey,
+      toPubkey: wallet.publicKey,
+      lamports: solToLamports(0.002),
+    });
+    const sendFundsBackInstr = SystemProgram.transfer({
+      fromPubkey: wallet.publicKey,
+      toPubkey: args.wallet.publicKey,
+      lamports: solToLamports(0.00189),
+    });
+
+    return {
+      wallet,
+      sendFundsIntr,
+      sendFundsBackInstr,
+    };
+  });
+
+  // console.log("buy1FeePayer", buy1FeePayer.publicKey.toBase58());
+  // console.log("buy2FeePayer", buy2FeePayer.publicKey.toBase58());
+  // console.log("sellFeePayer", sellFeePayer.publicKey.toBase58());
+
+  const buyAmountRes = await computeRaydiumAmounts({
+    amount: swapAmount,
+    amountSide: "in",
+    type: "buy",
+    keypair: args.wallet,
+    poolId: args.pool,
+    slippage: new Percent(100, 100),
+  });
+
+  const outAmount = Number(buyAmountRes.amountOut.toExact());
+
+  const outAmount1 = Math.floor(outAmount * _.random(0.4, 0.6));
+
+  const outAmount2 = outAmount - outAmount1;
 
   const [buyRes, buyRes2, sellRes] = await Promise.all([
-    swapRay({
-      amount: buyAmount1,
-      amountSide: "receive",
-      buyToken: "quote",
+    swapRaydium({
+      amount: outAmount1,
+      amountSide: "out",
+      type: "buy",
       keypair: args.wallet,
-      feePayer: args.feePayer1,
-      poolId: puffPool,
+      feePayer: args.differentFeePayer ? feePayers[0].wallet : undefined,
+      additionalInstructions: args.differentFeePayer ? [feePayers[0].sendFundsBackInstr] : [],
+      poolId: args.pool,
       slippage: new Percent(10, 100),
     }),
-    swapRay({
-      amount: buyAmount2,
-      amountSide: "receive",
-      buyToken: "quote",
+    swapRaydium({
+      amount: outAmount2,
+      amountSide: "out",
+      type: "buy",
       keypair: args.wallet,
-      feePayer: args.feePayer2,
-      poolId: puffPool,
+      feePayer: args.differentFeePayer ? feePayers[1].wallet : undefined,
+      additionalInstructions: args.differentFeePayer ? [feePayers[1].sendFundsBackInstr] : [],
+      poolId: args.pool,
       slippage: new Percent(10, 100),
     }),
-    swapRay({
-      amount: sellAmount,
-      amountSide: "receive",
-      buyToken: "base",
+    swapRaydium({
+      amount: outAmount,
+      amountSide: "in",
+      type: "sell",
       keypair: args.wallet,
-      feePayer: args.feePayer3,
-      poolId: puffPool,
+      feePayer: args.differentFeePayer ? feePayers[2].wallet : undefined,
+      additionalInstructions: args.differentFeePayer ? [feePayers[2].sendFundsBackInstr] : [],
+      poolId: args.pool,
       slippage: new Percent(10, 100),
     }),
   ]);
@@ -822,15 +808,127 @@ export async function fakeVolumneTransaction(args: { swapAmount: number; wallet:
   if (buyRes.tx && buyRes2.tx && sellRes.tx) {
     const res = await sendAndConfirmJitoTransactions({
       transactions: [buyRes.tx, buyRes2.tx, sellRes.tx],
-      payer: args.feePayer1,
-      signers: [args.wallet, args.feePayer1, args.feePayer2, args.feePayer3],
-      instructions: [
-        SystemProgram.transfer({
-          fromPubkey: args.feePayer1.publicKey,
-          toPubkey: args.feePayer1.publicKey,
-          lamports: 1000000,
-        }),
-      ],
+      payer: args.wallet,
+      // signers: [args.wallet],
+      feeTxInstructions: [...(args.differentFeePayer ? feePayers.map((e) => e.sendFundsIntr) : [])],
+    });
+    return res;
+  } else {
+    throw new Error("failed to prepare swap transaction");
+  }
+}
+
+export async function fakeVolumneTransactionFeePayerPool(args: {
+  pool: PublicKey;
+  swapAmount: number;
+  wallet: Keypair;
+  buy1FeePayer?: Keypair;
+  buy2FeePayer?: Keypair;
+  sellFeePayer?: Keypair;
+}) {
+  const swapAmount = args.swapAmount;
+  const sellAmountPercentage = 0.98;
+  const sellAmount = swapAmount * sellAmountPercentage;
+
+  const buy1FeePayer = args.buy1FeePayer ?? args.wallet;
+  const buy2FeePayer = args.buy2FeePayer ?? args.wallet;
+  const sellFeePayer = args.sellFeePayer ?? args.wallet;
+
+  console.log("buy1FeePayer", buy1FeePayer.publicKey.toBase58());
+  console.log("buy2FeePayer", buy2FeePayer.publicKey.toBase58());
+  console.log("sellFeePayer", sellFeePayer.publicKey.toBase58());
+
+  const buyAmountRes = await computeRaydiumAmounts({
+    amount: swapAmount,
+    amountSide: "in",
+    type: "buy",
+    keypair: args.wallet,
+    poolId: args.pool,
+    slippage: new Percent(10, 100),
+  });
+
+  const outAmount = Number(buyAmountRes.amountOut.toExact());
+
+  const outAmount1 = Math.floor(outAmount * _.random(0.4, 0.6));
+
+  const outAmount2 = outAmount - outAmount1;
+
+  const [buyRes, buyRes2, sellRes] = await Promise.all([
+    swapRaydium({
+      amount: outAmount1,
+      amountSide: "out",
+      type: "buy",
+      keypair: args.wallet,
+      feePayer: buy1FeePayer,
+      poolId: args.pool,
+      slippage: new Percent(10, 100),
+    }),
+    swapRaydium({
+      amount: outAmount2,
+      amountSide: "out",
+      type: "buy",
+      keypair: args.wallet,
+      feePayer: buy2FeePayer,
+      poolId: args.pool,
+      slippage: new Percent(10, 100),
+    }),
+    swapRaydium({
+      amount: outAmount,
+      amountSide: "in",
+      type: "sell",
+      keypair: args.wallet,
+      feePayer: sellFeePayer,
+      poolId: args.pool,
+      slippage: new Percent(10, 100),
+    }),
+  ]);
+
+  const feePerTx = 0.00011;
+  const feePayerFundingAmount = 0.001;
+
+  function fundFeePayer(feePayer: Keypair) {
+    return SystemProgram.transfer({
+      fromPubkey: args.wallet.publicKey,
+      toPubkey: feePayer.publicKey,
+      lamports: solToLamports(feePayerFundingAmount),
     });
   }
+
+  function sendFundsBack(feePayer: Keypair) {
+    return SystemProgram.transfer({
+      fromPubkey: buy1FeePayer.publicKey,
+      toPubkey: args.wallet.publicKey,
+      lamports: solToLamports(0.0005),
+    });
+  }
+
+  if (
+    buyRes.tx
+    // &&  buyRes2.tx && sellRes.tx
+  ) {
+    const res = await sendAndConfirmJitoTransactions({
+      transactions: [buyRes.tx, buyRes2.tx, sellRes.tx],
+      payer: args.wallet,
+      // signers: [args.wallet],
+      feeTxInstructions: [
+        // sendFundsBack(buy1FeePayer),
+        // fundFeePayer(feePayer2), fundFeePayer(feePayer3)
+      ],
+    });
+    return res;
+  } else {
+    throw new Error("failed to prepare swap transaction");
+  }
+}
+
+export async function getTokensForPool(poolId: PublicKey): Promise<{ baseToken: PublicKey; quoteToken: PublicKey }> {
+  const poolKeys = await getPoolkeys(connection, poolId.toBase58());
+  if (!poolKeys) {
+    throw new Error("Pool not found");
+  }
+
+  return {
+    baseToken: poolKeys.baseMint,
+    quoteToken: poolKeys.quoteMint,
+  };
 }
