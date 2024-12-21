@@ -154,13 +154,18 @@ export async function waitUntilBalanceIsGreaterThan(args: { from: PublicKey; amo
 }
 
 export async function closeWallet(args: { from: Keypair; to: Keypair; feePayer?: Keypair; waitTime?: number }) {
-  await waitUntilBalanceIsGreaterThan({ from: args.from.publicKey, amount: 0.1, waitTime: args.waitTime })
+  await waitUntilBalanceIsGreaterThan({ from: args.from.publicKey, amount: 0.001, waitTime: args.waitTime })
 
   const balance = await connection.getBalance(args.from.publicKey, 'confirmed');
 
-  if (balance < (0.1 * LAMPORTS_PER_SOL)) {
+  if (balance < (0.001 * LAMPORTS_PER_SOL)) {
     throw new Error(`Balance is less than 0.1 SOL, cannot close wallet`)
   }
 
   return await sendSol({ from: args.from, to: args.to.publicKey, amount: Sol.fromLamports(balance), feePayer: args.feePayer ?? args.to });
+}
+
+export async function getBalanceFromWallets(wallets: PublicKey[]) {
+  const balances = await Promise.all(wallets.map(wallet => connection.getBalance(wallet, 'confirmed')))
+  return balances.reduce((acc, balance) => acc + balance, 0) / LAMPORTS_PER_SOL
 }

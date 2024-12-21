@@ -107,6 +107,8 @@ export async function setupPumpFunToken({
 
       console.log(`Token metadata for ${tokenSymbol}:`, tokenMetadata)
 
+      console.log(`Creating and buying pump.fun token for mint=${mint.publicKey.toBase58()} ${tokenSymbol} with ${solAmount} SOL`)
+
       const createResults = await pumpFunSDKInstance.createAndBuy(
         keypair,
         mint,
@@ -115,7 +117,7 @@ export async function setupPumpFunToken({
         SLIPPAGE_BASIS_POINTS,
         {
           unitLimit: 250_000,
-          unitPrice: 250_000,
+          unitPrice: 500_000,
         },
       )
 
