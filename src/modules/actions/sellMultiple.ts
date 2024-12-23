@@ -36,7 +36,7 @@ const wallet = getDevWallet();
 //     })
 //     .filter(Boolean) as Keypair[];
 
-export async function rug(args: { pool: PublicKey; wallets: Keypair[] }) {
+export async function sellMultiple(args: { pool: PublicKey; wallets: Keypair[] }) {
   // const { quoteToken: token } = await getTokensForPool(args.pool);
   let wallets = args.wallets;
 
@@ -198,8 +198,6 @@ if (require.main === module) {
     const { quoteToken } = await getTokensForPool(pool);
 
     console.log("quoteToken", quoteToken.toBase58());
-
-    // rug({ pool, token, wallets: [] });
   }
 
   main();

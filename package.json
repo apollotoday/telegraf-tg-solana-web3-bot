@@ -9,6 +9,7 @@
     "db:migrate": "npx prisma generate && env-cmd -f .env.dev npx prisma migrate dev --name",
     "db:migrate-deploy:prod": "env-cmd -f .env npx prisma migrate deploy",
     "build": "tsc --skipLibCheck",
+    "dev-start": "env-cmd -f .env tsx src/index.ts",
     "pm2-start": "pm2 start --node-args='--env-file=.env' dist/index.js --name 'momentum-bot'"
   },
   "dependencies": {

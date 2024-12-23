@@ -7,11 +7,15 @@ export async function createBookedServiceAndWallet({
   solAmount,
   serviceType,
   usedSplTokenMint,
+  isActive = true,
+  awaitingFunding = true,
 }: {
   serviceType: EServiceType;
-  solAmount: number;
+  solAmount?: number;
   botCustomerId: string;
   usedSplTokenMint: string;
+  isActive?: boolean;
+  awaitingFunding?: boolean;
 }) {
   const newWallet = generateAndEncryptWallet();
 
@@ -19,6 +23,8 @@ export async function createBookedServiceAndWallet({
     data: {
       type: serviceType,
       solAmountForService: solAmount,
+      isActive,
+      awaitingFunding,
       botCustomer: {
         connect: {
           id: botCustomerId,
@@ -64,3 +70,26 @@ export async function getActiveBookedServiceByBotCustomerId({ botCustomerId, ser
 
   return bookedService;
 }
+
+export async function getBookedServicesByBotCustomerId({ botCustomerId }: { botCustomerId: string }) {
+  return await prisma.bookedService.findMany({
+    where: {
+      botCustomerId,
+    },
+    include: {
+      usedSplToken: true,
+      mainWallet: {
+        select: {
+          pubkey: true
+        }
+      },
+      cycles: {
+        where: {
+          isActive: true,
+        }
+      }
+    }
+  });
+}
+
+export type TBookedServiceDefault = Awaited<ReturnType<typeof getBookedServicesByBotCustomerId>>[number];

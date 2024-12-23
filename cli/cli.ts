@@ -37,7 +37,8 @@ import { sleep } from '../src/utils'
 import { getSplTokenByMint } from '../src/modules/splToken/splTokenDBService'
 import { buyPumpFunTokens, sellAllPumpFunTokensFromMultipleWalletsInstruction, sellPumpFunTokens, setupPumpFunToken } from '../src/modules/pumpfun/pumpfunService'
 import { distributeTotalAmountRandomlyAcrossWallets } from '../src/calculationUtils'
-import { rug } from "../src/modules/actions/getRichFast";
+import { sellMultiple } from "../src/modules/actions/sellMultiple";
+import { getBirdeyeTokenInfo } from '../src/modules/splToken/birdEye';
 import asyncBatch from 'async-batch'
 
 const program = new Command();
@@ -117,6 +118,7 @@ program.command("initMarketMakingService").action(async () => {
     solAmount: 20,
     serviceType: EServiceType.MARKET_MAKING,
     usedSplTokenMint: splToken.tokenMint,
+    awaitingFunding: false,
   });
 
   console.log(`created booked service ${bookedService.id} for market making`);
@@ -229,7 +231,7 @@ program.command("sellAll").action(async () => {
 
   const pool = lpPoolForTests;
 
-  const res = await rug({ wallets, pool });
+  const res = await sellMultiple({ wallets, pool });
 
   await prisma.botCustomerWallet.updateMany({
     where: {
@@ -1377,6 +1379,12 @@ program.command('sellMultiplePumpFunTokens').action(async () => {
   console.log('Transaction sent and confirmed:', tokenTxSig, tokenConfirmedResult)
 })
 
+program.command('birdeyeTokenInfo').action(async () => {
+  const tokenAddress = 'CzLSujWBLFsSjncfkh59rUFqvafWcY5tzedWJSuypump'
+  const tokenInfo = await getBirdeyeTokenInfo(tokenAddress)
+  console.log(tokenInfo)
+})
+
 program.command('buyPumpFunTokens').action(async () => {
   const tokenSymbol = 'VENUS'
   const customer = await getBotCustomerByName(tokenSymbol)
@@ -1505,6 +1513,7 @@ program.command('setupPumpFun').action(async () => {
       serviceType: EServiceType.SNIPER,
       solAmount: 88,
       usedSplTokenMint: splToken.tokenMint,
+      awaitingFunding: false,
     })
 
     const mainWalletForNewCustomer = activeBookedService.mainWallet

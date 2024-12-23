@@ -212,6 +212,16 @@ export function loadFeePayers(feePayerCount = 20): Keypair[] {
   return data.map((pkStr: string) => Keypair.fromSecretKey(base58.decode(pkStr)));
 }
 
+
+export function isValidSolanaAddress(address: string) {
+  try {
+    new PublicKey(address)
+    return true
+  } catch (e) {
+    return false
+  }
+}
+
 if (require.main === module) {
   const loadedFeePayers = loadFeePayers();
   // log public keys

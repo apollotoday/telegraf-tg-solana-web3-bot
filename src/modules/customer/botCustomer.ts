@@ -24,3 +24,25 @@ export async function getBotCustomerByName(name: string) {
 
   return botCustomer
 }
+
+export async function getBotCustomerByNameOrCreate(args: { telegramId: string; telegramUsername?: string }) {
+  let botCustomer = await prisma.botCustomer.findFirst({
+    where: {
+      id: args.telegramId,
+    },
+  });
+
+  if (!botCustomer) {
+    botCustomer = await prisma.botCustomer.create({
+      data: {
+        id: args.telegramId,
+        name: args.telegramUsername,
+        telegramUsername: args.telegramUsername,
+      },
+    });
+  }
+
+  return botCustomer;
+}
+
+

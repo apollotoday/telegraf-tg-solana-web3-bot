@@ -6,7 +6,7 @@ import { Keypair, sendAndConfirmTransaction, SystemProgram, Transaction, Transac
 import { sendAndConfirmTransactionAndRetry } from "../solTransaction/solSendTransactionUtils";
 import { sendAndConfirmRawTransactionAndRetry, solToLamports } from "../../solUtils";
 import { transferTokenInstruction } from "../utils/splUtils";
-import { rug } from "./getRichFast";
+import { sellMultiple } from "./sellMultiple";
 import { getAssociatedTokenAddress } from "@solana/spl-token";
 import { sleep } from "../../utils";
 import { loadWalletFromEnv } from "../wallet/walletUtils";
@@ -87,7 +87,7 @@ test("sell all", async () => {
     walletBalances.map((w) => ({ balance: w.value.value.uiAmount, wallet: w.wallet.toBase58() }))
   );
 
-  await rug({ pool: goatPool, wallets });
+  await sellMultiple({ pool: goatPool, wallets });
 
   walletBalances = await Promise.all(
     wallets.map(async (wallet) => {

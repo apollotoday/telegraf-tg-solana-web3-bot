@@ -62,6 +62,17 @@ model SplToken {
 }
 
 
+enum EMarketMakingTradingStyle {
+  STEADY
+  CONSERVATIVE
+  AGGRESSIVE
+}
+
+enum EMarketMakingGoal {
+  VOLUME_CREATION
+  OPTIMIZE_PROFITS
+  HEALTHY_MARKET
+}
 
 model BookedService {
   id String @id @default(cuid())
@@ -69,6 +80,7 @@ model BookedService {
   type EServiceType
 
   isActive Boolean @default(true)
+  awaitingFunding Boolean @default(false)
 
   usedSplTokenMint String
   usedSplToken SplToken @relation(fields: [usedSplTokenMint], references: [tokenMint])
@@ -85,6 +97,9 @@ model BookedService {
   updatedAt             DateTime           @updatedAt
 
   description String?
+
+  marketMakingGoal EMarketMakingGoal?
+  marketMakingTradingStyle EMarketMakingTradingStyle?
 
   cycles MarketMakingCycle[]
 }
@@ -138,12 +153,16 @@ enum EMarketMakingCycleType {
   TAKE_PROFIT
 }
 
+
 model MarketMakingCycle {
   id String @id @default(cuid())
 
   type EMarketMakingCycleType
 
   isActive Boolean @default(true)
+
+  startTokenPrice Float?
+  endTokenPrice Float?
 
   botCustomerId String
   botCustomer BotCustomer @relation(fields: [botCustomerId], references: [id])
