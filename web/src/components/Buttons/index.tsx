@@ -9,7 +9,6 @@ type WhiteButtonProps = ButtonProps & {
 export const WhiteButton: React.FC<WhiteButtonProps> = ({
   width,
   height,
-  onClick,
   children,
   ...props
 }) => {
