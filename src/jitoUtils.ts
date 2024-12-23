@@ -10,7 +10,7 @@ import {
 } from "@solana/web3.js";
 import axios, { AxiosError } from "axios";
 import base58 from "bs58";
-import { connection, jitoFee as configJitoFee } from "./config";
+import { connection, jitoFee as configJitoFee, jitoFee } from "./config";
 import { sleep } from "./utils";
 const { JitoJsonRpcClient } = require("jito-js-rpc");
 

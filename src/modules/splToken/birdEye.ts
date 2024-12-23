@@ -12,7 +12,25 @@ export async function getBirdeyeTokenInfo(tokenAddress: string) {
       }
     }
   )
-  return birdEyeRes.data
+
+  return birdEyeRes.data.data
+}
+
+export async function getBirdeyeTokenMarkets(tokenAddress: string) {
+  const birdEyeRes = await axios.get(
+    `https://public-api.birdeye.so/defi/v2/markets?address=${tokenAddress}`,
+    {
+      headers: {
+        'x-api-key': BIRDEYE_API_KEY
+      }
+    }
+  )
+
+  const resultData = birdEyeRes.data.data
+
+  console.log(`Found ${resultData.total} markets for ${tokenAddress}`)
+
+  return resultData.items
 }
 
 

@@ -12,6 +12,8 @@ import { loadWalletFromEnv } from "../wallet/walletUtils";
 import { sendAndConfirmJitoTransactions } from "../../jitoUtils";
 import { filterTruthy } from "../../utils";
 import { getDevWallet } from "../../testUtils";
+import { createTransactionForInstructions } from '../solTransaction/solTransactionUtils';
+import { sendAndConfirmTransactionAndRetry } from '../solTransaction/solSendTransactionUtils';
 
 const wallet = getDevWallet();
 
@@ -171,7 +173,13 @@ async function sellAll(args: { wallet: Keypair; token: PublicKey; pool: PublicKe
       slippage: new Percent(10, 100),
     });
 
-    const res = await sendAndConfirmRawTransactionAndRetry(sellTx.tx);
+    const { transaction: swapTx, blockhash: swapBlockhash } = await createTransactionForInstructions({
+      instructions: swapRaydiumInstr.instructions,
+      signers: swapRaydiumInstr.signers,
+      wallet: args.wallet.publicKey.toBase58(),
+    })
+
+    const res = await sendAndConfirmTransactionAndRetry(swapTx, swapBlockhash)
 
     if (res.confirmedResult.value.err)
       return {
@@ -191,9 +199,10 @@ async function sellAll(args: { wallet: Keypair; token: PublicKey; pool: PublicKe
   }
 }
 
-if (require.main === module) {
+/* if (require.main === module) {
   async function main() {
-    const pool = new PublicKey("H7H7neVRfLbUQNsqm4Wrq2BGrwbjoBgzFd7Z54jL3xoi");
+    const adr = ''
+    const pool = new PublicKey(adr);
 
     const { quoteToken } = await getTokensForPool(pool);
 
@@ -201,4 +210,4 @@ if (require.main === module) {
   }
 
   main();
-}
+} */

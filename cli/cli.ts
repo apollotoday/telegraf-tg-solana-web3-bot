@@ -39,6 +39,7 @@ import { buyPumpFunTokens, sellAllPumpFunTokensFromMultipleWalletsInstruction, s
 import { distributeTotalAmountRandomlyAcrossWallets } from '../src/calculationUtils'
 import { sellMultiple } from "../src/modules/actions/sellMultiple";
 import { getBirdeyeTokenInfo } from '../src/modules/splToken/birdEye';
+import { getTokenInfo } from '../src/modules/splToken/tokenInfoService';
 import asyncBatch from 'async-batch'
 
 const program = new Command();
@@ -1385,6 +1386,12 @@ program.command('birdeyeTokenInfo').action(async () => {
   console.log(tokenInfo)
 })
 
+program.command('testTokenInfo').action(async () => {
+  const tokenAddress = 'CzLSujWBLFsSjncfkh59rUFqvafWcY5tzedWJSuypump'
+  const tokenInfo = await getTokenInfo(tokenAddress)
+  console.log(tokenInfo)
+})
+
 program.command('buyPumpFunTokens').action(async () => {
   const tokenSymbol = 'VENUS'
   const customer = await getBotCustomerByName(tokenSymbol)
@@ -1674,34 +1681,6 @@ program.command('closeTokenAccountsForMarketMakingWallets').action(async () => {
   const toWallet = new PublicKey('9FPqaSBG8EY1KuANnWbLqDhtwuakDfhJ1v5cKG2uvaRj')
 
 
-})
-
-program.command("sendFromSniperToMain").action(async () => {
-  const customer = await getBotCustomerByName("PF_SNIPER");
-  const tokenMint = new PublicKey("Bv9jYA2MTLQM4qtUtWsBo6ovCWbeoKEZxnszL1nYpump");
-  const toWallet = new PublicKey("8ts4iTomEGiBfYME18Dz53HAT8XMpAVUEiPiLMwjRU8r");
-
-  const snipingWallets = await prisma.botCustomerWallet.findMany({
-    where: {
-      botCustomerId: customer.id,
-      type: EWalletType.MARKET_MAKING,
-    },
-  });
-
-  const transferInstructions: { instructions: TransactionInstruction[]; keypair: Keypair }[] = [];
-
-  for (const snipingWallet of snipingWallets) {
-    const { tokenAccountPubkey, tokenBalance } = await getTokenBalanceForOwner({
-      ownerPubkey: snipingWallet.pubkey,
-      tokenMint: tokenMint.toBase58(),
-    });
-
-    console.log(`${snipingWallet.pubkey} has ${tokenBalance?.uiAmount} `);
-
-    //await createCloseAccountInstruction({ botCustomerId: customer.id })
-  }
-
-  
 })
 
 program.command('sendFromSniperToMain').action(async () => {
