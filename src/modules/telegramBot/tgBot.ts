@@ -220,11 +220,16 @@ Current balance: 0 SOL / 0 ${ctx.session.tokenCA}
 `,
           })
         }
+
+        ctx.session.currentFieldToFill = userConfigurationInputs.solSpent
       } else {
         ctx.reply('Please send a valid Solana address')
       }
     }
-    
+
+    if (ctx.session.currentFieldToFill === userConfigurationInputs.solSpent) {
+      
+    }
   })
 
 

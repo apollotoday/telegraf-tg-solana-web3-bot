@@ -5,7 +5,7 @@ export async function getBirdEyeUsdcRate(tokenMint: string) {
     `https://public-api.birdeye.so/defi/price?address=${tokenMint}`,
     {
       headers: {
-        'x-api-key': '71fe074a7d5a4b27855eba558d6b8bcf'
+        'x-api-key': process.env.BIRDEYE_API_KEY!
       }
     }
   )
