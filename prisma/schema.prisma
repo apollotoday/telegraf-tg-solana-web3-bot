@@ -1,7 +1,8 @@
 
 datasource db {
-  provider = "postgresql"
+  provider = "mysql"
   url      = env("DATABASE_URL")
+  relationMode = "prisma"
 }
 
 generator client {
@@ -11,9 +12,18 @@ generator client {
 enum EWalletType {
   DEPOSIT
   FEE_PAYER_FUND
-  RUN_FUNDING
+  SERVICE_FUNDING
   VOLUME
   FEES
+  MARKET_MAKING
+  SNIPING
+  SNIPING_FUNDING
+}
+
+enum EJobStatus {
+  OPEN
+  FINISHED
+  FAILED
 }
 
 
@@ -34,6 +44,34 @@ model CompanyWallet {
 enum EServiceType {
   VOLUME
   RANKING
+  MARKET_MAKING
+  SNIPER
+}
+
+model SplToken {
+  tokenMint      String                        @id
+  symbol         String                        
+  name           String                        
+  decimals       Int                           @default(9)
+  isSPL          Boolean                       @default(true)
+  createdAt      DateTime                      @default(now())
+  updatedAt      DateTime                      @updatedAt
+  lastUsdcPrice  Float?
+
+  usedInBookedServices BookedService[]
+}
+
+
+enum EMarketMakingTradingStyle {
+  STEADY
+  CONSERVATIVE
+  AGGRESSIVE
+}
+
+enum EMarketMakingGoal {
+  VOLUME_CREATION
+  OPTIMIZE_PROFITS
+  HEALTHY_MARKET
 }
 
 model BookedService {
@@ -41,9 +79,15 @@ model BookedService {
 
   type EServiceType
 
-  solAmountForService Float
+  isActive Boolean @default(true)
+  awaitingFunding Boolean @default(false)
 
-  botCustomerId String @unique
+  usedSplTokenMint String
+  usedSplToken SplToken @relation(fields: [usedSplTokenMint], references: [tokenMint])
+
+  solAmountForService Float?
+
+  botCustomerId String 
   botCustomer BotCustomer @relation(fields: [botCustomerId], references: [id])
 
   mainWallet BotCustomerWallet @relation(fields: [mainWalletId], references: [pubkey])
@@ -53,6 +97,11 @@ model BookedService {
   updatedAt             DateTime           @updatedAt
 
   description String?
+
+  marketMakingGoal EMarketMakingGoal?
+  marketMakingTradingStyle EMarketMakingTradingStyle?
+
+  cycles MarketMakingCycle[]
 }
 
 model BotCustomerWallet {
@@ -62,7 +111,7 @@ model BotCustomerWallet {
 
   type EWalletType
 
-  botCustomerId String @unique
+  botCustomerId String 
   botCustomer BotCustomer @relation(fields: [botCustomerId], references: [id])
 
   isActive Boolean @default(true) // if the wallet is still actively used, especially useful for sub wallets
@@ -70,12 +119,19 @@ model BotCustomerWallet {
   createdAt             DateTime           @default(now())
   updatedAt             DateTime           @updatedAt
 
+  latestSolBalance Float?
+  latestTokenBalance Float?
+
   service BookedService?
+
+  buyMarketMakingJobs MarketMakingJob[] @relation("buyTransactionsForWallet")
+  sellMarketMakingJobs MarketMakingJob[] @relation("sellTransactionsForWallet")
 }
 
 model BotCustomer {
   id String @id @default(cuid())
 
+  name String?
   email String?
   telegramUsername String?
 
@@ -84,4 +140,132 @@ model BotCustomer {
 
   createdAt             DateTime           @default(now())
   updatedAt             DateTime           @updatedAt
+
+  cycles MarketMakingCycle[]
+}
+
+
+enum EMarketMakingCycleType {
+  PRE_PUSH
+  PUSH
+  POST_PUSH
+  MAINTAIN
+  TAKE_PROFIT
+}
+
+
+model MarketMakingCycle {
+  id String @id @default(cuid())
+
+  type EMarketMakingCycleType
+
+  isActive Boolean @default(true)
+
+  startTokenPrice Float?
+  endTokenPrice Float?
+
+  botCustomerId String
+  botCustomer BotCustomer @relation(fields: [botCustomerId], references: [id])
+
+  bookedServiceId String
+  bookedService BookedService @relation(fields: [bookedServiceId], references: [id])
+
+  solSpentForCycle Float
+  maxSolSpentForCycle Float
+
+  solEarnedForCycle Float
+  maxSolEarnedForCycle Float
+
+  buyMinAmount Float
+  buyMaxAmount Float
+
+  sellToBuyValueRatio Float // >1 => extract value, <1 => add value
+
+  minDurationBetweenBuyAndSellInSeconds Int // 30 - 100 seconds; but smaller than durationBetweenJobsInSeconds
+  maxDurationBetweenBuyAndSellInSeconds Int // 30 - 100 seconds; but smaller than durationBetweenJobsInSeconds
+
+  minDurationBetweenJobsInSeconds Int // 60 - 300 seconds
+  maxDurationBetweenJobsInSeconds Int // 60 - 300 seconds
+
+  plannedTotalDurationInMinutes Int?
+
+  startTimestamp DateTime? @default(now())
+  endTimestamp DateTime?
+
+  updatedAt             DateTime           @updatedAt
+
+  jobs MarketMakingJob[]
+}
+
+
+model MarketMakingJob {
+  id String @id @default(cuid())
+
+  cycleId String
+  cycle MarketMakingCycle @relation(fields: [cycleId], references: [id])
+
+  buyStatus EJobStatus @default(OPEN)
+  sellStatus EJobStatus @default(OPEN)
+
+  // BUY
+
+  buyWalletPubkey String?
+  buyWallet BotCustomerWallet? @relation("buyTransactionsForWallet", fields: [buyWalletPubkey], references: [pubkey])
+
+  buyStartedAt DateTime?
+
+  earliestExecutionTimestampForBuy DateTime? // last job sets this to when the job can be executed the earliest
+  latestExecutionTimestampForBuy DateTime? // last job sets this to when the job can be executed the latest
+  executedAtForBuy DateTime?
+
+  buyExpectedTokenOutputAmount Float?
+  buyOutputTokenBalance Float?
+
+  tokenPriceAtBuy Float?
+  solSpent Float?
+  tokenBought Float?
+
+  buyTransactionSignature String?
+  buyTransaction OnChainTransaction? @relation("buyTransactions", fields: [buyTransactionSignature], references: [transactionSignature]) 
+
+  // SELL
+
+  sellWalletPubkey String?
+  sellWallet BotCustomerWallet? @relation("sellTransactionsForWallet", fields: [sellWalletPubkey], references: [pubkey])
+
+  sellStartedAt DateTime?
+
+  earliestExecutionTimestampForSell DateTime? // after the buy, this job sets this to when it should sell the earliest
+  latestExecutionTimestampForSell DateTime? // after the buy, this job sets this to when it should sell the latest
+  executedAtForSell DateTime?
+
+  sellExpectedSolOutputAmount Float?
+  sellOutputSolBalance Float?
+
+  tokenPriceAtSell Float?
+  solEarned Float?
+  tokenSold Float?
+
+  sellTransactionSignature String?
+  sellTransaction OnChainTransaction? @relation("sellTransactions", fields: [sellTransactionSignature], references: [transactionSignature])
+
+  createdAt             DateTime           @default(now())
+  updatedAt             DateTime           @updatedAt
+}
+
+model OnChainTransaction {
+  transactionSignature String @id
+
+  status EOnChainTransactionStatus
+
+  createdAt             DateTime           @default(now())
+  updatedAt             DateTime           @updatedAt
+
+  marketMakingJobs MarketMakingJob[] @relation("buyTransactions")
+  marketMakingJobsSell MarketMakingJob[] @relation("sellTransactions")
+}
+
+enum EOnChainTransactionStatus {
+  SUCCESS
+  FAILED
 }
