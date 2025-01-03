@@ -1,24 +1,13 @@
-"use client";
-
-import { useCallback } from "react";
 import Link from "next/link";
 import { Flex, Box } from "@chakra-ui/react";
 import { Logo } from "./Logo";
 import { HeaderMenu } from "../menu";
 import { Menu } from "@/config/menu";
 import { HeartIcon } from "@/components/Icons";
-import {
-  TelegramIcon,
-  DiscordIcon,
-  ChevronRightIcon,
-} from "@/components/Icons";
-import { WhiteButton, AccessBotButton } from "@/components/Buttons";
+import { TelegramIcon, DiscordIcon } from "@/components/Icons";
+import { AccessBotButton } from "@/components/Buttons";
 
 const Footer = () => {
-  const handleButtonClick = useCallback(() => {
-    console.log("button is clicked");
-  }, []);
-
   return (
     <>
       <footer className="hidden md:flex absolute bottom-[63px] left-1/2 transform -translate-x-1/2 max-w-[1344px] w-[93%] h-[76px] rounded-[24px] border border-gray-90 px-[32px] items-center justify-between bg-[#000000] z-[3]">

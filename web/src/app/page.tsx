@@ -205,7 +205,7 @@ const Home = () => {
           </div>
 
           {/* Package cards */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-[32px] px-0 md:px-[80px] mt-[51px] z-[10]">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-[32px] px-0 md:px-[80px] mt-[51px] z-[10] max-w-[1440px]">
             {config.packages.map((pck, index) => {
               return <PackageCard key={index} {...pck} />;
             })}
@@ -452,10 +452,66 @@ const config = {
       ],
     },
     {
-      title: "Momentum Titan",
+      title: "Momentum Surge",
       type: "Big Package",
       description:
         "Tailored for projects ready to escalate their presence and attract more attention",
+      supports: [
+        {
+          Icon: <TargetIcon />,
+          name: "Sinping Supply",
+        },
+        {
+          Icon: <RocketIcon />,
+          name: "Holder Boost",
+        },
+        {
+          Icon: <TrendUpIcon />,
+          name: "Boost Ranking for trending",
+        },
+      ],
+      isMain: true,
+    },
+    {
+      title: "Momentum Titan",
+      type: "Small Package",
+      description:
+        "Ideal for newly launched or small projects aiming to make a significant impact",
+      supports: [
+        {
+          Icon: <TargetIcon />,
+          name: "Sinping Supply",
+        },
+        {
+          Icon: <RocketIcon />,
+          name: "Holder Boost",
+        },
+      ],
+    },
+    {
+      title: "Momentum Prime",
+      type: "Medium Package",
+      description:
+        "Tailored for projects ready to escalate their presence and attract more attention",
+      supports: [
+        {
+          Icon: <TargetIcon />,
+          name: "Sinping Supply",
+        },
+        {
+          Icon: <RocketIcon />,
+          name: "Holder Boost",
+        },
+        {
+          Icon: <TrendUpIcon />,
+          name: "Boost Ranking for trending",
+        },
+      ],
+    },
+    {
+      title: "Momentum Custome",
+      type: "Need more features and support?",
+      description: "Get in touch with out team.",
       supports: [
         {
           Icon: <TargetIcon />,
@@ -478,7 +534,6 @@ const config = {
           name: "Smart Profit",
         },
       ],
-      isMain: true,
     },
   ],
   launch: {
