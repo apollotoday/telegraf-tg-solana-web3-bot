@@ -1,3 +1,6 @@
+"use client";
+
+import { useState } from "react";
 import { Box, Button, ButtonProps, Flex } from "@chakra-ui/react";
 import { ChevronRightIcon } from "@/components/Icons";
 
@@ -33,7 +36,14 @@ export const NoBgButton: React.FC<WhiteButtonProps> = ({
   ...props
 }) => {
   return (
-    <Button w={width} h={height} px={"24px"} bgColor={"transparent"} {...props}>
+    <Button
+      w={width}
+      h={height}
+      px={"24px"}
+      bgColor={"transparent"}
+      _hover={{ border: "1px solid #898989", borderRadius: "30px" }}
+      {...props}
+    >
       {children}
     </Button>
   );
@@ -67,19 +77,36 @@ export const BlackButton: React.FC<BlackButtonProps> = ({
 type AccessBotButtonTypes = ButtonProps & {};
 
 export const AccessBotButton = ({ ...props }: AccessBotButtonTypes) => {
+  const [isHovered, setIsHovered] = useState(false);
+
   return (
     <Button
       w={"194px"}
-      px={"24px"}
-      bgColor={"white"}
-      border={"1px solid black"}
+      p={"1px"}
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => setIsHovered(false)}
+      bg={isHovered ? "linear-gradient(90deg, #1D1D1D, #FFFFFF)" : "white"}
       borderRadius={"100px"}
       {...props}
     >
-      <Box color={"#1C1C1C"} fontWeight={"600"} fontSize={"16px"} mr={"10px"}>
-        Access Our Bot
-      </Box>
-      <ChevronRightIcon />
+      <Flex
+        alignItems={"center"}
+        w={"full"}
+        h={"full"}
+        borderRadius={"100px"}
+        justifyContent={"center"}
+        color={isHovered ? "white" : "#1C1C1C"}
+        bg={
+          isHovered
+            ? "linear-gradient(90deg, #0F0E0E -6%, #494949 55%, #0C0909 83%, #000000 100%)"
+            : "white"
+        }
+      >
+        <Box fontWeight={"600"} fontSize={"16px"} mr={"10px"}>
+          Access Our Bot
+        </Box>
+        <ChevronRightIcon color={isHovered ? "white" : "black"} />
+      </Flex>
     </Button>
   );
 };
