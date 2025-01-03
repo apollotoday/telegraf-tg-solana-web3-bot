@@ -1,18 +1,16 @@
 import { Box, BoxProps } from "@chakra-ui/react";
 import { AccessBotButton } from "@/components/Buttons";
 
-type BoostCardType = BoxProps & {
-  bgImageUrl: string;
+type IntroductionCardType = BoxProps & {
   title: string;
   description: string;
 };
 
-const BoostCard = ({
-  bgImageUrl,
+const IntroductionCard = ({
   title,
   description,
   ...props
-}: BoostCardType) => {
+}: IntroductionCardType) => {
   return (
     <Box
       display={"flex"}
@@ -20,12 +18,10 @@ const BoostCard = ({
       border={"1px solid #202020"}
       borderRadius={"24px"}
       p={{ base: "16px", md: "32px" }}
-      bgImage={bgImageUrl}
-      bgSize={"cover"}
       height={"443px"}
       {...props}
     >
-      <div className="font-medium text-[20px] leading-[30px]">{title}</div>
+      <div className="font-medium text-[30px] leading-[30px]">{title}</div>
       <div className="max-w-[334px] font-nomal text-[14px] leading-[24px] text-[#898989] mt-[8px]">
         {description}
       </div>
@@ -34,4 +30,4 @@ const BoostCard = ({
   );
 };
 
-export default BoostCard;
+export default IntroductionCard;

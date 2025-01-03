@@ -4,12 +4,7 @@ import { Box, Flex, VStack } from "@chakra-ui/react";
 import Header from "@/components/Layout/Header";
 import Footer from "@/components/Layout/Footer";
 import { AccessBotButton, NoBgButton, WhiteButton } from "@/components/Buttons";
-import {
-  RankingCard,
-  BoostCard,
-  VolumeCard,
-  PackageCard,
-} from "@/components/Cards";
+import { RankingCard, IntroductionCard, PackageCard } from "@/components/Cards";
 import {
   TargetIcon,
   RocketIcon,
@@ -121,15 +116,15 @@ const Home = () => {
 
         {/* card component */}
         <div className="grid grid-cols-1 md:grid-cols-2 px-[12px] md:px-[48px] gap-[18px]">
-          <VolumeCard
+          <IntroductionCard
             title={config.cards.volume.title}
             description={config.cards.volume.description}
             bgImage={config.cards.volume.background}
             bgSize={"cover"}
             bgPos={"right"}
           />
-          <BoostCard
-            bgImageUrl={config.images.grid}
+          <IntroductionCard
+            // bgImageUrl={config.images.grid}
             title={config.cards.boost.title}
             description={config.cards.boost.description}
             bgImage={config.cards.boost.background}
@@ -139,6 +134,22 @@ const Home = () => {
         </div>
         <div className="px-[12px] md:px-[48px] mt-[18px]">
           <RankingCard />
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 px-[12px] md:px-[48px] gap-[18px] mt-[18px]">
+          <IntroductionCard
+            title={config.cards.smartProfit.title}
+            description={config.cards.smartProfit.description}
+            bgImage={config.cards.smartProfit.background}
+            bgSize={"cover"}
+            bgPos={"right"}
+          />
+          <IntroductionCard
+            title={config.cards.pricePush.title}
+            description={config.cards.pricePush.description}
+            bgImage={config.cards.pricePush.background}
+            bgSize={"cover"}
+            bgPos={"right"}
+          />
         </div>
 
         {/* Ready to launch your token */}
@@ -412,6 +423,18 @@ const config = {
       title: "Ranking Bot (Solana)",
       description:
         "Fast Lane to Top Rankings. The Momentum Labs Rank Boost is designed to supercharge your token’s metrics and propel its ranking on Dex Screener by enhancing key factors like:",
+    },
+    smartProfit: {
+      background: "url(/images/SmartProfit.svg)",
+      title: "Smart Profit",
+      description:
+        "BOOST is crafted for the pushing existing tokens to new levels, combining our effective Ranking Bot with our Volume Bot allowing all crucial metrics to get significantly pushed with the best value for your money available.",
+    },
+    pricePush: {
+      background: "url(/images/PricePush.svg)",
+      title: "Price Push",
+      description:
+        "Need a volume boost to elevate the attention of your token? Momentum Labs has you covered. ",
     },
   },
   packages: [
