@@ -31,23 +31,7 @@ const Footer = () => {
           <div className="ml-[8px]">
             <DiscordIcon />
           </div>
-          <WhiteButton ml={"32px"} onClick={handleButtonClick}>
-            <Flex
-              justifyContent={"space-between"}
-              alignItems={"center"}
-              width={"full"}
-            >
-              <Box
-                color={"#1C1C1C"}
-                fontWeight={"600"}
-                fontSize={"16px"}
-                mr={"10px"}
-              >
-                Access Our Bot
-              </Box>
-              <ChevronRightIcon />
-            </Flex>
-          </WhiteButton>
+          <AccessBotButton ml={"32px"} />
         </Flex>
       </footer>
       <footer className="block md:hidden pt-[16px] border-t border-t-[#1C1C1C]">

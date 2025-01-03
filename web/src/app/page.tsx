@@ -56,7 +56,7 @@ const Home = () => {
             bgSize={"cover"}
             transform={"translateX(-50%)"}
             zIndex={4}
-          ></Box>
+          />
           <div className="relative z-10">
             <div className="font-medium text-[60px] leading-[72px] text-center max-w-[906px] mx-auto pt-[59px] bg-gradient-to-r from-white via-gray-400 to-white bg-clip-text text-transparent">
               {config.hero.title}
