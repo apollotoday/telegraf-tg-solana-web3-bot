@@ -1,35 +1,58 @@
 "use client";
 
-import { useState } from "react";
+import React, { useState } from "react";
 import { Box, Button, ButtonProps, Flex } from "@chakra-ui/react";
 import { ChevronRightIcon } from "@/components/Icons";
 
 type WhiteButtonProps = ButtonProps & {
   width?: string;
   height?: string;
+  TextComponent?: React.ElementType;
+  LeftIcon?: React.ElementType;
+  RightIcon?: React.ElementType;
 };
 
 export const WhiteButton: React.FC<WhiteButtonProps> = ({
   width,
   height,
-  children,
+  LeftIcon,
+  TextComponent,
+  RightIcon,
   ...props
 }) => {
+  const [isHovered, setIsHovered] = useState(false);
+
   return (
     <Button
       w={width}
       h={height}
       px={"24px"}
-      bgColor={"white"}
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => setIsHovered(false)}
+      border={isHovered ? "1px solid #A5A5A5" : "1px solid white"}
       borderRadius={"100px"}
+      bg={
+        isHovered
+          ? "linear-gradient(90deg, #0F0E0E -6%, #494949 45%, #0C0909 83%, #000000 100%)"
+          : "white"
+      }
+      color={isHovered ? "white" : "black"}
+      boxShadow="inset 0px 2px 10px #CACACAC9"
       {...props}
     >
-      {children}
+      {LeftIcon && <LeftIcon color={isHovered ? "white" : "black"} />}
+      {TextComponent && <TextComponent />}
+      {RightIcon && <RightIcon color={isHovered ? "white" : "black"} />}
     </Button>
   );
 };
 
-export const NoBgButton: React.FC<WhiteButtonProps> = ({
+type NoBgButtonProps = ButtonProps & {
+  width?: string;
+  height?: string;
+  children: React.ReactNode;
+};
+export const NoBgButton: React.FC<NoBgButtonProps> = ({
   width,
   height,
   children,
@@ -85,28 +108,21 @@ export const AccessBotButton = ({ ...props }: AccessBotButtonTypes) => {
       p={"1px"}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
-      bg={isHovered ? "linear-gradient(90deg, #1D1D1D, #FFFFFF)" : "white"}
+      border={isHovered ? "1px solid #A5A5A5" : "1px solid white"}
       borderRadius={"100px"}
+      bg={
+        isHovered
+          ? "linear-gradient(90deg, #0F0E0E -6%, #494949 45%, #0C0909 83%, #000000 100%)"
+          : "white"
+      }
+      color={isHovered ? "white" : "black"}
+      boxShadow="inset 0px 2px 10px #CACACAC9"
       {...props}
     >
-      <Flex
-        alignItems={"center"}
-        w={"full"}
-        h={"full"}
-        borderRadius={"100px"}
-        justifyContent={"center"}
-        color={isHovered ? "white" : "#1C1C1C"}
-        bg={
-          isHovered
-            ? "linear-gradient(90deg, #0F0E0E -6%, #494949 55%, #0C0909 83%, #000000 100%)"
-            : "white"
-        }
-      >
-        <Box fontWeight={"600"} fontSize={"16px"} mr={"10px"}>
-          Access Our Bot
-        </Box>
-        <ChevronRightIcon color={isHovered ? "white" : "black"} />
-      </Flex>
+      <Box fontWeight={"600"} fontSize={"16px"} mr={"10px"}>
+        Access Our Bot
+      </Box>
+      <ChevronRightIcon color={isHovered ? "white" : "black"} />
     </Button>
   );
 };

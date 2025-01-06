@@ -1,8 +1,12 @@
+"use client";
+
 import Image from "next/image";
 import { Box, Flex, VStack } from "@chakra-ui/react";
 
 import Header from "@/components/Layout/Header";
 import Footer from "@/components/Layout/Footer";
+import Banner from "@/components/Layout/Banner";
+
 import { AccessBotButton, NoBgButton, WhiteButton } from "@/components/Buttons";
 import { RankingCard, IntroductionCard, PackageCard } from "@/components/Cards";
 import {
@@ -14,11 +18,13 @@ import {
   ChevronRightIcon,
   HeartIcon,
   SolanaIcon,
+  TelegramIcon,
 } from "@/components/Icons";
 
 const Home = () => {
   return (
     <div className="w-full relative justify-center bg-black">
+      <Banner />
       <Header />
 
       <main className="w-full">
@@ -273,18 +279,21 @@ const Home = () => {
             </Box>
             {config.tryMomentum.solanaIcon}
           </Flex>
-          <WhiteButton className="h-[44px] mt-[48px]">
-            <Box
-              color={"#1C1C1C"}
-              fontWeight={"600"}
-              fontSize={"16px"}
-              mr={{ base: "10px", md: "122px" }}
-              lineHeight={"24px"}
-            >
-              {config.tryMomentum.button}
-            </Box>
-            <ChevronRightIcon />
-          </WhiteButton>
+          <WhiteButton
+            className="h-[44px] mt-[48px]"
+            RightIcon={ChevronRightIcon}
+            TextComponent={() => (
+              <Box
+                fontWeight={"600"}
+                fontSize={"16px"}
+                mr={{ base: "10px", md: "122px" }}
+                lineHeight={"24px"}
+              >
+                {config.tryMomentum.button}
+              </Box>
+            )}
+          />
+
           <Box
             mt={"19px"}
             px={"12px"}
@@ -328,6 +337,16 @@ const Home = () => {
           >
             {config.unlock.description}
           </Box>
+          <WhiteButton
+            mt={"24px"}
+            LeftIcon={TelegramIcon}
+            RightIcon={ChevronRightIcon}
+            TextComponent={() => (
+              <Box fontWeight={"600"} fontSize={"16px"} lineHeight={"24px"}>
+                Join our community
+              </Box>
+            )}
+          />
           <div className="mt-[104px]" />
           <Image
             src={config.images.botImageS}
