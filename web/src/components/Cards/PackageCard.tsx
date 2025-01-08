@@ -27,7 +27,7 @@ const PackageCard = ({
       p={"1px"}
       bg={
         isHovered
-          ? "linear-gradient(180deg, #30005F 0%,#000000 50%, #D19EFC 100%)"
+          ? "linear-gradient(180deg, #CFC9D6 0%,#000000 50%, #8AB8F1 100%)"
           : "#202020"
       }
       onMouseEnter={() => setIsHovered(true)}
@@ -41,7 +41,7 @@ const PackageCard = ({
         p={"32px"}
         bg={
           isHovered
-            ? "linear-gradient(180deg, #010002 0%,#1D0733 29%, #000000 100%)"
+            ? "linear-gradient(180deg, #010002 0%, #202020 38%, #000000 100%)"
             : "#000000"
         }
         minH={"572px"}
