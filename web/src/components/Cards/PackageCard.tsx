@@ -54,7 +54,7 @@ const PackageCard = ({
           borderRadius={"100px"}
           bg={
             isHovered
-              ? "linear-gradient(90deg, #FFFFFF 0%,#3CE4FA 41%, #7A00F7 100%)"
+              ? "linear-gradient(90deg, #FFFFFF 0%,#3CE4FA 41%, #8F82BA 100%)"
               : "#151515"
           }
         >
