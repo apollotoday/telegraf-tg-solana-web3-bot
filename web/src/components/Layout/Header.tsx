@@ -28,7 +28,7 @@ const Header = () => {
 
   return (
     <>
-      <header className="hidden md:flex w-full h-[76px] border border-gray-90 justify-center gap-[10px] md:gap-[10px] lg:gap-[40px] xl:gap-[100px] items-center bg-black z-[100]">
+      <header className="hidden md:flex md:sticky top-0 w-full h-[76px] border border-gray-90 justify-center gap-[10px] md:gap-[10px] lg:gap-[40px] xl:gap-[100px] items-center bg-black z-[100]">
         <Logo />
         <HeaderMenu />
         <Flex align={"center"}>

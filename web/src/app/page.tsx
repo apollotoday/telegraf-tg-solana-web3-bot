@@ -26,6 +26,7 @@ import {
   SolanaIcon,
   TelegramIcon,
 } from "@/components/Icons";
+import { MomentumBotCutted } from "@/components/Images/MomentumBotCut";
 
 const Home = () => {
   return (
@@ -420,8 +421,8 @@ const config = {
   images: {
     momentum: "/images/MOMENTUM.svg",
     grid: "url(/images/Grid.png)",
-    botImage: "/images/MomentumBot.svg",
-    botImageS: "/images/MomentumBot_s.svg",
+    botImage: "/images/MomentumBot.png",
+    botImageS: "/images/MomentumBot_s.png",
     starBackground: "url(/images/StarBackground.png)",
     heroMask: "url(/images/Backdrop.svg)",
   },
