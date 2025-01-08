@@ -97,9 +97,14 @@ export const BlackButton: React.FC<BlackButtonProps> = ({
   );
 };
 
-type AccessBotButtonTypes = ButtonProps & {};
+type AccessBotButtonTypes = ButtonProps & {
+  text?: string;
+};
 
-export const AccessBotButton = ({ ...props }: AccessBotButtonTypes) => {
+export const AccessBotButton = ({
+  text = "Access Our Bot",
+  ...props
+}: AccessBotButtonTypes) => {
   const [isHovered, setIsHovered] = useState(false);
 
   return (
@@ -120,7 +125,7 @@ export const AccessBotButton = ({ ...props }: AccessBotButtonTypes) => {
       {...props}
     >
       <Box fontWeight={"600"} fontSize={"16px"} mr={"10px"}>
-        Access Our Bot
+        {text}
       </Box>
       <ChevronRightIcon color={isHovered ? "white" : "black"} />
     </Button>

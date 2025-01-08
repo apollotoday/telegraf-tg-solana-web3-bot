@@ -8,7 +8,13 @@ import Footer from "@/components/Layout/Footer";
 import Banner from "@/components/Layout/Banner";
 
 import { AccessBotButton, NoBgButton, WhiteButton } from "@/components/Buttons";
-import { RankingCard, IntroductionCard, PackageCard } from "@/components/Cards";
+import {
+  RankingCard,
+  IntroductionCard,
+  PackageCard,
+  MarketMakerCard,
+} from "@/components/Cards";
+
 import {
   TargetIcon,
   RocketIcon,
@@ -121,41 +127,46 @@ const Home = () => {
         </Box>
 
         {/* card component */}
-        <div className="grid grid-cols-1 md:grid-cols-2 px-[12px] md:px-[48px] gap-[18px]">
-          <IntroductionCard
-            title={config.cards.volume.title}
-            description={config.cards.volume.description}
-            bgImage={config.cards.volume.background}
-            bgSize={"cover"}
-            bgPos={"right"}
-          />
-          <IntroductionCard
-            // bgImageUrl={config.images.grid}
-            title={config.cards.boost.title}
-            description={config.cards.boost.description}
-            bgImage={config.cards.boost.background}
-            bgSize={"cover"}
-            bgPos={"right"}
-          />
-        </div>
-        <div className="px-[12px] md:px-[48px] mt-[18px]">
-          <RankingCard />
-        </div>
-        <div className="grid grid-cols-1 md:grid-cols-2 px-[12px] md:px-[48px] gap-[18px] mt-[18px]">
-          <IntroductionCard
-            title={config.cards.smartProfit.title}
-            description={config.cards.smartProfit.description}
-            bgImage={config.cards.smartProfit.background}
-            bgSize={"cover"}
-            bgPos={"right"}
-          />
-          <IntroductionCard
-            title={config.cards.pricePush.title}
-            description={config.cards.pricePush.description}
-            bgImage={config.cards.pricePush.background}
-            bgSize={"cover"}
-            bgPos={"right"}
-          />
+        <div>
+          <div className="grid grid-cols-1 md:grid-cols-2 px-[12px] md:px-[48px] gap-[18px]">
+            <IntroductionCard
+              title={config.cards.volume.title}
+              description={config.cards.volume.description}
+              bgImage={config.cards.volume.background}
+              bgSize={"cover"}
+              bgPos={"right"}
+            />
+            <IntroductionCard
+              // bgImageUrl={config.images.grid}
+              title={config.cards.boost.title}
+              description={config.cards.boost.description}
+              bgImage={config.cards.boost.background}
+              bgSize={"cover"}
+              bgPos={"right"}
+            />
+          </div>
+          <div className="px-[12px] md:px-[48px] mt-[18px]">
+            <RankingCard />
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 px-[12px] md:px-[48px] gap-[18px] mt-[18px]">
+            <IntroductionCard
+              title={config.cards.smartProfit.title}
+              description={config.cards.smartProfit.description}
+              bgImage={config.cards.smartProfit.background}
+              bgSize={"cover"}
+              bgPos={"right"}
+            />
+            <IntroductionCard
+              title={config.cards.pricePush.title}
+              description={config.cards.pricePush.description}
+              bgImage={config.cards.pricePush.background}
+              bgSize={"cover"}
+              bgPos={"right"}
+            />
+          </div>
+          <div className="px-[12px] md:px-[48px] mt-[18px]">
+            <MarketMakerCard />
+          </div>
         </div>
 
         {/* Ready to launch your token */}
