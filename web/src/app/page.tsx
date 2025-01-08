@@ -26,7 +26,6 @@ import {
   SolanaIcon,
   TelegramIcon,
 } from "@/components/Icons";
-import { MomentumBotCutted } from "@/components/Images/MomentumBotCut";
 
 const Home = () => {
   return (
