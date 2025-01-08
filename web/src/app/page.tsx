@@ -1,15 +1,20 @@
+"use client";
+
 import Image from "next/image";
 import { Box, Flex, VStack } from "@chakra-ui/react";
 
 import Header from "@/components/Layout/Header";
 import Footer from "@/components/Layout/Footer";
+import Banner from "@/components/Layout/Banner";
+
 import { AccessBotButton, NoBgButton, WhiteButton } from "@/components/Buttons";
 import {
   RankingCard,
-  BoostCard,
-  VolumeCard,
+  IntroductionCard,
   PackageCard,
+  MarketMakerCard,
 } from "@/components/Cards";
+
 import {
   TargetIcon,
   RocketIcon,
@@ -19,11 +24,13 @@ import {
   ChevronRightIcon,
   HeartIcon,
   SolanaIcon,
+  TelegramIcon,
 } from "@/components/Icons";
 
 const Home = () => {
   return (
     <div className="w-full relative justify-center bg-black">
+      <Banner />
       <Header />
 
       <main className="w-full">
@@ -56,7 +63,7 @@ const Home = () => {
             bgSize={"cover"}
             transform={"translateX(-50%)"}
             zIndex={4}
-          ></Box>
+          />
           <div className="relative z-10">
             <div className="font-medium text-[60px] leading-[72px] text-center max-w-[906px] mx-auto pt-[59px] bg-gradient-to-r from-white via-gray-400 to-white bg-clip-text text-transparent">
               {config.hero.title}
@@ -120,25 +127,46 @@ const Home = () => {
         </Box>
 
         {/* card component */}
-        <div className="grid grid-cols-1 md:grid-cols-2 px-[12px] md:px-[48px] gap-[18px]">
-          <VolumeCard
-            title={config.cards.volume.title}
-            description={config.cards.volume.description}
-            bgImage={config.cards.volume.background}
-            bgSize={"cover"}
-            bgPos={"right"}
-          />
-          <BoostCard
-            bgImageUrl={config.images.grid}
-            title={config.cards.boost.title}
-            description={config.cards.boost.description}
-            bgImage={config.cards.boost.background}
-            bgSize={"cover"}
-            bgPos={"right"}
-          />
-        </div>
-        <div className="px-[12px] md:px-[48px] mt-[18px]">
-          <RankingCard />
+        <div>
+          <div className="grid grid-cols-1 md:grid-cols-2 px-[12px] md:px-[48px] gap-[18px]">
+            <IntroductionCard
+              title={config.cards.volume.title}
+              description={config.cards.volume.description}
+              bgImage={config.cards.volume.background}
+              bgSize={"cover"}
+              bgPos={"right"}
+            />
+            <IntroductionCard
+              // bgImageUrl={config.images.grid}
+              title={config.cards.boost.title}
+              description={config.cards.boost.description}
+              bgImage={config.cards.boost.background}
+              bgSize={"cover"}
+              bgPos={"right"}
+            />
+          </div>
+          <div className="px-[12px] md:px-[48px] mt-[18px]">
+            <RankingCard />
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 px-[12px] md:px-[48px] gap-[18px] mt-[18px]">
+            <IntroductionCard
+              title={config.cards.smartProfit.title}
+              description={config.cards.smartProfit.description}
+              bgImage={config.cards.smartProfit.background}
+              bgSize={"cover"}
+              bgPos={"right"}
+            />
+            <IntroductionCard
+              title={config.cards.pricePush.title}
+              description={config.cards.pricePush.description}
+              bgImage={config.cards.pricePush.background}
+              bgSize={"cover"}
+              bgPos={"right"}
+            />
+          </div>
+          <div className="px-[12px] md:px-[48px] mt-[18px]">
+            <MarketMakerCard />
+          </div>
         </div>
 
         {/* Ready to launch your token */}
@@ -205,7 +233,7 @@ const Home = () => {
           </div>
 
           {/* Package cards */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-[32px] px-0 md:px-[80px] mt-[51px] z-[10]">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-[32px] px-0 md:px-[80px] mt-[51px] z-[10] max-w-[1440px]">
             {config.packages.map((pck, index) => {
               return <PackageCard key={index} {...pck} />;
             })}
@@ -262,18 +290,21 @@ const Home = () => {
             </Box>
             {config.tryMomentum.solanaIcon}
           </Flex>
-          <WhiteButton className="h-[44px] mt-[48px]">
-            <Box
-              color={"#1C1C1C"}
-              fontWeight={"600"}
-              fontSize={"16px"}
-              mr={{ base: "10px", md: "122px" }}
-              lineHeight={"24px"}
-            >
-              {config.tryMomentum.button}
-            </Box>
-            <ChevronRightIcon />
-          </WhiteButton>
+          <WhiteButton
+            className="h-[44px] mt-[48px]"
+            RightIcon={ChevronRightIcon}
+            TextComponent={() => (
+              <Box
+                fontWeight={"600"}
+                fontSize={"16px"}
+                mr={{ base: "10px", md: "122px" }}
+                lineHeight={"24px"}
+              >
+                {config.tryMomentum.button}
+              </Box>
+            )}
+          />
+
           <Box
             mt={"19px"}
             px={"12px"}
@@ -317,6 +348,16 @@ const Home = () => {
           >
             {config.unlock.description}
           </Box>
+          <WhiteButton
+            mt={"24px"}
+            LeftIcon={TelegramIcon}
+            RightIcon={ChevronRightIcon}
+            TextComponent={() => (
+              <Box fontWeight={"600"} fontSize={"16px"} lineHeight={"24px"}>
+                Join our community
+              </Box>
+            )}
+          />
           <div className="mt-[104px]" />
           <Image
             src={config.images.botImageS}
@@ -379,8 +420,8 @@ const config = {
   images: {
     momentum: "/images/MOMENTUM.svg",
     grid: "url(/images/Grid.png)",
-    botImage: "/images/MomentumBot.svg",
-    botImageS: "/images/MomentumBot_s.svg",
+    botImage: "/images/MomentumBot.png",
+    botImageS: "/images/MomentumBot_s.png",
     starBackground: "url(/images/StarBackground.png)",
     heroMask: "url(/images/Backdrop.svg)",
   },
@@ -412,6 +453,18 @@ const config = {
       title: "Ranking Bot (Solana)",
       description:
         "Fast Lane to Top Rankings. The Momentum Labs Rank Boost is designed to supercharge your token’s metrics and propel its ranking on Dex Screener by enhancing key factors like:",
+    },
+    smartProfit: {
+      background: "url(/images/SmartProfit.svg)",
+      title: "Smart Profit",
+      description:
+        "BOOST is crafted for the pushing existing tokens to new levels, combining our effective Ranking Bot with our Volume Bot allowing all crucial metrics to get significantly pushed with the best value for your money available.",
+    },
+    pricePush: {
+      background: "url(/images/PricePush.svg)",
+      title: "Price Push",
+      description:
+        "Need a volume boost to elevate the attention of your token? Momentum Labs has you covered. ",
     },
   },
   packages: [
@@ -452,10 +505,66 @@ const config = {
       ],
     },
     {
-      title: "Momentum Titan",
+      title: "Momentum Surge",
       type: "Big Package",
       description:
         "Tailored for projects ready to escalate their presence and attract more attention",
+      supports: [
+        {
+          Icon: <TargetIcon />,
+          name: "Sinping Supply",
+        },
+        {
+          Icon: <RocketIcon />,
+          name: "Holder Boost",
+        },
+        {
+          Icon: <TrendUpIcon />,
+          name: "Boost Ranking for trending",
+        },
+      ],
+      isMain: true,
+    },
+    {
+      title: "Momentum Titan",
+      type: "Small Package",
+      description:
+        "Ideal for newly launched or small projects aiming to make a significant impact",
+      supports: [
+        {
+          Icon: <TargetIcon />,
+          name: "Sinping Supply",
+        },
+        {
+          Icon: <RocketIcon />,
+          name: "Holder Boost",
+        },
+      ],
+    },
+    {
+      title: "Momentum Prime",
+      type: "Medium Package",
+      description:
+        "Tailored for projects ready to escalate their presence and attract more attention",
+      supports: [
+        {
+          Icon: <TargetIcon />,
+          name: "Sinping Supply",
+        },
+        {
+          Icon: <RocketIcon />,
+          name: "Holder Boost",
+        },
+        {
+          Icon: <TrendUpIcon />,
+          name: "Boost Ranking for trending",
+        },
+      ],
+    },
+    {
+      title: "Momentum Custome",
+      type: "Need more features and support?",
+      description: "Get in touch with out team.",
       supports: [
         {
           Icon: <TargetIcon />,
@@ -478,7 +587,6 @@ const config = {
           name: "Smart Profit",
         },
       ],
-      isMain: true,
     },
   ],
   launch: {

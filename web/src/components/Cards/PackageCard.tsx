@@ -1,4 +1,7 @@
-import { Box, Flex } from "@chakra-ui/react";
+"use client";
+
+import { useState } from "react";
+import { Box, Flex, VStack } from "@chakra-ui/react";
 import { GetStartedButton } from "@/components/Buttons";
 
 type PackageCardTypes = {
@@ -9,7 +12,6 @@ type PackageCardTypes = {
     Icon: JSX.Element;
     name: string;
   }>;
-  isMain?: boolean;
 };
 
 const PackageCard = ({
@@ -17,61 +19,89 @@ const PackageCard = ({
   type,
   description,
   supports,
-  isMain,
 }: PackageCardTypes) => {
-  return (
-    <Flex
-      p={"32px"}
-      flexDirection={"column"}
-      gap={"24px"}
-      border={"1px solid #202020"}
-      borderRadius={"24px"}
-      bg={"#000000"}
-    >
-      <Box
-        display={"inline-block"}
-        p={"8px 32px"}
-        bgColor={"#151515"}
-        borderRadius={"161px"}
-        color={"#A7A7A7"}
-        fontWeight={500}
-        fontSize={"16px"}
-        lineHeight={"24px"}
-        textAlign={"center"}
-      >
-        {title}
-      </Box>
+  const [isHovered, setIsHovered] = useState(false);
 
-      <Box fontWeight={500} fontSize={"24px"} lineHeight={"32px"}>
-        {type}
-      </Box>
-      <Box fontWeight={400} fontSize={"16px"} color={"#898989"}>
-        {description}
-      </Box>
-      <Flex className="gap-[24px]" flexDir={"column"} mb={"24px"}>
-        {supports?.map((support, index) => {
-          return (
-            <Flex
-              key={index}
-              alignItems={"center"}
-              gap={"24px"}
-              textAlign={"left"}
-            >
-              <div>{support.Icon}</div>
-              <Box
-                fontWeight={400}
-                fontSize={"16px"}
-                lineHeight={"24px"}
-                color={"white"}
+  return (
+    <Box
+      p={"1px"}
+      bg={
+        isHovered
+          ? "linear-gradient(180deg, #30005F 0%,#000000 50%, #D19EFC 100%)"
+          : "#202020"
+      }
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => setIsHovered(false)}
+      borderRadius={"24px"}
+      textAlign={"left"}
+    >
+      <VStack
+        w={"100%"}
+        h={"100%"}
+        p={"32px"}
+        bg={
+          isHovered
+            ? "linear-gradient(180deg, #010002 0%,#1D0733 29%, #000000 100%)"
+            : "#000000"
+        }
+        minH={"572px"}
+        alignItems={"flex-start"}
+        gap={"24px"}
+        borderRadius={"24px"}
+      >
+        <Box
+          p={"1px"}
+          borderRadius={"100px"}
+          bg={
+            isHovered
+              ? "linear-gradient(90deg, #FFFFFF 0%,#3CE4FA 41%, #7A00F7 100%)"
+              : "#151515"
+          }
+        >
+          <Box
+            p={"8px 32px"}
+            bgColor={"#151515"}
+            borderRadius={"100px"}
+            color={"#A7A7A7"}
+            fontWeight={500}
+            fontSize={"16px"}
+            lineHeight={"24px"}
+          >
+            {title}
+          </Box>
+        </Box>
+
+        <Box fontWeight={500} fontSize={"24px"} lineHeight={"32px"}>
+          {type}
+        </Box>
+        <Box fontWeight={400} fontSize={"16px"} color={"#898989"}>
+          {description}
+        </Box>
+        <Flex className="gap-[24px]" flexDir={"column"} mb={"24px"}>
+          {supports?.map((support, index) => {
+            return (
+              <Flex
+                key={index}
+                alignItems={"center"}
+                gap={"24px"}
+                textAlign={"left"}
               >
-                {support.name}
-              </Box>
-            </Flex>
-          );
-        })}
-      </Flex>
-      <GetStartedButton isMain={isMain} mt={"auto"} />
-    </Flex>
+                <div>{support.Icon}</div>
+                <Box
+                  fontWeight={400}
+                  fontSize={"16px"}
+                  lineHeight={"24px"}
+                  color={"white"}
+                >
+                  {support.name}
+                </Box>
+              </Flex>
+            );
+          })}
+        </Flex>
+        <GetStartedButton isMain={isHovered} mt={"auto"} />
+      </VStack>
+    </Box>
   );
 };
 

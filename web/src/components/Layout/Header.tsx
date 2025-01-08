@@ -3,24 +3,23 @@
 import { useState, useCallback } from "react";
 import { Logo } from "./Logo";
 import { HeaderMenu } from "../menu";
-import { Flex, Box, Center } from "@chakra-ui/react";
+import { Flex, Center } from "@chakra-ui/react";
 import { Menu } from "@/config/menu";
 import Link from "next/link";
 import {
   TelegramIcon,
   DiscordIcon,
-  ChevronRightIcon,
   HamburgerIcon,
   CloseIcon,
 } from "@/components/Icons";
-import { WhiteButton, AccessBotButton } from "@/components/Buttons";
+import { AccessBotButton } from "@/components/Buttons";
 
 const Header = () => {
   const [isMenuOpen, setIsMenuOpen] = useState<boolean>(false);
 
-  const handleButtonClick = useCallback(() => {
-    console.log("handle button is clicked");
-  }, []);
+  // const handleButtonClick = useCallback(() => {
+  //   console.log("handle button is clicked");
+  // }, []);
 
   const toggleMenu = useCallback(() => {
     console.log("menu button is clicked", isMenuOpen);
@@ -29,27 +28,11 @@ const Header = () => {
 
   return (
     <>
-      <header className="hidden md:flex w-full h-[76px] border border-gray-90 justify-center gap-[10px] md:gap-[10px] lg:gap-[40px] xl:gap-[100px] items-center bg-black z-[100]">
+      <header className="hidden md:flex md:sticky top-0 w-full h-[76px] border border-gray-90 justify-center gap-[10px] md:gap-[10px] lg:gap-[40px] xl:gap-[100px] items-center bg-black z-[100]">
         <Logo />
         <HeaderMenu />
         <Flex align={"center"}>
-          <WhiteButton mr={"32px"} onClick={handleButtonClick}>
-            <Flex
-              justifyContent={"space-between"}
-              alignItems={"center"}
-              width={"full"}
-            >
-              <Box
-                color={"#1C1C1C"}
-                fontWeight={"600"}
-                fontSize={"16px"}
-                mr={"10px"}
-              >
-                Access Our Bot
-              </Box>
-              <ChevronRightIcon />
-            </Flex>
-          </WhiteButton>
+          <AccessBotButton mr={"32px"} />
           <div>
             <TelegramIcon />
           </div>
