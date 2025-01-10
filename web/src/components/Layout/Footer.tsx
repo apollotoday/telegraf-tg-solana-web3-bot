@@ -57,21 +57,6 @@ const Footer = () => {
         <Box mt={"32px"} mx={"32px"}>
           <AccessBotButton w={"100%"} />
         </Box>
-        <Flex
-          color={"#444444"}
-          alignItems={"center"}
-          justifyContent={"center"}
-          bottom={"0px"}
-          height={"70px"}
-          w={"full"}
-          mt={"40px"}
-          bg={"#000000"}
-          zIndex={1}
-        >
-          {config.about.first}
-          <div className="px-[5px]">{config.about.icon}</div>
-          {config.about.last}
-        </Flex>
       </footer>
     </>
   );
