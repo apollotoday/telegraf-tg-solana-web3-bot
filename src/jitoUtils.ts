@@ -10,7 +10,7 @@ import {
 } from "@solana/web3.js";
 import axios, { AxiosError } from "axios";
 import base58 from "bs58";
-import { connection, jitoFee as configJitoFee, jitoFee } from "./config";
+import { primaryRpcConnection, jitoFee as configJitoFee, jitoFee } from "./config";
 import { sleep } from "./utils";
 const { JitoJsonRpcClient } = require("jito-js-rpc");
 
@@ -45,7 +45,7 @@ export const sendAndConfirmJitoTransactions = async ({
 
   try {
     console.log(`Calculated fee: ${jitoFee / LAMPORTS_PER_SOL} sol`);
-    let latestBlockhash = await connection.getLatestBlockhash();
+    let latestBlockhash = await primaryRpcConnection.getLatestBlockhash();
     const jitTipTxFeeMessage = new TransactionMessage({
       payerKey: payer.publicKey,
       recentBlockhash: latestBlockhash.blockhash,
@@ -107,7 +107,7 @@ export const sendAndConfirmJitoTransactions = async ({
     if (successfulResults.length > 0) {
       console.log(`Successful response`);
 
-      const confirmation = await connection.confirmTransaction(
+      const confirmation = await primaryRpcConnection.confirmTransaction(
         {
           signature: jitoTxsignature,
           lastValidBlockHeight: latestBlockhash.lastValidBlockHeight,
@@ -160,7 +160,7 @@ export const sendAndConfirmJitoTransactionsRpc = async ({
 
   try {
     console.log(`Calculated fee: ${jitoFee / LAMPORTS_PER_SOL} sol`);
-    let latestBlockhash = await connection.getLatestBlockhash();
+    let latestBlockhash = await primaryRpcConnection.getLatestBlockhash();
     const jitTipTxFeeMessage = new TransactionMessage({
       payerKey: payer.publicKey,
       recentBlockhash: latestBlockhash.blockhash,
@@ -227,7 +227,7 @@ export const sendAndConfirmJitoTransactionsRpc = async ({
     if (inflightStatus.confirmation_status === "confirmed") {
       console.log(`Successful response`);
 
-      const confirmation = await connection.confirmTransaction(
+      const confirmation = await primaryRpcConnection.confirmTransaction(
         {
           signature: jitoTxsignature,
           lastValidBlockHeight: latestBlockhash.lastValidBlockHeight,

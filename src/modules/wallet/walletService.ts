@@ -1,5 +1,5 @@
 import { EServiceType, EWalletType } from '@prisma/client'
-import { connection, fundsToSendForRanking } from '../../config'
+import { primaryRpcConnection, fundsToSendForRanking } from '../../config'
 import { solTransfer } from '../../solUtils'
 import { encryptPrivateKey, generateAndEncryptWallet } from './walletUtils'
 import prisma from '../../lib/prisma'
@@ -71,7 +71,7 @@ export async function createVolumeBot(args: { customerId: string, usedSplTokenMi
   console.log('res', res.mainWalletId)
 
   while (true) {
-    const balance = await connection.getBalance(new PublicKey(res.mainWalletId))
+    const balance = await primaryRpcConnection.getBalance(new PublicKey(res.mainWalletId))
 
     if (balance > 1000) {
       console.log('balance received', balance)

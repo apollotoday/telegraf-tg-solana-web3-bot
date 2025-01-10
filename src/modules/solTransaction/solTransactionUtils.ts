@@ -9,7 +9,7 @@ import {
   TransactionMessage,
   VersionedTransaction,
 } from '@solana/web3.js'
-import { connection } from '../../config'
+import { primaryRpcConnection } from '../../config'
 import { getErrorFromRPCResponse } from './web3ErrorLogs'
 import { sendAndConfirmTransactionAndRetry } from './solSendTransactionUtils'
 import _ from 'lodash'
@@ -71,7 +71,7 @@ export async function createQuickTransactionForInstructions({
   priorityFeeLamports?: number,
   unitLimit?: number,
 }) {
-  const blockhash = await connection.getLatestBlockhash({
+  const blockhash = await primaryRpcConnection.getLatestBlockhash({
     commitment: 'confirmed',
   })
 
@@ -107,13 +107,13 @@ export async function createTransactionForInstructions({
   wallet: string,
 
 }) {
-  const blockhash = await connection.getLatestBlockhash({
+  const blockhash = await primaryRpcConnection.getLatestBlockhash({
     commitment: 'confirmed',
   })
 
   console.log(`blockhash`, blockhash)
 
-  const unitsConsumed = await getSimulationComputeUnits(connection, instructions, new PublicKey(wallet))
+  const unitsConsumed = await getSimulationComputeUnits(primaryRpcConnection, instructions, new PublicKey(wallet))
 
   if (!instructions.length) {
     throw new Error('No instructions provided')

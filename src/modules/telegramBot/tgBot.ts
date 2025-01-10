@@ -7,6 +7,7 @@ import { createBookedServiceAndWallet, getBookedServicesByBotCustomerId, TBooked
 import { welcomeMessage } from './textTemplates'
 import { Update } from 'telegraf/typings/core/types/typegram'
 import { isValidSolanaAddress } from '../../solUtils'
+import { getTokenInfo } from '../splToken/tokenInfoService'
 
 export const botActions = {
   bookService: 'book_service',
@@ -42,12 +43,13 @@ export const userConfigurationInputs = {
 export type TBotAIMarketMakingGoal = keyof typeof aiMarketMakingGoals
 export type TBotAIMarketMakingTradingStyle = keyof typeof tradingStyles
 
-interface MomenetumBotContext <U extends Update = Update> extends Context<U> {
+interface MomenetumBotContext<U extends Update = Update> extends Context<U> {
   botCustomer: BotCustomer
-  bookedServices: TBookedServiceDefault[]
+  activeBookedServices: TBookedServiceDefault[]
   session: {
     currentFieldToFill?: string
     botAction?: TBotAction
+    serviceAwaitingFunds?: TBookedServiceDefault
     tokenCA?: string
     solSpent?: number
     tokenSpent?: number
@@ -55,8 +57,6 @@ interface MomenetumBotContext <U extends Update = Update> extends Context<U> {
     aiMarketMakingTradingStyle?: TBotAIMarketMakingTradingStyle
   }
 }
-
-
 
 export async function startMomentumAIBot() {
   const bot = new Telegraf<MomenetumBotContext>(process.env.MOMENTUM_AI_TELEGRAM_BOT_TOKEN!)
@@ -66,11 +66,10 @@ export async function startMomentumAIBot() {
   bot.use((ctx, next) => {
     console.log('session', ctx.session)
     if (!ctx.session) {
-      ctx.session = {
-      };
+      ctx.session = {}
     }
-    return next();
-  });
+    return next()
+  })
 
   bot.use(async (ctx, next) => {
     const user = ctx.from
@@ -82,7 +81,16 @@ export async function startMomentumAIBot() {
     }
 
     ctx.botCustomer = await getBotCustomerByNameOrCreate({ telegramId: user.id.toString(), telegramUsername: user?.username })
-    ctx.bookedServices = await getBookedServicesByBotCustomerId({ botCustomerId: ctx.botCustomer.id })
+    const bookedServices = await getBookedServicesByBotCustomerId({ botCustomerId: ctx.botCustomer.id })
+    ctx.activeBookedServices = bookedServices.filter((service) => service.isActive)
+
+    const bookedServiceAwaitingFunds = bookedServices.find((service) => service.awaitingFunding)
+
+    if (bookedServiceAwaitingFunds) {
+      ctx.session.serviceAwaitingFunds = bookedServiceAwaitingFunds
+    }
+
+
 
     await next()
   })
@@ -90,14 +98,16 @@ export async function startMomentumAIBot() {
   bot.start((ctx) => {
     console.log('found bot customer', ctx.botCustomer)
 
-    if (ctx.bookedServices.length > 0) {
+
+    if (ctx.activeBookedServices.length > 0) {
+      const bookedServicesString = ctx.activeBookedServices.map((service) => `${service.type} for ${service.usedSplToken.symbol}`).join('\n')
       return ctx.sendPhoto(`https://s3.us-west-1.amazonaws.com/storage.monet.community/5z7kgy95vb.png`, {
         caption: fmt`
 ${welcomeMessage}
 
-          You have ${ctx.bookedServices.length} active services running.
+          You have ${ctx.activeBookedServices.length} active services running.
 
-          ${ctx.bookedServices.map((service) => fmt`${service.type} for ${service.usedSplTokenMint}`).join('\n')}
+          ${bookedServicesString}
         `,
         reply_markup: {
           inline_keyboard: [
@@ -119,7 +129,7 @@ ${bold('Select a service below to get started')}
 `,
       reply_markup: {
         inline_keyboard: [
-          [ 
+          [
             { text: 'Ranking Boost 🥇 (coming soon)', callback_data: botActions.rankingBoost },
             { text: 'Volume Boost ⬆️ (coming soon)', callback_data: botActions.volumeBoost },
           ],
@@ -144,9 +154,8 @@ ${bold('Select a service below to get started')}
 
   bot.action(botActions.aiMarketMaking, (ctx) => {
     ctx.session.botAction = botActions.aiMarketMaking as TBotAction
-    ctx.replyWithPhoto('https://s3.us-west-1.amazonaws.com/storage.monet.community/5z7kgy95vb.png',
-      {
-        caption: fmt`
+    ctx.replyWithPhoto('https://s3.us-west-1.amazonaws.com/storage.monet.community/5z7kgy95vb.png', {
+      caption: fmt`
 🪄🪄🪄🪄🪄
 
 Market-making on auto-pilot. Replacing traditonal on-chain market makers, MomentumAI is your 24/7 AI-agent to help you unleash your full token potential.
@@ -172,10 +181,7 @@ ${bold('To get started, please send your token CA.')}
     })
 
     ctx.session.currentFieldToFill = userConfigurationInputs.tokenCA
-
-
   })
-
 
   bot.action(userConfigurationInputs.tokenCA, (ctx) => {
     console.log('tokenCA in action', ctx.text)
@@ -183,56 +189,59 @@ ${bold('To get started, please send your token CA.')}
   })
 
   bot.on('text', async (ctx) => {
-    
     if (ctx.session.currentFieldToFill === userConfigurationInputs.tokenCA) {
       if (isValidSolanaAddress(ctx.text)) {
         console.log('Valid solana address, setting tokenCA', ctx.text)
-        
+
         ctx.session.tokenCA = ctx.text ?? ''
 
         if (ctx.session.botAction === botActions.aiMarketMaking) {
-         const bookedService = await createBookedServiceAndWallet({
-            botCustomerId: ctx.botCustomer.id,
-            awaitingFunding: true,
-            isActive: false,
-            serviceType: EServiceType.MARKET_MAKING,
-            usedSplTokenMint: ctx.session.tokenCA,
-          })
+          try {
+            const bookedService = await createBookedServiceAndWallet({
+              botCustomerId: ctx.botCustomer.id,
+              awaitingFunding: true,
+              isActive: false,
+              serviceType: EServiceType.MARKET_MAKING,
+              usedSplTokenMint: ctx.session.tokenCA,
+            })
 
-          const pubkey = bookedService.mainWallet.pubkey
+            const pubkey = bookedService.mainWallet.pubkey
 
-          ctx.replyWithPhoto('https://s3.us-west-1.amazonaws.com/storage.monet.community/5z7kgy95vb.png', {
-            caption: fmt`
-🪄🪄🪄🪄🪄
+            ctx.replyWithPhoto('https://s3.us-west-1.amazonaws.com/storage.monet.community/5z7kgy95vb.png', {
+              caption: fmt`
+  🪄🪄🪄🪄🪄
+  
+  Market making service for ${bookedService.usedSplToken.symbol} has been setup.
+  
+  Please deposit SOL and tokens to the following address to continue:
+  ${bold(pubkey)}
+  
+  1. Deposit a minimum of 1 SOL to the address to start the service.
+  2. Usually, we recommend 50% SOL and 50% tokens.
+  
+  Current balance: 0 SOL / 0 ${bookedService.usedSplToken.symbol}
+  
+  🪄🪄🪄🪄🪄
+  
+  `,
+            })
 
-Market making service for ${ctx.session.tokenCA} has been setup.
+            ctx.session.serviceAwaitingFunds = bookedService
+            ctx.session.currentFieldToFill = userConfigurationInputs.solSpent
+          } catch (error) {
+            console.error('Error creating booked service', error)
 
-Please deposit SOL and tokens to the following address to continue:
-${bold(pubkey)}
-
-1. Deposit a minimum of 1 SOL to the address to start the service.
-2. Usually, we recommend 50% SOL and 50% tokens.
-
-Current balance: 0 SOL / 0 ${ctx.session.tokenCA}
-
-🪄🪄🪄🪄🪄
-
-`,
-          })
+            ctx.reply(`Something went wrong, an error occurred: ${error}`)
+          }
         }
-
-        ctx.session.currentFieldToFill = userConfigurationInputs.solSpent
       } else {
         ctx.reply('Please send a valid Solana address')
       }
     }
 
     if (ctx.session.currentFieldToFill === userConfigurationInputs.solSpent) {
-      
     }
   })
-
-
 
   bot.launch()
   console.log('MomentumAI telegram bot started')

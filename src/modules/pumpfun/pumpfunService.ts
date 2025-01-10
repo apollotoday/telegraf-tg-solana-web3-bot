@@ -1,7 +1,7 @@
 import { BotCustomerWallet } from '@prisma/client'
 import { PumpFunSDK } from 'pumpdotfun-sdk'
 import { decryptWallet } from '../wallet/walletUtils'
-import { connection } from '../../config'
+import { primaryRpcConnection } from '../../config'
 import { AnchorProvider } from '@coral-xyz/anchor'
 import NodeWallet from '@coral-xyz/anchor/dist/cjs/nodewallet'
 import { Keypair, LAMPORTS_PER_SOL, PublicKey } from '@solana/web3.js'
@@ -23,7 +23,7 @@ export async function sellPumpFunTokens({
   const keypair = decryptWallet(mainWallet.encryptedPrivKey)
   const wallet = new NodeWallet(keypair)
 
-  const provider = new AnchorProvider(connection, wallet, { commitment: 'confirmed' })
+  const provider = new AnchorProvider(primaryRpcConnection, wallet, { commitment: 'confirmed' })
   const pumpFunSDKInstance = new PumpFunSDK(provider)
 
   await pumpFunSDKInstance.sell(keypair, new PublicKey(tokenMint), BigInt(tokenAmount), SLIPPAGE_BASIS_POINTS, { unitLimit: 250_000, unitPrice: 250_000 })
@@ -37,7 +37,7 @@ export async function sellAllPumpFunTokensFromMultipleWalletsInstruction({
   tokenMint: string
 }) {
   return Promise.all(wallets.map(async (wallet) => {
-    const provider = new AnchorProvider(connection, new NodeWallet(wallet), { commitment: 'confirmed' })
+    const provider = new AnchorProvider(primaryRpcConnection, new NodeWallet(wallet), { commitment: 'confirmed' })
     const pumpFunSDKInstance = new PumpFunSDK(provider)
     const tokenBalance = await getTokenBalanceForOwner({
       ownerPubkey: wallet.publicKey.toBase58(),
@@ -59,7 +59,7 @@ export async function buyPumpFunTokens({
 }) {
   const wallet = new NodeWallet(mainWallet)
 
-  const provider = new AnchorProvider(connection, wallet, { commitment: 'confirmed' })
+  const provider = new AnchorProvider(primaryRpcConnection, wallet, { commitment: 'confirmed' })
   const pumpFunSDKInstance = new PumpFunSDK(provider)
 
   await pumpFunSDKInstance.buy(mainWallet, new PublicKey(tokenMint), BigInt(solAmount * LAMPORTS_PER_SOL), SLIPPAGE_BASIS_POINTS, { unitLimit: 250_000, unitPrice: 250_000 })
@@ -86,7 +86,7 @@ export async function setupPumpFunToken({
     const keypair = decryptWallet(mainWallet.encryptedPrivKey)
     const wallet = new NodeWallet(keypair)
 
-    const provider = new AnchorProvider(connection, wallet, { commitment: 'confirmed' })
+    const provider = new AnchorProvider(primaryRpcConnection, wallet, { commitment: 'confirmed' })
     const pumpFunSDKInstance = new PumpFunSDK(provider)
 
     let bondingCurveAccount = await pumpFunSDKInstance.getBondingCurveAccount(mint.publicKey)

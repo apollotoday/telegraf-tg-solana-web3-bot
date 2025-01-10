@@ -1,5 +1,5 @@
 import reattempt from 'reattempt'
-import { connection } from '../../config'
+import { primaryRpcConnection } from '../../config'
 import { EOnChainTransactionStatus } from '@prisma/client'
 import { Transaction } from '@solana/web3.js'
 
@@ -31,13 +31,13 @@ export async function sendAndConfirmRawTransactionAndRetry(
       async () => {
         console.log(`Sending transaction`)
         const [tx1, tx2, tx3] = await Promise.all([
-          connection.sendRawTransaction(serializedTransaction, {
+          primaryRpcConnection.sendRawTransaction(serializedTransaction, {
             skipPreflight: true,
           }),
-          connection.sendRawTransaction(serializedTransaction, {
+          primaryRpcConnection.sendRawTransaction(serializedTransaction, {
             skipPreflight: true,
           }),
-          connection.sendRawTransaction(serializedTransaction, {
+          primaryRpcConnection.sendRawTransaction(serializedTransaction, {
             skipPreflight: true,
           }),
         ])
@@ -71,7 +71,7 @@ export async function confirmTransactionSignatureAndRetry(
 ) {
   try {
     const confirmedSigResult = await reattempt.run({ times: 6, delay: 600 }, async () => {
-      return await connection.confirmTransaction(
+      return await primaryRpcConnection.confirmTransaction(
         {
           blockhash: blockhash.blockhash,
           lastValidBlockHeight: blockhash.lastValidBlockHeight,

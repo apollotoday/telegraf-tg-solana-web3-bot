@@ -5,7 +5,7 @@ import { decryptWallet } from '../wallet/walletUtils'
 import reattempt from 'reattempt'
 import { Keypair, LAMPORTS_PER_SOL, PublicKey } from '@solana/web3.js'
 import { sleep } from '../utils/timeUtils'
-import { connection } from '../../config'
+import { primaryRpcConnection } from '../../config'
 
 export async function sendSolFromWalletToWalletWithCycles({
   cycles,
@@ -34,7 +34,7 @@ export async function sendSolFromWalletToWalletWithCycles({
     try {
       await reattempt.run({ times: 7, delay: 500 }, async () => {
         if (i === 0) {
-          const balance = await connection.getBalance(sourceKeypair.publicKey, 'confirmed');
+          const balance = await primaryRpcConnection.getBalance(sourceKeypair.publicKey, 'confirmed');
           
           const { txSig, confirmedResult } = await sendSol({
             amount: sendAll ? Sol.fromLamports(balance) : amount,

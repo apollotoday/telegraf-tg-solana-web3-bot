@@ -33,7 +33,7 @@ import { BN } from "@project-serum/anchor";
 import { toBufferBE } from "bigint-buffer";
 import { TransactionMessage, VersionedTransaction } from "@solana/web3.js";
 // import { connection, puffAddr, solAddr } from "../../config"
-import { connection, net } from "../../config";
+import { primaryRpcConnection, net } from "../../config";
 import { calculatePartionedSwapAmount } from "../../calculationUtils";
 import { sendAndConfirmJitoTransactions } from "../../jitoUtils";
 import _ from "lodash";
@@ -86,7 +86,7 @@ export class BaseRay {
   }
 
   async getMarketInfo(marketId: PublicKey) {
-    const marketAccountInfo = await connection.getAccountInfo(marketId, "confirmed").catch((error: any) => null);
+    const marketAccountInfo = await primaryRpcConnection.getAccountInfo(marketId, "confirmed").catch((error: any) => null);
     if (!marketAccountInfo) throw "Market not found";
     try {
       return RayMarket.getLayouts(3).state.decode(marketAccountInfo.data);
@@ -115,7 +115,7 @@ export class BaseRay {
     //   return jsonInfo2PoolKeys(cache) as LiquidityPoolKeys
     // }
 
-    const accountInfo = await connection.getAccountInfo(poolId);
+    const accountInfo = await primaryRpcConnection.getAccountInfo(poolId);
     if (!accountInfo) throw "Pool info not found";
     let poolState: LiquidityStateV4 | LiquidityStateV5 | undefined = undefined;
     let version: 4 | 5 | undefined = undefined;
@@ -170,7 +170,7 @@ export class BaseRay {
 
     // log({ version, baseMint: baseMint.toBase58(), quoteMint: quoteMint.toBase58(), lpMint: lpMint.toBase58(), marketId: marketId.toBase58(), marketProgramId: marketProgramId.toBase58() })
     let marketState: any = undefined;
-    const marketAccountInfo = await connection.getAccountInfo(marketId).catch((error) => null);
+    const marketAccountInfo = await primaryRpcConnection.getAccountInfo(marketId).catch((error) => null);
     if (!marketAccountInfo) throw "Market not found";
     try {
       marketState = RayMarket.getLayouts(marketVersion).state.decode(marketAccountInfo.data);
@@ -276,7 +276,7 @@ export class BaseRay {
     let amountOut: TokenAmount;
     let tokenAccountIn: PublicKey;
     let tokenAccountOut: PublicKey;
-    const [lpAccountInfo, baseVAccountInfo, quoteVAccountInfo] = await connection
+    const [lpAccountInfo, baseVAccountInfo, quoteVAccountInfo] = await primaryRpcConnection
       .getMultipleAccountsInfo([poolKeys.lpMint, poolKeys.baseVault, poolKeys.quoteVault].map((e) => new PublicKey(e)))
       .catch(() => [null, null, null, null]);
     if (!lpAccountInfo || !baseVAccountInfo || !quoteVAccountInfo) throw "Failed to fetch some data";
@@ -354,7 +354,7 @@ export class BaseRay {
     let amountOut: TokenAmount;
     let tokenAccountIn: PublicKey;
     let tokenAccountOut: PublicKey;
-    const [lpAccountInfo, baseVAccountInfo, quoteVAccountInfo] = await connection
+    const [lpAccountInfo, baseVAccountInfo, quoteVAccountInfo] = await primaryRpcConnection
       .getMultipleAccountsInfo([poolKeys.lpMint, poolKeys.baseVault, poolKeys.quoteVault].map((e) => new PublicKey(e)))
       .catch(() => [null, null, null, null]);
     if (!lpAccountInfo || !baseVAccountInfo || !quoteVAccountInfo) throw "Failed to fetch some data";
@@ -443,7 +443,7 @@ export class BaseRay {
     let amountOut: TokenAmount;
     let tokenAccountIn: PublicKey;
     let tokenAccountOut: PublicKey;
-    const [lpAccountInfo, baseVAccountInfo, quoteVAccountInfo] = await connection
+    const [lpAccountInfo, baseVAccountInfo, quoteVAccountInfo] = await primaryRpcConnection
       .getMultipleAccountsInfo([poolKeys.lpMint, poolKeys.baseVault, poolKeys.quoteVault].map((e) => new PublicKey(e)))
       .catch(() => [null, null, null, null]);
     if (!lpAccountInfo || !baseVAccountInfo || !quoteVAccountInfo) throw "Failed to fetch some data";
@@ -588,7 +588,7 @@ export async function getRaydiumPoolsByTokenAddress(tokenAddress: string): Promi
   const poolAddresses: PublicKey[] = [];
 
   // Fetch all accounts owned by the Raydium program
-  const accounts = await connection.getProgramAccounts(new PublicKey(_SERUM_PROGRAM_ID_V3), {
+  const accounts = await primaryRpcConnection.getProgramAccounts(new PublicKey(_SERUM_PROGRAM_ID_V3), {
     filters: [
       {
         dataSize: 165, // Only account data layouts for token accounts are 165 bytes
@@ -637,7 +637,7 @@ export async function swapRaydium(input: {
 
   const { instructions, signers, amountIn, amountOut } = await createSwapRaydiumInstructions(input);
 
-  const recentBlockhash = (await connection.getLatestBlockhash()).blockhash;
+  const recentBlockhash = (await primaryRpcConnection.getLatestBlockhash()).blockhash;
 
   const txMsg = new TransactionMessage({
     instructions: [...instructions, ...(input.additionalInstructions ?? [])],
@@ -702,7 +702,7 @@ export async function computeRaydiumAmounts(input: {
   const baseRay = new BaseRay();
   const slippage = input.slippage;
 
-  const poolKeys = await getPoolkeys(connection, input.poolId.toBase58()).catch((getPoolKeysError) => {
+  const poolKeys = await getPoolkeys(primaryRpcConnection, input.poolId.toBase58()).catch((getPoolKeysError) => {
     console.log({ getPoolKeysError });
     return null;
   });
@@ -922,7 +922,7 @@ export async function fakeVolumneTransactionFeePayerPool(args: {
 }
 
 export async function getTokensForPool(poolId: PublicKey): Promise<{ baseToken: PublicKey; quoteToken: PublicKey }> {
-  const poolKeys = await getPoolkeys(connection, poolId.toBase58());
+  const poolKeys = await getPoolkeys(primaryRpcConnection, poolId.toBase58());
   if (!poolKeys) {
     throw new Error("Pool not found");
   }

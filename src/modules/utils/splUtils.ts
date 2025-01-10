@@ -1,9 +1,9 @@
 import { Keypair, PublicKey, TransactionInstruction } from "@solana/web3.js";
-import { connection } from "../../config";
+import { primaryRpcConnection } from "../../config";
 import { createAssociatedTokenAccountInstruction, createTransferInstruction, getAssociatedTokenAddress, TOKEN_PROGRAM_ID } from "@solana/spl-token";
 
 export async function getTokenBalanceForOwner({ ownerPubkey, tokenMint }: { ownerPubkey: string; tokenMint: string }) {
-  const tokenAccounts = await connection.getParsedTokenAccountsByOwner(new PublicKey(ownerPubkey), {
+  const tokenAccounts = await primaryRpcConnection.getParsedTokenAccountsByOwner(new PublicKey(ownerPubkey), {
     mint: new PublicKey(tokenMint),
   });
 
@@ -20,7 +20,7 @@ export async function getTokenBalanceForOwner({ ownerPubkey, tokenMint }: { owne
 }
 
 export async function getTokenAccount(mint: PublicKey, user: PublicKey) {
-  const userTokenAccounts = await connection.getParsedTokenAccountsByOwner(user, {
+  const userTokenAccounts = await primaryRpcConnection.getParsedTokenAccountsByOwner(user, {
     mint: mint,
   });
 

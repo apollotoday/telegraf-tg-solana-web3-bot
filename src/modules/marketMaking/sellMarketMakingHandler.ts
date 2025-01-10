@@ -7,7 +7,7 @@ import { decryptWallet } from '../wallet/walletUtils';
 import reattempt from 'reattempt';
 import { executeJupiterSwap } from '../markets/jupiter';
 import { LAMPORTS_PER_SOL, PublicKey } from '@solana/web3.js';
-import { connection, solTokenMint } from '../../config';
+import { primaryRpcConnection, solTokenMint } from '../../config';
 import prisma from '../../lib/prisma';
 
 export async function handleSellMarketMakingJob(job: MarketMakingJobWithCycleAndBookedService) {
@@ -32,7 +32,7 @@ export async function handleSellMarketMakingJob(job: MarketMakingJobWithCycleAnd
       minTokenBalance: minSellAmount,
     })
 
-    const preSolBalanceFromConn = await connection.getBalance(new PublicKey(wallet.pubkey), 'recent')
+    const preSolBalanceFromConn = await primaryRpcConnection.getBalance(new PublicKey(wallet.pubkey), 'recent')
 
     const inputSellAmount = randomAmount(maxSellAmount, minSellAmount, wallet.latestTokenBalance ?? 0);
 
@@ -65,7 +65,7 @@ export async function handleSellMarketMakingJob(job: MarketMakingJobWithCycleAnd
     })
 
 
-    const postSolBalanceFromConn = await connection.getBalance(new PublicKey(wallet.pubkey), 'recent')
+    const postSolBalanceFromConn = await primaryRpcConnection.getBalance(new PublicKey(wallet.pubkey), 'recent')
 
     const expectedSolEarned = expectedOutputAmount / LAMPORTS_PER_SOL
     const lamportsEarned = postSolBalanceFromConn - preSolBalanceFromConn
