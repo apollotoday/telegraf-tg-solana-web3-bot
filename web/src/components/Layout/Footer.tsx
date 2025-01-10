@@ -77,12 +77,4 @@ const Footer = () => {
   );
 };
 
-const config = {
-  about: {
-    first: "Made with",
-    icon: <HeartIcon />,
-    last: "by duoversestudio.com",
-  },
-};
-
 export default Footer;

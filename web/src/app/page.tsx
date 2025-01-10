@@ -610,13 +610,6 @@ const config = {
       "Now seamlessly integrated into Telegram. Our user-friendly bot simplifies the process of managing and scaling your Solana project. Want to accelerate your project's growth?",
     background: "url(/images/FooterBackground.svg)",
   },
-  about: {
-    first: "Made with",
-    icon: <HeartIcon />,
-    last: "by",
-    urlText: "duoversestudio.com",
-    url: "https://duoversestudio.com",
-  },
 };
 
 const styleConfig = {
