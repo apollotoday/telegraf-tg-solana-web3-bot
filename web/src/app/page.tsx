@@ -2,6 +2,7 @@
 
 import Image from "next/image";
 import { Box, Flex, VStack } from "@chakra-ui/react";
+import { motion } from "framer-motion";
 
 import Header from "@/components/Layout/Header";
 import Footer from "@/components/Layout/Footer";
@@ -26,6 +27,7 @@ import {
   SolanaIcon,
   TelegramIcon,
 } from "@/components/Icons";
+import { BinaryCode } from "@/components/Sections/BinaryCode";
 
 const Home = () => {
   return (
@@ -65,12 +67,22 @@ const Home = () => {
             zIndex={4}
           />
           <div className="relative z-10">
-            <div className="font-medium text-[60px] leading-[72px] text-center max-w-[906px] mx-auto pt-[59px] bg-gradient-to-r from-white via-gray-400 to-white bg-clip-text text-transparent">
+            <motion.div
+              initial={{ y: 100, opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              transition={{ duration: 0.8, ease: "easeOut" }}
+              className="font-medium text-[60px] leading-[72px] text-center max-w-[906px] mx-auto pt-[59px] bg-gradient-to-r from-white via-gray-400 to-white bg-clip-text text-transparent"
+            >
               {config.hero.title}
-            </div>
-            <div className="max-w-[730px] font-normal text-[20px] text-[#898989] leading-[30px] mx-auto mt-[24px]">
+            </motion.div>
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ duration: 1.2, ease: "easeOut" }}
+              className="max-w-[730px] font-normal text-[20px] text-[#898989] leading-[30px] mx-auto mt-[24px]"
+            >
               {config.hero.description}
-            </div>
+            </motion.div>
             <div className="mt-[18px] relative">
               <div className="flex flex-col sm:flex-row justify-center px-[60px] gap-[24px]">
                 <AccessBotButton />
@@ -116,15 +128,7 @@ const Home = () => {
           </div>
         </div>
 
-        {/* binary code component */}
-        <Box
-          width={"full"}
-          height={{ base: "200px", md: "392px" }}
-          // my={{ lg: "40px" }}
-          pos={"relative"}
-        >
-          <Image fill alt="Binary Code" src={"/images/BinaryCode.svg"}></Image>
-        </Box>
+        <BinaryCode />
 
         {/* card component */}
         <div>
