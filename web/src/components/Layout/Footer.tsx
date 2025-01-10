@@ -3,7 +3,6 @@ import { Flex, Box } from "@chakra-ui/react";
 import { Logo } from "./Logo";
 import { HeaderMenu } from "../menu";
 import { Menu } from "@/config/menu";
-import { HeartIcon } from "@/components/Icons";
 import { TelegramIcon, DiscordIcon } from "@/components/Icons";
 import { AccessBotButton } from "@/components/Buttons";
 

@@ -22,7 +22,6 @@ import {
   PlusCircleIcon,
   CoinsIcon,
   ChevronRightIcon,
-  HeartIcon,
   SolanaIcon,
   TelegramIcon,
 } from "@/components/Icons";
@@ -378,25 +377,6 @@ const Home = () => {
               height={156}
             ></Image>
           </Box>
-          <Flex
-            color={"#444444"}
-            alignItems={"center"}
-            justifyContent={"center"}
-            pos={"absolute"}
-            bottom={"0px"}
-            height={"70px"}
-            w={"full"}
-            bg={"#000000"}
-            zIndex={3}
-            display={{ base: "none", md: "flex" }}
-          >
-            {config.about.first}
-            <div className="px-[5px]">{config.about.icon}</div>
-            {config.about.last} &nbsp;
-            <a href={config.about.url} className="hover:underline">
-              {config.about.urlText}
-            </a>
-          </Flex>
           <Box
             bg={"black"}
             filter={"blur(20px)"}
