@@ -410,7 +410,7 @@ const config = {
     title: "Catch attention and gain momentum against the market",
     description:
       "Designed to elevate token visibility and draw in more investors, Momentum Labs drivers higher trading volumes and boost your ranking on all relevant platforms",
-    footerTitle: "Built for forward projects",
+    footerTitle: "The Ultimate Token Accelerator",
     footerDescription:
       "We offer toolkits to help you make an impact and set a new standard.",
     rectanglesBg: "url(/images/Rectangles.svg)",
