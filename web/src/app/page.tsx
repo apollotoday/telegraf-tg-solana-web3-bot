@@ -407,12 +407,12 @@ const config = {
   },
   name: "MOMENTUM",
   hero: {
-    title: "Catch attention and gain momentum against the market",
+    title: "Game-Changing Market-Making powered by AI.",
     description:
-      "Designed to elevate token visibility and draw in more investors, Momentum Labs drivers higher trading volumes and boost your ranking on all relevant platforms",
+      "Tailored AI strategies built around your goals and budget, drive visibility, master liquidity, and revolutionize token management.",
     footerTitle: "The Ultimate Token Accelerator",
     footerDescription:
-      "We offer toolkits to help you make an impact and set a new standard.",
+      "Our AI-powered toolkit delivers tailored strategies for liquidity, visibility, and growth. Choose the package that fits your goals and let our technology handle the heavy lifting.",
     rectanglesBg: "url(/images/Rectangles.svg)",
   },
   cards: {
