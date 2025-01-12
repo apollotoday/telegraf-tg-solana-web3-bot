@@ -184,6 +184,11 @@ export async function closeWallet(args: { from: Keypair; to: Keypair; feePayer?:
   return await sendSol({ from: args.from, to: args.to.publicKey, amount: Sol.fromLamports(balance), feePayer: args.feePayer ?? args.to });
 }
 
+export async function getBalanceFromWallet(wallet: string) {
+  const balance = await primaryRpcConnection.getBalance(new PublicKey(wallet), 'confirmed')
+  return balance / LAMPORTS_PER_SOL
+}
+
 export async function getBalanceFromWallets(wallets: PublicKey[]) {
   const balances = await Promise.all(wallets.map(wallet => primaryRpcConnection.getBalance(wallet, 'confirmed')))
   return balances.reduce((acc, balance) => acc + balance, 0) / LAMPORTS_PER_SOL

@@ -4,66 +4,29 @@ import { bold, fmt } from 'telegraf/format'
 import prisma from '../../lib/prisma'
 import { getBotCustomerByName, getBotCustomerByNameOrCreate } from '../customer/botCustomer'
 import { createBookedServiceAndWallet, getBookedServicesByBotCustomerId, TBookedServiceDefault } from '../customer/bookedService'
-import { welcomeMessage } from './textTemplates'
+import { sendNewServiceBookingMessage, welcomeMessage } from './textTemplates'
 import { Update } from 'telegraf/typings/core/types/typegram'
 import { isValidSolanaAddress } from '../../solUtils'
 import { getTokenInfo } from '../splToken/tokenInfoService'
+import {
+  defaultMarkupWithAdditionalOptions,
+  defaultReplyMarkup,
+  MomentumBotContext,
+  TBotAction,
+  TBotAIMarketMakingGoal,
+  TBotAIMarketMakingTradingStyle,
+  telegramBotActions,
+  userConfigurationInputs,
+} from './telegramBotActionsAndTypes'
 
-export const botActions = {
-  bookService: 'book_service',
-  viewServices: 'view_services',
-  rankingBoost: 'ranking_boost',
-  volumeBoost: 'volume_boost',
-  boostMedium: 'boost_medium',
-  aiMarketMaking: 'ai_market_making',
-}
 
-export type TBotAction = keyof typeof botActions
-
-export const aiMarketMakingGoals = {
-  volumeCreation: 'volume_creation',
-  optimizeProfits: 'optimize_profits',
-  healthyMarket: 'healthy_market',
-}
-
-export const tradingStyles = {
-  steady: 'steady',
-  conservative: 'conservative',
-  aggressive: 'aggressive',
-}
-
-export const userConfigurationInputs = {
-  tokenCA: 'Token CA',
-  solSpent: 'SOL Spent',
-  tokenSpent: 'Token Spent',
-  aiMarketMakingGoal: 'AI Market Making Goal',
-  aiMarketMakingTradingStyle: 'AI Market Making Trading Style',
-}
-
-export type TBotAIMarketMakingGoal = keyof typeof aiMarketMakingGoals
-export type TBotAIMarketMakingTradingStyle = keyof typeof tradingStyles
-
-interface MomenetumBotContext<U extends Update = Update> extends Context<U> {
-  botCustomer: BotCustomer
-  activeBookedServices: TBookedServiceDefault[]
-  session: {
-    currentFieldToFill?: string
-    botAction?: TBotAction
-    serviceAwaitingFunds?: TBookedServiceDefault
-    tokenCA?: string
-    solSpent?: number
-    tokenSpent?: number
-    aiMarketMakingGoal?: TBotAIMarketMakingGoal
-    aiMarketMakingTradingStyle?: TBotAIMarketMakingTradingStyle
-  }
-}
+export const telegrafBot = new Telegraf<MomentumBotContext>(process.env.MOMENTUM_AI_TELEGRAM_BOT_TOKEN!)
 
 export async function startMomentumAIBot() {
-  const bot = new Telegraf<MomenetumBotContext>(process.env.MOMENTUM_AI_TELEGRAM_BOT_TOKEN!)
 
-  bot.use(session())
+  telegrafBot.use(session())
 
-  bot.use((ctx, next) => {
+  telegrafBot.use((ctx, next) => {
     console.log('session', ctx.session)
     if (!ctx.session) {
       ctx.session = {}
@@ -71,7 +34,7 @@ export async function startMomentumAIBot() {
     return next()
   })
 
-  bot.use(async (ctx, next) => {
+  telegrafBot.use(async (ctx, next) => {
     const user = ctx.from
     console.log(`Action -> ${ctx.updateType}: ${ctx.text}`)
     console.log(`Middleware -> User Info: ${user?.username} (${user?.id})`)
@@ -90,17 +53,16 @@ export async function startMomentumAIBot() {
       ctx.session.serviceAwaitingFunds = bookedServiceAwaitingFunds
     }
 
-
-
     await next()
   })
 
-  bot.start((ctx) => {
+  telegrafBot.start((ctx) => {
     console.log('found bot customer', ctx.botCustomer)
 
-
     if (ctx.activeBookedServices.length > 0) {
-      const bookedServicesString = ctx.activeBookedServices.map((service) => `${service.type} for ${service.usedSplToken.symbol}`).join('\n')
+      const bookedServicesString = ctx.activeBookedServices
+        .map((service) => `${service.type} for ${service.usedSplToken.symbol}`)
+        .join('\n')
       return ctx.sendPhoto(`https://s3.us-west-1.amazonaws.com/storage.monet.community/5z7kgy95vb.png`, {
         caption: fmt`
 ${welcomeMessage}
@@ -111,49 +73,34 @@ ${welcomeMessage}
         `,
         reply_markup: {
           inline_keyboard: [
-            [{ text: 'View your services', callback_data: botActions.viewServices }],
-            [{ text: 'Book a new service', callback_data: botActions.bookService }],
+            [{ text: 'View your services', callback_data: telegramBotActions.viewServices }],
+            [{ text: 'Book a new service', callback_data: telegramBotActions.bookService }],
           ],
         },
       })
+    } else {
+      sendNewServiceBookingMessage(ctx)
     }
-
-    ctx.sendPhoto(`https://s3.us-west-1.amazonaws.com/storage.monet.community/5z7kgy95vb.png`, {
-      caption: fmt`
-${welcomeMessage}
-
-${bold('Select a service below to get started')}
-
-🪄🪄🪄🪄🪄
-
-`,
-      reply_markup: {
-        inline_keyboard: [
-          [
-            { text: 'Ranking Boost 🥇 (coming soon)', callback_data: botActions.rankingBoost },
-            { text: 'Volume Boost ⬆️ (coming soon)', callback_data: botActions.volumeBoost },
-          ],
-          [{ text: 'Boost - Ranking, Volume and Holders 📈 (coming soon)', callback_data: botActions.boostMedium }],
-          [{ text: 'MomentumAI - AI Market Making 🚀🧠', callback_data: botActions.aiMarketMaking }],
-        ],
-      },
-    })
   })
 
-  bot.action(botActions.rankingBoost, (ctx) => {
+  telegrafBot.action(telegramBotActions.bookService, (ctx) => {
+    sendNewServiceBookingMessage(ctx)
+  })
+
+  telegrafBot.action(telegramBotActions.rankingBoost, (ctx) => {
     ctx.reply('Ranking boost service selected')
   })
 
-  bot.action(botActions.volumeBoost, (ctx) => {
+  telegrafBot.action(telegramBotActions.volumeBoost, (ctx) => {
     ctx.reply('Volume boost service selected')
   })
 
-  bot.action(botActions.boostMedium, (ctx) => {
+  telegrafBot.action(telegramBotActions.boostMedium, (ctx) => {
     ctx.reply('Boost medium service selected')
   })
 
-  bot.action(botActions.aiMarketMaking, (ctx) => {
-    ctx.session.botAction = botActions.aiMarketMaking as TBotAction
+  telegrafBot.action(telegramBotActions.aiMarketMaking, (ctx) => {
+    ctx.session.botAction = telegramBotActions.aiMarketMaking as TBotAction
     ctx.replyWithPhoto('https://s3.us-west-1.amazonaws.com/storage.monet.community/5z7kgy95vb.png', {
       caption: fmt`
 🪄🪄🪄🪄🪄
@@ -177,25 +124,26 @@ ${bold('To get started, please send your token CA.')}
       reply_markup: {
         input_field_placeholder: userConfigurationInputs.tokenCA,
         force_reply: true,
+        // inline_keyboard: defaultReplyMarkup.inline_keyboard,
       },
     })
 
     ctx.session.currentFieldToFill = userConfigurationInputs.tokenCA
   })
 
-  bot.action(userConfigurationInputs.tokenCA, (ctx) => {
+  telegrafBot.action(userConfigurationInputs.tokenCA, (ctx) => {
     console.log('tokenCA in action', ctx.text)
     ctx.session.tokenCA = ctx.text ?? ''
   })
 
-  bot.on('text', async (ctx) => {
+  telegrafBot.on('text', async (ctx) => {
     if (ctx.session.currentFieldToFill === userConfigurationInputs.tokenCA) {
       if (isValidSolanaAddress(ctx.text)) {
         console.log('Valid solana address, setting tokenCA', ctx.text)
 
         ctx.session.tokenCA = ctx.text ?? ''
 
-        if (ctx.session.botAction === botActions.aiMarketMaking) {
+        if (ctx.session.botAction === telegramBotActions.aiMarketMaking) {
           try {
             const bookedService = await createBookedServiceAndWallet({
               botCustomerId: ctx.botCustomer.id,
@@ -224,6 +172,9 @@ ${bold('To get started, please send your token CA.')}
   🪄🪄🪄🪄🪄
   
   `,
+              reply_markup: defaultMarkupWithAdditionalOptions([
+                
+              ]),
             })
 
             ctx.session.serviceAwaitingFunds = bookedService
@@ -235,7 +186,7 @@ ${bold('To get started, please send your token CA.')}
           }
         }
       } else {
-        ctx.reply('Please send a valid Solana address')
+        ctx.reply('Please send a valid token CA')
       }
     }
 
@@ -243,8 +194,9 @@ ${bold('To get started, please send your token CA.')}
     }
   })
 
-  bot.launch()
+
+  telegrafBot.launch()
   console.log('MomentumAI telegram bot started')
 
-  return bot
+  return telegrafBot
 }
