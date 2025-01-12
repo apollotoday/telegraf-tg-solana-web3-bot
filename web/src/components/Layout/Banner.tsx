@@ -1,5 +1,8 @@
+"use client";
+
 import { Box, Flex } from "@chakra-ui/react";
-import { WhiteButton } from "../Buttons";
+import { NoBgButton } from "@/components/Buttons";
+import { ArrowUpRightIcon } from "@/components/Icons";
 
 const Banner = () => {
   return (
@@ -17,14 +20,11 @@ const Banner = () => {
         w={"90%"}
         mx={"auto"}
       >
-        <Box>We&apos;re Hiring! Join Momentum Labs Team Today</Box>
-        <WhiteButton
-          ml={"100px"}
-          h={"32px"}
-          fontSize={"14px"}
-          fontWeight={"medium"}
-          TextComponent={() => <Box>Apply Now</Box>}
-        />
+        <Box>Sign up for Early Access. Beta coming soon!</Box>
+        <NoBgButton>
+          <Box>Sign Up</Box>
+          <ArrowUpRightIcon />
+        </NoBgButton>
       </Flex>
     </Box>
   );

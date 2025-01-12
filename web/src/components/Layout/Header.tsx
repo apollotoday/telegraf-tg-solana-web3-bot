@@ -12,7 +12,7 @@ import {
   HamburgerIcon,
   CloseIcon,
 } from "@/components/Icons";
-import { AccessBotButton } from "@/components/Buttons";
+import { ComingSoonButton } from "@/components/Buttons";
 
 const Header = () => {
   const [isMenuOpen, setIsMenuOpen] = useState<boolean>(false);
@@ -32,7 +32,7 @@ const Header = () => {
         <Logo />
         <HeaderMenu />
         <Flex align={"center"}>
-          <AccessBotButton mr={"32px"} />
+          <ComingSoonButton mr={"32px"} />
           <div>
             <TelegramIcon />
           </div>
@@ -79,7 +79,7 @@ const Header = () => {
               })}
             </Flex>
             <Center mt={"32px"}>
-              <AccessBotButton />
+              <ComingSoonButton />
             </Center>
           </div>
         </div>

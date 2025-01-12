@@ -16,7 +16,7 @@ type PackageCardTypes = {
 
 const PackageCard = ({
   title,
-  type,
+  // type,
   description,
   supports,
 }: PackageCardTypes) => {
@@ -49,7 +49,7 @@ const PackageCard = ({
         gap={"24px"}
         borderRadius={"24px"}
       >
-        <Box
+        {/* <Box
           p={"1px"}
           borderRadius={"100px"}
           bg={
@@ -67,12 +67,12 @@ const PackageCard = ({
             fontSize={"16px"}
             lineHeight={"24px"}
           >
-            {title}
+            {type}
           </Box>
-        </Box>
+        </Box> */}
 
         <Box fontWeight={500} fontSize={"24px"} lineHeight={"32px"}>
-          {type}
+          {title}
         </Box>
         <Box fontWeight={400} fontSize={"16px"} color={"#898989"}>
           {description}

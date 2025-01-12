@@ -4,7 +4,7 @@ import { Logo } from "./Logo";
 import { HeaderMenu } from "../menu";
 import { Menu } from "@/config/menu";
 import { TelegramIcon, DiscordIcon } from "@/components/Icons";
-import { AccessBotButton } from "@/components/Buttons";
+import { ComingSoonButton } from "@/components/Buttons";
 
 const Footer = () => {
   return (
@@ -19,7 +19,7 @@ const Footer = () => {
           <div className="ml-[8px]">
             <DiscordIcon />
           </div>
-          <AccessBotButton ml={"32px"} />
+          <ComingSoonButton ml={"32px"} />
         </Flex>
       </footer>
       <footer className="block md:hidden pt-[16px] border-t border-t-[#1C1C1C]">
@@ -54,7 +54,7 @@ const Footer = () => {
           })}
         </Flex>
         <Box mt={"32px"} mx={"32px"}>
-          <AccessBotButton w={"100%"} />
+          <ComingSoonButton w={"100%"} />
         </Box>
       </footer>
     </>
