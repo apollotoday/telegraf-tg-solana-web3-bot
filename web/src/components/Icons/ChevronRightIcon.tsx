@@ -1,4 +1,8 @@
-export const ChevronRightIcon = ({ width = 16, height = 16 }) => {
+export const ChevronRightIcon = ({
+  width = 16,
+  height = 16,
+  color = "black",
+}) => {
   return (
     <svg
       width={width}
@@ -9,9 +13,9 @@ export const ChevronRightIcon = ({ width = 16, height = 16 }) => {
     >
       <path
         d="M6 12L10 8L6 4"
-        stroke="black"
-        stroke-linecap="round"
-        stroke-linejoin="round"
+        stroke={color}
+        strokeLinecap="round"
+        strokeLinejoin="round"
       />
     </svg>
   );
