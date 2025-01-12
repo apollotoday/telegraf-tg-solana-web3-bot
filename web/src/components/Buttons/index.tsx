@@ -71,38 +71,37 @@ export const NoBgButton: React.FC<NoBgButtonProps> = ({
   );
 };
 
-type AccessBotButtonTypes = ButtonProps & {
-  text?: string;
-};
-
-export const AccessBotButton = ({
-  text = "Access Our Bot",
-  ...props
-}: AccessBotButtonTypes) => {
-  const [isHovered, setIsHovered] = useState(false);
+// Comming Soon button
+export const ComingSoonButton = ({ ...props }) => {
+  const TextComponent = () => (
+    <Box fontWeight={"600"} fontSize={"16px"} lineHeight={"24px"} mr={"10px"}>
+      Coming Soon
+    </Box>
+  );
 
   return (
-    <Button
-      w={"194px"}
-      p={"1px"}
-      onMouseEnter={() => setIsHovered(true)}
-      onMouseLeave={() => setIsHovered(false)}
-      border={isHovered ? "1px solid #A5A5A5" : "1px solid white"}
-      borderRadius={"100px"}
-      bg={
-        isHovered
-          ? "linear-gradient(90deg, #0F0E0E -6%, #494949 45%, #0C0909 83%, #000000 100%)"
-          : "white"
-      }
-      color={isHovered ? "white" : "black"}
-      boxShadow="inset 0px 2px 10px #CACACAC9"
+    <WhiteButton
+      TextComponent={TextComponent}
+      RightIcon={ChevronRightIcon}
       {...props}
-    >
-      <Box fontWeight={"600"} fontSize={"16px"} mr={"10px"}>
-        {text}
-      </Box>
-      <ChevronRightIcon color={isHovered ? "white" : "black"} />
-    </Button>
+    />
+  );
+};
+
+// Get in toufch with out team button
+export const GetInTouchTeamButton = ({ ...props }) => {
+  const TextComponent = () => (
+    <Box fontWeight={"600"} fontSize={"16px"} lineHeight={"24px"} mr={"10px"}>
+      Get in touch with out team
+    </Box>
+  );
+
+  return (
+    <WhiteButton
+      TextComponent={TextComponent}
+      RightIcon={ChevronRightIcon}
+      {...props}
+    />
   );
 };
 
