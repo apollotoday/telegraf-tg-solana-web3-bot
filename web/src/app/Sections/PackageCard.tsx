@@ -17,6 +17,7 @@ const PackageCardSection = () => {
       {config.launch.buttonText}
     </Box>
   );
+
   return (
     <Box
       textAlign={"center"}
@@ -80,7 +81,7 @@ const PackageCardSection = () => {
         <WhiteButton TextComponent={TextComponent} mt={"24px"} />
 
         {/* Package cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-[32px] px-0 md:px-[80px] mt-[51px] max-w-[1440px]">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-[32px] px-[20px] md:px-[80px] mt-[51px] max-w-[1440px]">
           {config.packages.map((pck, index) => {
             return <PackageCard key={index} {...pck} />;
           })}

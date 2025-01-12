@@ -3,17 +3,9 @@
 import Image from "next/image";
 import { Box, Flex, VStack } from "@chakra-ui/react";
 
-import { WhiteButton } from "@/components/Buttons";
-
-import { ChevronRightIcon, TelegramIcon, HeartIcon } from "@/components/Icons";
+import { HeartIcon } from "@/components/Icons";
 
 const UnLockSection = () => {
-  const TextComponent = () => (
-    <Box fontWeight={"600"} fontSize={"16px"} lineHeight={"24px"}>
-      Join our community
-    </Box>
-  );
-
   return (
     <VStack
       pos={"relative"}
@@ -30,27 +22,6 @@ const UnLockSection = () => {
         h={"610px"}
         bgPos={"center"}
         left={{ base: "0px", md: "250px" }}
-      />
-      <Box fontSize={"36px"} mt={"111px"}>
-        {config.unlock.title}
-      </Box>
-      <Box
-        maxW={"630px"}
-        fontSize={"16px"}
-        color={"#898989"}
-        fontWeight={"normal"}
-        lineHeight={"24px"}
-        letterSpacing={"0px"}
-        textAlign={"center"}
-        mt={"24px"}
-      >
-        {config.unlock.description}
-      </Box>
-      <WhiteButton
-        mt={"24px"}
-        LeftIcon={TelegramIcon}
-        RightIcon={ChevronRightIcon}
-        TextComponent={TextComponent}
       />
       <div className="mt-[104px]" />
       <Image
@@ -120,9 +91,6 @@ const config = {
     url: "https://duoversestudio.com",
   },
   unlock: {
-    title: "Unlock the full potential of Momentum Labs",
-    description:
-      "Now seamlessly integrated into Telegram. Our user-friendly bot simplifies the process of managing and scaling your Solana project. Want to accelerate your project's growth?",
     background: "url(/images/FooterBackground.svg)",
   },
 };

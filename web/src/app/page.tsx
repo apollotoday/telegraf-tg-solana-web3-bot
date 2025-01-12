@@ -4,7 +4,7 @@ import Banner from "@/components/Layout/Banner";
 
 import {
   CardSection,
-  TryMomentumSection,
+  SignUpSection,
   PackageCardSection,
   HeroSection,
   UnLockSection,
@@ -29,7 +29,7 @@ const Home = () => {
         <PackageCardSection />
 
         {/* Try section */}
-        <TryMomentumSection />
+        <SignUpSection />
 
         {/* Unlock the full potential of Momentum Labs section*/}
         <UnLockSection />
