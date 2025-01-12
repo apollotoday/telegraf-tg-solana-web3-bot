@@ -1,5 +1,5 @@
 import { Percent } from "@raydium-io/raydium-sdk";
-import { connection, goatPool } from "../../config";
+import { primaryRpcConnection, goatPool } from "../../config";
 import { computeRaydiumAmounts, getTokensForPool, swapRaydium } from "../markets/raydium";
 import { getDevWallet } from "../../testUtils";
 import { Keypair, sendAndConfirmTransaction, SystemProgram, Transaction, TransactionMessage, VersionedTransaction } from "@solana/web3.js";
@@ -59,7 +59,7 @@ test("sell all", async () => {
         new TransactionMessage({
           instructions: instruction,
           payerKey: devWallet.publicKey,
-          recentBlockhash: (await connection.getLatestBlockhash()).blockhash,
+          recentBlockhash: (await primaryRpcConnection.getLatestBlockhash()).blockhash,
         }).compileToV0Message()
       );
       await tx.sign([devWallet]);
@@ -75,7 +75,7 @@ test("sell all", async () => {
     wallets.map(async (wallet) => {
       const tokenAccount = await getAssociatedTokenAddress(quoteToken, wallet.publicKey);
       console.log(`tokenAccount ${tokenAccount.toBase58()}`);
-      const res = await connection.getTokenAccountBalance(tokenAccount);
+      const res = await primaryRpcConnection.getTokenAccountBalance(tokenAccount);
 
       return { value: res, wallet: wallet.publicKey };
     })
@@ -91,7 +91,7 @@ test("sell all", async () => {
 
   walletBalances = await Promise.all(
     wallets.map(async (wallet) => {
-      const res = await connection.getTokenAccountBalance(await getAssociatedTokenAddress(quoteToken, wallet.publicKey));
+      const res = await primaryRpcConnection.getTokenAccountBalance(await getAssociatedTokenAddress(quoteToken, wallet.publicKey));
 
       return { value: res, wallet: wallet.publicKey };
     })

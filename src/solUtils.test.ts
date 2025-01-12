@@ -1,5 +1,5 @@
 import { Keypair } from "@solana/web3.js";
-import { connection } from "./config";
+import { primaryRpcConnection } from "./config";
 import { closeWallet, sendSol, Sol } from "./solUtils";
 import { getDevWallet } from "./testUtils";
 import { sleep } from "./utils";
@@ -12,7 +12,7 @@ test("close wallet", async () => {
   await sendSol({ from: devWallet, to: testWallet.publicKey, amount: Sol.fromSol(0.001) });
 
   while (true) {
-    const balance = await connection.getBalance(testWallet.publicKey);
+    const balance = await primaryRpcConnection.getBalance(testWallet.publicKey);
     if (balance > 0) {
       console.log("balance received", balance);
       break;

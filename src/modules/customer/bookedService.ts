@@ -1,6 +1,7 @@
 import { EServiceType, EWalletType } from '@prisma/client';
 import { generateAndEncryptWallet } from '../wallet/walletUtils';
 import prisma from '../../lib/prisma';
+import { getTokenOrCreate } from '../splToken/splTokenDBService';
 
 export async function createBookedServiceAndWallet({
   botCustomerId,
@@ -19,6 +20,8 @@ export async function createBookedServiceAndWallet({
 }) {
   const newWallet = generateAndEncryptWallet();
 
+  const tokenInfo = await getTokenOrCreate(usedSplTokenMint)
+
   return await prisma.bookedService.create({
     data: {
       type: serviceType,
@@ -32,8 +35,13 @@ export async function createBookedServiceAndWallet({
       },
       usedSplToken: {
         connect: {
-          tokenMint: usedSplTokenMint,
+          tokenMint: tokenInfo.tokenMint,
         },
+      },
+      poolForService: {
+        connect: {
+          poolId: tokenInfo.quoteTokenLiquidityPools[0].poolId,
+        }
       },
       mainWallet: {
         create: {
@@ -47,9 +55,17 @@ export async function createBookedServiceAndWallet({
     include: {
       mainWallet: true,
       usedSplToken: true,
+      poolForService: true,
+      cycles: {
+        where: {
+          isActive: true,
+        }
+      }
     },
   });
 }
+
+export type TBookedService = Awaited<ReturnType<typeof createBookedServiceAndWallet>>
 
 export async function getActiveBookedServiceByBotCustomerId({ botCustomerId, serviceType }: { botCustomerId: string, serviceType: EServiceType }) {
   const bookedService = await prisma.bookedService.findFirst({
@@ -60,7 +76,13 @@ export async function getActiveBookedServiceByBotCustomerId({ botCustomerId, ser
     },
     include: {
       usedSplToken: true,
+      poolForService: true,
       mainWallet: true,
+      cycles: {
+        where: {
+          isActive: true,
+        }
+      }
     }
   });
 
@@ -75,9 +97,12 @@ export async function getBookedServicesByBotCustomerId({ botCustomerId }: { botC
   return await prisma.bookedService.findMany({
     where: {
       botCustomerId,
+      isActive: true,
+      awaitingFunding: true,
     },
     include: {
       usedSplToken: true,
+      poolForService: true,
       mainWallet: {
         select: {
           pubkey: true

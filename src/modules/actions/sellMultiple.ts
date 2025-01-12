@@ -1,5 +1,5 @@
 import { Keypair, PublicKey, RpcResponseAndContext, TokenAmount } from "@solana/web3.js";
-import { connection } from "../../config";
+import { primaryRpcConnection } from "../../config";
 import { getAssociatedTokenAddress } from "@solana/spl-token";
 import { Percent } from "@raydium-io/raydium-sdk";
 import { sendAndConfirmRawTransactionAndRetry } from "../../solUtils";
@@ -53,7 +53,7 @@ export async function sellMultiple(args: { pool: PublicKey; wallets: Keypair[] }
         try {
           const associatedTokenAccountAddress = await getAssociatedTokenAddress(token, wallet.publicKey);
 
-          let balance = await connection.getTokenAccountBalance(associatedTokenAccountAddress);
+          let balance = await primaryRpcConnection.getTokenAccountBalance(associatedTokenAccountAddress);
           return { wallet, balance };
         } catch (e) {
           return null;
@@ -154,7 +154,7 @@ async function sellAll(args: { wallet: Keypair; token: PublicKey; pool: PublicKe
 
     let balance: RpcResponseAndContext<TokenAmount>;
     try {
-      balance = await connection.getTokenAccountBalance(associatedTokenAccountAddress);
+      balance = await primaryRpcConnection.getTokenAccountBalance(associatedTokenAccountAddress);
 
       if (balance.value.uiAmount! < 1) {
         return { result: "already sold" } as const;

@@ -4,7 +4,7 @@ import { TOKEN_PROGRAM_ID, ASSOCIATED_TOKEN_PROGRAM_ID, getAssociatedTokenAddres
 
 import AmmImpl, { MAINNET_POOL } from "@mercurial-finance/dynamic-amm-sdk";
 import { Wallet, AnchorProvider, BN } from "@project-serum/anchor";
-import { connection, meteoraDynPool } from "../../config";
+import { primaryRpcConnection, meteoraDynPool } from "../../config";
 import { calculatePartionedSwapAmount } from "../../calculationUtils";
 import { Transaction } from "@solana/web3.js";
 import { ComputeBudgetProgram } from "@solana/web3.js";
@@ -13,7 +13,7 @@ import { sendAndConfirmJitoTransactions } from '../../jitoUtils';
 // Connection, Wallet, and AnchorProvider to interact with the network
 
 export async function getMeteoraPool(pubkey: PublicKey) {
-  const pool = await AmmImpl.create(connection, new PublicKey(pubkey));
+  const pool = await AmmImpl.create(primaryRpcConnection, new PublicKey(pubkey));
   return pool;
 }
 
@@ -46,7 +46,7 @@ export async function swap(input: MeteoraSwapInput) {
   const _swapTx = await pool.swap(input.swapWallet.publicKey, inToken.address, inAmountLamport, minOutAmount);
   _swapTx.feePayer = input.feePayer.publicKey;
 
-  const recentBlockhash = await connection.getLatestBlockhash();
+  const recentBlockhash = await primaryRpcConnection.getLatestBlockhash();
 
   const txMsg = new TransactionMessage({
     instructions: _swapTx.instructions,
@@ -225,7 +225,7 @@ export async function fakeVolumne(args: { wallet: Keypair; amountLamports: numbe
     }),
   ]);
 
-  const simRes = await connection.simulateTransaction(buyRes1.swapTx);
+  const simRes = await primaryRpcConnection.simulateTransaction(buyRes1.swapTx);
   if (simRes.value.err) {
     console.error("Error in simRes", simRes.value.err);
   }

@@ -16,7 +16,7 @@ import { sendAndConfirmJitoTransactions } from "../../jitoUtils";
 import { sendAndConfirmRawTransactionAndRetry, Sol } from "../../solUtils";
 import _ from "lodash";
 import { calculatePartionedSwapAmount } from "../../calculationUtils";
-import { connection } from "../../config";
+import { primaryRpcConnection } from "../../config";
 import { sleep } from "../../utils";
 import { loadWalletFromEnv } from "../wallet/walletUtils";
 
@@ -214,20 +214,20 @@ test("fake volumne transaction scale", async () => {
   const wallet = loadWalletFromEnv("RIGGGED_VOLUMNE_BOT");
   const pool = new PublicKey("9Tb2ohu5P16BpBarqd3N27WnkF51Ukfs8Z1GzzLDxVZW");
 
-  let lastBlockhash = await connection.getLatestBlockhash();
+  let lastBlockhash = await primaryRpcConnection.getLatestBlockhash();
 
   let successCount = 0;
   let totalVolumneSol = 0;
 
   let allPromises = [];
 
-  const solbalanceStart = await connection.getBalance(wallet.publicKey);
+  const solbalanceStart = await primaryRpcConnection.getBalance(wallet.publicKey);
   console.log("solbalanceStart", Sol.fromLamports(solbalanceStart).sol);
 
   for (let i = 0; i < 50; i++) {
     let startTime = new Date().getTime();
     while (true) {
-      let newBlockhas = await connection.getLatestBlockhash();
+      let newBlockhas = await primaryRpcConnection.getLatestBlockhash();
       if (lastBlockhash.blockhash !== newBlockhas.blockhash) {
         lastBlockhash = newBlockhas;
         break;
@@ -250,7 +250,7 @@ test("fake volumne transaction scale", async () => {
   await Promise.all(allPromises);
   console.log("successCount", successCount);
   console.log("totalVolumneSol", totalVolumneSol);
-  const solbalanceEnd = await connection.getBalance(wallet.publicKey);
+  const solbalanceEnd = await primaryRpcConnection.getBalance(wallet.publicKey);
   console.log("sol spent", Sol.fromLamports(solbalanceStart - solbalanceEnd).sol);
 
   // let successCount = 0;
@@ -269,7 +269,7 @@ test("fake volumne transaction scale", async () => {
 
 test("send simple tx", async () => {
   const devWallet = getDevWallet();
-  const latestBlockHash = await connection.getLatestBlockhash();
+  const latestBlockHash = await primaryRpcConnection.getLatestBlockhash();
 
   const testWallet = Keypair.generate();
   function transferFundsTx(args: { from: Keypair; to: PublicKey; amount: number; feePayer?: Keypair }) {
@@ -308,7 +308,7 @@ test("send simple tx", async () => {
       const sendFundsTx = transferFundsTx({ from: devWallet, to: testWallet.publicKey, amount: randomAmount });
       const sendFunsBackTx = transferFundsTx({ from: testWallet, to: devWallet.publicKey, amount: randomAmount, feePayer: devWallet });
 
-      const res = await connection.simulateTransaction(sendFunsBackTx);
+      const res = await primaryRpcConnection.simulateTransaction(sendFunsBackTx);
       if (res.value.err) {
         console.log("error", res.value.err);
       }

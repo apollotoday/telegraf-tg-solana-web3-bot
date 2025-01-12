@@ -4,7 +4,7 @@ import { Keypair, LAMPORTS_PER_SOL, PublicKey, SystemProgram, TransactionInstruc
 import { Command } from 'commander'
 import _ from 'lodash'
 import reattempt from 'reattempt'
-import { connection, lpPoolForTests } from '../src/config'
+import { primaryRpcConnection, lpPoolForTests } from '../src/config'
 import prisma from '../src/lib/prisma'
 import { createBookedServiceAndWallet, getActiveBookedServiceByBotCustomerId } from '../src/modules/customer/bookedService'
 import { createBotCustomer, getBotCustomerByName } from '../src/modules/customer/botCustomer'
@@ -34,7 +34,7 @@ import {
 } from '../src/modules/wallet/walletUtils'
 import { closeWallet, getBalanceFromWallets, sendSol, Sol, waitUntilBalanceIsGreaterThan } from '../src/solUtils'
 import { sleep } from '../src/utils'
-import { getSplTokenByMint } from '../src/modules/splToken/splTokenDBService'
+import { getSplTokenByMint, getTokenOrCreate } from '../src/modules/splToken/splTokenDBService'
 import { buyPumpFunTokens, sellAllPumpFunTokensFromMultipleWalletsInstruction, sellPumpFunTokens, setupPumpFunToken } from '../src/modules/pumpfun/pumpfunService'
 import { distributeTotalAmountRandomlyAcrossWallets } from '../src/calculationUtils'
 import { sellMultiple } from "../src/modules/actions/sellMultiple";
@@ -80,7 +80,7 @@ program.command("initMarketMaking").action(async () => {
 });
 
 program.command("getParsedTx").action(async () => {
-  const detectedTransaction = await connection.getParsedTransaction(
+  const detectedTransaction = await primaryRpcConnection.getParsedTransaction(
     "5yJEMQTsBguRwsNBbwTX9oV8su5Rcj5BqLVZk4Ynfs63RxUss37XxwE119H94xHSLqqUvafaYYqUgwhmkdhmF78m",
     { commitment: "confirmed", maxSupportedTransactionVersion: 200 }
   );
@@ -182,7 +182,7 @@ program.command("migrateSniperToMarketMaking").action(async () => {
   for (const wallet of botCustomerWallets) {
     const keypair = decryptWallet(wallet.encryptedPrivKey);
 
-    const balance = await connection.getBalance(keypair.publicKey);
+    const balance = await primaryRpcConnection.getBalance(keypair.publicKey);
 
     console.log(`Wallet: ${keypair.publicKey.toBase58()} -> Balance: ${balance / LAMPORTS_PER_SOL} SOL`);
 
@@ -245,7 +245,7 @@ program.command("sellAll").action(async () => {
 });
 
 program.command("setupMarketMakingCycle").action(async () => {
-  const botCustomer = await getBotCustomerByName("Drew");
+  const botCustomer = await getBotCustomerByName("Puff");
 
   const bookedService = await getActiveBookedServiceByBotCustomerId({
     botCustomerId: botCustomer.id,
@@ -258,8 +258,8 @@ program.command("setupMarketMakingCycle").action(async () => {
       type: EMarketMakingCycleType.MAINTAIN,
       solSpentForCycle: 0,
       solEarnedForCycle: 0,
-      maxSolSpentForCycle: 5,
-      maxSolEarnedForCycle: 5,
+      maxSolSpentForCycle: 12,
+      maxSolEarnedForCycle: 12,
       buyMinAmount: 0.11,
       buyMaxAmount: 0.63,
       minDurationBetweenBuyAndSellInSeconds: 10,
@@ -267,7 +267,7 @@ program.command("setupMarketMakingCycle").action(async () => {
       minDurationBetweenJobsInSeconds: 50,
       maxDurationBetweenJobsInSeconds: 190,
       isActive: true,
-      sellToBuyValueRatio: 0.98,
+      sellToBuyValueRatio: 0.92,
       startTimestamp: new Date(),
     },
   });
@@ -345,7 +345,7 @@ program.command('getTotalSOLInDB').action(async (e) => {
   const balances = await Promise.all(
     allWallets.map(async (w) => {
       return reattempt.run({ times: 5, delay: 200 }, async () => {
-        const balance = await connection.getBalance(new PublicKey(w.pubkey))
+        const balance = await primaryRpcConnection.getBalance(new PublicKey(w.pubkey))
         const solBalance = balance / LAMPORTS_PER_SOL
 
         console.log(`${w.pubkey} has ${solBalance} SOL`)
@@ -408,10 +408,10 @@ program
 
     const balances = await Promise.all(
       foundWallets.map(async (w) => {
-        const balance = await connection.getBalance(new PublicKey(w.pubkey));
+        const balance = await primaryRpcConnection.getBalance(new PublicKey(w.pubkey));
         const solBalance = balance / LAMPORTS_PER_SOL;
 
-        const tokenAccounts = await connection.getParsedTokenAccountsByOwner(new PublicKey(w.pubkey), {
+        const tokenAccounts = await primaryRpcConnection.getParsedTokenAccountsByOwner(new PublicKey(w.pubkey), {
           mint: new PublicKey(tokenMint),
         });
 
@@ -560,7 +560,7 @@ program
 
       const from = decryptWallet(marketMakingWallet.encryptedPrivKey);
 
-      const balance = await connection.getBalance(new PublicKey(marketMakingWallet.pubkey));
+      const balance = await primaryRpcConnection.getBalance(new PublicKey(marketMakingWallet.pubkey));
       const solBalance = balance / LAMPORTS_PER_SOL;
 
       if (solBalance < 0.01) {
@@ -642,7 +642,7 @@ program.command("fundMarketMakingWallets").action(async () => {
 
   console.log(fundingWallet.publicKey.toBase58());
 
-  const balanceOfWallet = (await connection.getBalance(fundingWallet.publicKey)) / LAMPORTS_PER_SOL;
+  const balanceOfWallet = (await primaryRpcConnection.getBalance(fundingWallet.publicKey)) / LAMPORTS_PER_SOL;
 
   console.log("Balance of funding wallet:", balanceOfWallet);
 
@@ -845,7 +845,7 @@ program.command("getTokenHolders").action(async () => {
 
   // Get the 250 largest holders
   // Fetch all token accounts associated with the token mint
-  const tokenAccounts = await connection.getProgramAccounts(TOKEN_PROGRAM_ID, {
+  const tokenAccounts = await primaryRpcConnection.getProgramAccounts(TOKEN_PROGRAM_ID, {
     filters: [
       {
         dataSize: 165, // Token account size
@@ -1004,7 +1004,7 @@ program.command("sendAllFundsFromOneSetOfWalletsToAnother").action(async () => {
     const uIntArray = base58ToUint8Array(privateKey);
     const keypair = Keypair.fromSecretKey(uIntArray);
 
-    const balance = await connection.getBalance(keypair.publicKey);
+    const balance = await primaryRpcConnection.getBalance(keypair.publicKey);
 
     console.log(`Wallet: ${keypair.publicKey.toBase58()} -> Balance: ${balance / LAMPORTS_PER_SOL} SOL`);
 
@@ -1086,7 +1086,7 @@ program
     console.log(`${serviceFundingWallets.length} service funding wallets found`);
 
     for (const wallet of serviceFundingWallets) {
-      const balance = await connection.getBalance(new PublicKey(wallet.pubkey));
+      const balance = await primaryRpcConnection.getBalance(new PublicKey(wallet.pubkey));
 
       console.log(`${wallet.pubkey} -> ${balance / LAMPORTS_PER_SOL} SOL`);
 
@@ -1116,7 +1116,7 @@ program.command('fundWalletFromAllWallets').action(async () => {
   console.log(`Total balance: ${await getBalanceFromWallets(botCustomerWallets.map((wallet) => new PublicKey(wallet.pubkey)))} SOL`)
 
   await asyncBatch(botCustomerWallets, async (botCustomerWallet) => {
-    const balance = await connection.getBalance(new PublicKey(botCustomerWallet.pubkey))
+    const balance = await primaryRpcConnection.getBalance(new PublicKey(botCustomerWallet.pubkey))
     const solBalance = balance / LAMPORTS_PER_SOL
     const sourceKeypair = decryptWallet(botCustomerWallet.encryptedPrivKey)
 
@@ -1182,7 +1182,7 @@ program
     const serviceFundingWalletsWithBalance: typeof serviceFundingWallets = [];
 
     for (const wallet of serviceFundingWallets) {
-      const balance = await connection.getBalance(new PublicKey(wallet.pubkey));
+      const balance = await primaryRpcConnection.getBalance(new PublicKey(wallet.pubkey));
 
       if (balance > minAmount * LAMPORTS_PER_SOL) {
         console.log(`taking service funding wallet with balance > 0.1 SOL: ${wallet.pubkey} => balance: ${balance / LAMPORTS_PER_SOL} SOL`);
@@ -1216,7 +1216,7 @@ program
         await Promise.all(
           serviceFundingWallets.map(async (wallet) => {
             const balance = await reattempt.run({ times: 5, delay: 1000 }, async () => {
-              return await connection.getBalance(new PublicKey(wallet.pubkey), 'confirmed')
+              return await primaryRpcConnection.getBalance(new PublicKey(wallet.pubkey), 'confirmed')
             })
 
             return {
@@ -1386,11 +1386,57 @@ program.command('birdeyeTokenInfo').action(async () => {
   console.log(tokenInfo)
 })
 
-program.command('testTokenInfo').action(async () => {
+program.command('solTokenInfo').action(async () => {
+  const tokenAddress = 'So11111111111111111111111111111111111111112'
+  const tokenInfo = await getTokenInfo(tokenAddress)
+  console.log(tokenInfo)
+
+  await prisma.splToken.create({
+    data: {
+      tokenMint: tokenAddress,
+      symbol: tokenInfo.symbol,
+      name: tokenInfo.name,
+      decimals: tokenInfo.decimals,
+      isSPL: false,
+      lastUsdcPrice: tokenInfo.price,
+      priceChange30mPercent: tokenInfo.priceChange30mPercent,
+      priceChange1hPercent: tokenInfo.priceChange1hPercent,
+      priceChange2hPercent: tokenInfo.priceChange2hPercent,
+      priceChange4hPercent: tokenInfo.priceChange4hPercent,
+      priceChange6hPercent: tokenInfo.priceChange6hPercent,
+      priceChange12hPercent: tokenInfo.priceChange12hPercent,
+      priceChange24hPercent: tokenInfo.priceChange24hPercent,
+      v1hUSD: tokenInfo.v1hUSD,
+      vBuy1hUSD: tokenInfo.vBuy1hUSD,
+      vSell1hUSD: tokenInfo.vSell1hUSD,
+      v2hUSD: tokenInfo.v2hUSD,
+      vBuy2hUSD: tokenInfo.vBuy2hUSD,
+      vSell2hUSD: tokenInfo.vSell2hUSD,
+      v4hUSD: tokenInfo.v4hUSD,
+      vBuy4hUSD: tokenInfo.vBuy4hUSD,
+      vSell4hUSD: tokenInfo.vSell4hUSD,
+      v8hUSD: tokenInfo.v8hUSD,
+      vBuy8hUSD: tokenInfo.vBuy8hUSD,
+      vSell8hUSD: tokenInfo.vSell8hUSD,
+      v24hUSD: tokenInfo.v24hUSD,
+      vBuy24hUSD: tokenInfo.vBuy24hUSD,
+      vSell24hUSD: tokenInfo.vSell24hUSD,
+    },
+  })
+})
+
+program.command('testGetOrCreateToken').action(async () => {
   const tokenAddress = 'CzLSujWBLFsSjncfkh59rUFqvafWcY5tzedWJSuypump'
+  const dbTokenInfo = await getTokenOrCreate(tokenAddress)
+  console.log(dbTokenInfo)
+})
+
+program.command('testTokenInfo').action(async () => {
+  const tokenAddress = 'G9tt98aYSznRk7jWsfuz9FnTdokxS6Brohdo9hSmjTRB'
   const tokenInfo = await getTokenInfo(tokenAddress)
   console.log(tokenInfo)
 })
+
 
 program.command('buyPumpFunTokens').action(async () => {
   const tokenSymbol = 'VENUS'

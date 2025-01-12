@@ -3,7 +3,6 @@ import { Flex, Box } from "@chakra-ui/react";
 import { Logo } from "./Logo";
 import { HeaderMenu } from "../menu";
 import { Menu } from "@/config/menu";
-import { HeartIcon } from "@/components/Icons";
 import { TelegramIcon, DiscordIcon } from "@/components/Icons";
 import { ComingSoonButton } from "@/components/Buttons";
 
@@ -57,32 +56,9 @@ const Footer = () => {
         <Box mt={"32px"} mx={"32px"}>
           <ComingSoonButton w={"100%"} />
         </Box>
-        <Flex
-          color={"#444444"}
-          alignItems={"center"}
-          justifyContent={"center"}
-          bottom={"0px"}
-          height={"70px"}
-          w={"full"}
-          mt={"40px"}
-          bg={"#000000"}
-          zIndex={1}
-        >
-          {config.about.first}
-          <div className="px-[5px]">{config.about.icon}</div>
-          {config.about.last}
-        </Flex>
       </footer>
     </>
   );
-};
-
-const config = {
-  about: {
-    first: "Made with",
-    icon: <HeartIcon />,
-    last: "by duoversestudio.com",
-  },
 };
 
 export default Footer;
