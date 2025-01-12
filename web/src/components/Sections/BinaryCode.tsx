@@ -1,14 +1,18 @@
+"use client";
+
 import React, { useState, useEffect } from "react";
 import { Box } from "@chakra-ui/react";
 
-export const BinaryCode = () => {
-  const [lines, setLines] = useState(Array(15).fill(generateBinaryString(200)));
+const BinaryCode = () => {
+  const [lines, setLines] = useState<string[]>([]);
 
-  function generateBinaryString(length) {
+  function generateBinaryString(length: number): string {
     return Array.from({ length }, () => Math.round(Math.random())).join("");
   }
 
   useEffect(() => {
+    setLines(Array(15).fill(generateBinaryString(200)));
+
     const interval = setInterval(() => {
       setLines((prevLines) =>
         prevLines.map(
@@ -56,3 +60,5 @@ export const BinaryCode = () => {
     </Box>
   );
 };
+
+export default BinaryCode;

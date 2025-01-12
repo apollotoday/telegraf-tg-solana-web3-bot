@@ -50,7 +50,6 @@ export const WhiteButton: React.FC<WhiteButtonProps> = ({
 type NoBgButtonProps = ButtonProps & {
   width?: string;
   height?: string;
-  children: React.ReactNode;
 };
 export const NoBgButton: React.FC<NoBgButtonProps> = ({
   width,
@@ -65,31 +64,6 @@ export const NoBgButton: React.FC<NoBgButtonProps> = ({
       px={"24px"}
       bgColor={"transparent"}
       _hover={{ border: "1px solid #898989", borderRadius: "30px" }}
-      {...props}
-    >
-      {children}
-    </Button>
-  );
-};
-
-type BlackButtonProps = ButtonProps & {
-  width?: string;
-  height?: string;
-};
-
-export const BlackButton: React.FC<BlackButtonProps> = ({
-  width,
-  height,
-  children,
-  ...props
-}) => {
-  return (
-    <Button
-      w={width}
-      h={height}
-      px={"24px"}
-      bgColor={"black"}
-      borderRadius={"100px"}
       {...props}
     >
       {children}

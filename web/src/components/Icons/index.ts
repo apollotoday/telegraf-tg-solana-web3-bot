@@ -15,3 +15,4 @@ export * from "./HeartIcon";
 export * from "./SolanaIcon";
 export * from "./HamburgerIcon";
 export * from "./CloseIcon";
+export * from "./ArrowIcons";
