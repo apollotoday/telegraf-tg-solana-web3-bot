@@ -1,7 +1,7 @@
-import { Box, BoxProps } from "@chakra-ui/react";
-import { AccessBotButton } from "@/components/Buttons";
+import { VStack, StackProps } from "@chakra-ui/react";
+import { ComingSoonButton, GetInTouchTeamButton } from "@/components/Buttons";
 
-type IntroductionCardType = BoxProps & {
+type IntroductionCardType = StackProps & {
   title: string;
   description: string;
   cardType?: string;
@@ -15,10 +15,10 @@ const IntroductionCard = ({
   ...props
 }: IntroductionCardType) => {
   return (
-    <Box
-      display={"flex"}
-      flexDirection={"column"}
+    <VStack
+      direction={"column"}
       border={"1px solid #202020"}
+      alignItems={"flex-start"}
       borderRadius={"24px"}
       p={{ base: "16px", md: "32px" }}
       height={"443px"}
@@ -29,12 +29,12 @@ const IntroductionCard = ({
       <div className="max-w-[334px] font-nomal text-[14px] leading-[24px] text-[#898989] mt-[8px]">
         {description}
       </div>
-      {cardType === "coming-soon" && <AccessBotButton mt={"auto"} />}
+      {cardType === "coming-soon" && <ComingSoonButton mt={"auto"} />}
       {cardType === "get-in-touch-team" && (
-        <AccessBotButton text={"Get in touch with our team"} mt={"auto"} />
+        <GetInTouchTeamButton text={"Get in touch with our team"} mt={"auto"} />
       )}
       {children}
-    </Box>
+    </VStack>
   );
 };
 

@@ -5,7 +5,7 @@ import { Box } from "@chakra-ui/react";
 import { motion } from "framer-motion";
 
 import BinaryCode from "@/components/Sections/BinaryCode";
-import { AccessBotButton, NoBgButton } from "@/components/Buttons";
+import { ComingSoonButton, NoBgButton } from "@/components/Buttons";
 import { ChevronRightIcon } from "@/components/Icons";
 
 const HeroSection = () => {
@@ -57,7 +57,7 @@ const HeroSection = () => {
         </motion.div>
         <div className="mt-[18px] relative">
           <div className="flex flex-col sm:flex-row justify-center px-[60px] gap-[24px]">
-            <AccessBotButton />
+            <ComingSoonButton />
             <NoBgButton>
               <Box color={"#898989"} fontWeight={"600"} fontSize={"16px"}>
                 Learn more
