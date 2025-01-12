@@ -1,5 +1,7 @@
 'use server'
 
+import React from 'react'
+import { Box, Text } from "@chakra-ui/react";
 import prisma from '../../../../src/lib/prisma'
 
 export async function getMarketMakingInfoForCustomer(customerId: string) {
@@ -73,3 +75,15 @@ export async function getMarketMakingInfoForCustomer(customerId: string) {
     liquidityPoolInfo: bookedService.poolForService
   }
 }
+
+
+export async function MarketMakingDashboardForCustomer({ customerId }: { customerId: string }) {
+  const marketMakingInfo = await getMarketMakingInfoForCustomer(customerId)
+
+  return (
+    <Box>
+      <Text>Hi {marketMakingInfo.customer.name}</Text>
+    </Box>
+  )
+}
+

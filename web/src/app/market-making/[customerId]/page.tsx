@@ -1,18 +1,18 @@
-'use client'
+'use server'
 
 import React from 'react'
+import { getMarketMakingInfoForCustomer } from '../../api/marketMakingInfo'
+import { Box, Text } from '@chakra-ui/react'
 
-
-export default function MarketMakingPage({
-  params,
-}: {
-  params: { customerId: string }
-}) {
-  const id = params.customerId
+export default async function MarketMakingPage({ params }: { params: Promise<{ customerId: string }> }) {
+  const customerId = (await params).customerId
+  const marketMakingInfo = await getMarketMakingInfoForCustomer(customerId)
 
   return (
     <main>
-      <h1>{id}</h1>
-    </main>
+    <Box>
+      <Text>Hi {marketMakingInfo.customer.name}</Text>
+    </Box>
+   </main>
   )
 }
