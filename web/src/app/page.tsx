@@ -5,7 +5,7 @@ import Banner from "@/components/Layout/Banner";
 import {
   CardSection,
   TryMomentumSection,
-  LaunchSection,
+  PackageCardSection,
   HeroSection,
   UnLockSection,
 } from "./Sections";
@@ -26,7 +26,7 @@ const Home = () => {
         <CardSection />
 
         {/* Ready to launch your token section */}
-        <LaunchSection />
+        <PackageCardSection />
 
         {/* Try section */}
         <TryMomentumSection />
