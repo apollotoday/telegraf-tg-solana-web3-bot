@@ -4,20 +4,34 @@ import React, { useState, useEffect } from "react";
 import { Box } from "@chakra-ui/react";
 
 const BinaryCode = () => {
-  const [lines, setLines] = useState<string[]>([]);
+  const [lines, setLines] = useState<string>("");
 
-  function generateBinaryString(length: number): string {
+  const generateBinaryString = (length: number): string => {
     return Array.from({ length }, () => Math.round(Math.random())).join("");
-  }
+  };
+
+  const formatBinaryString = (binaryString: string): React.ReactNode => {
+    return binaryString.split("").map((char, index) => {
+      const isBold = Math.random() < 0.2; // 20% chance to make a character bold
+      return isBold ? (
+        <span
+          key={index}
+          style={isBold ? { fontWeight: "bold", color: "white" } : {}}
+        >
+          {char}
+        </span>
+      ) : (
+        <span key={index}>{char}</span>
+      );
+    });
+  };
 
   useEffect(() => {
-    setLines(Array(15).fill(generateBinaryString(200)));
+    setLines(generateBinaryString(2000));
 
     const interval = setInterval(() => {
-      setLines((prevLines) =>
-        prevLines.map(
-          () => generateBinaryString(200) // Randomly regenerate some lines
-        )
+      setLines(
+        () => generateBinaryString(2000) // Randomly regenerate some lines
       );
     }, 95);
 
@@ -30,7 +44,8 @@ const BinaryCode = () => {
       height={{ base: "200px", md: "392px" }}
       // my={{ lg: "40px" }}
       pos={"relative"}
-      overflow={"hidden"}
+      // overflow={"hidden"}
+      overflowWrap={"break-word"}
       bg="black"
       color={"#CDCDCD"}
       fontFamily="'PT Mono', 'Courier'"
@@ -41,6 +56,7 @@ const BinaryCode = () => {
       margin="auto"
       textAlign="center"
       userSelect={"none"}
+      zIndex={20}
       _before={{
         pointerEvents: "none",
         content: '""',
@@ -56,7 +72,7 @@ const BinaryCode = () => {
         zIndex: 1,
       }}
     >
-      {lines.map((line) => line)}
+      {formatBinaryString(lines)}
     </Box>
   );
 };
