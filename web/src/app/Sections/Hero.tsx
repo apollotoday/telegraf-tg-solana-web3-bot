@@ -59,7 +59,7 @@ const HeroSection = () => {
           Get access early
         </div>
 
-        <Box pos={"relative"} w={"487px"} mt={"5px"}>
+        <Box pos={"relative"} w={{ base: "full", md: "487px" }} mt={"5px"}>
           <Input
             w={"full"}
             h={"65px"}

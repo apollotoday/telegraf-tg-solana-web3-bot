@@ -318,3 +318,14 @@ enum EOnChainTransactionStatus {
   SUCCESS
   FAILED
 }
+
+model WaitingList {
+  id                    String @id @default(cuid())
+  email                 String @unique
+  ip                    String
+  location              String
+  timeZone              String
+  language              String
+  createdAt             DateTime           @default(now())
+  updatedAt             DateTime           @updatedAt
+}

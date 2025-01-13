@@ -12,7 +12,7 @@ import {
 
 const Home = () => {
   return (
-    <div className="w-full relative justify-center bg-black">
+    <div className="w-full relative justify-center bg-black sm:px-[10px]">
       <Banner />
       <Header />
 
