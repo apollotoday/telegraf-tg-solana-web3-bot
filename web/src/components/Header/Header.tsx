@@ -2,7 +2,7 @@
 
 import { useState, useCallback } from "react";
 import { Logo } from "./Logo";
-import { HeaderMenu } from "../menu";
+import { HeaderMenu } from "../components/menu";
 import { Flex, Center } from "@chakra-ui/react";
 import { Menu } from "@/config/menu";
 import Link from "next/link";

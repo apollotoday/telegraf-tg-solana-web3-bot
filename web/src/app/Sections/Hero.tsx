@@ -4,7 +4,7 @@ import Image from "next/image";
 import { Box, Input, VStack } from "@chakra-ui/react";
 import { motion } from "framer-motion";
 
-import BinaryCode from "@/components/Sections/BinaryCode";
+import BinaryCode from "@/sections/BinaryCode";
 import { WhiteButton } from "@/components/Buttons";
 import { ChevronRightIcon } from "@/components/Icons";
 

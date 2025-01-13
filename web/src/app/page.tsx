@@ -1,6 +1,8 @@
-import Header from "@/components/Layout/Header";
-import Footer from "@/components/Layout/Footer";
-import Banner from "@/components/Layout/Banner";
+"use client";
+
+import Header from "@/components/Header/Header";
+import Footer from "@/components/Footer/Footer";
+import Banner from "@/components/Banner/Banner";
 
 import {
   CardSection,
