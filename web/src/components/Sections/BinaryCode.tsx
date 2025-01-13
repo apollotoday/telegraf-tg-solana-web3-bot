@@ -41,6 +41,7 @@ const BinaryCode = () => {
       margin="auto"
       textAlign="center"
       userSelect={"none"}
+      zIndex={20}
       _before={{
         pointerEvents: "none",
         content: '""',

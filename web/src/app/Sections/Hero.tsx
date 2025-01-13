@@ -1,11 +1,11 @@
 "use client";
 
 import Image from "next/image";
-import { Box } from "@chakra-ui/react";
+import { Box, Input, VStack } from "@chakra-ui/react";
 import { motion } from "framer-motion";
 
 import BinaryCode from "@/components/Sections/BinaryCode";
-import { ComingSoonButton, NoBgButton } from "@/components/Buttons";
+import { WhiteButton } from "@/components/Buttons";
 import { ChevronRightIcon } from "@/components/Icons";
 
 const HeroSection = () => {
@@ -38,12 +38,12 @@ const HeroSection = () => {
         transform={"translateX(-50%)"}
         zIndex={4}
       />
-      <div className="relative z-10">
+      <VStack pos={"relative"} zIndex={10}>
         <motion.div
           initial={{ y: 100, opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}
           transition={{ duration: 0.8, ease: "easeOut" }}
-          className="font-medium text-[60px] tracking--2pct leading-[72px] text-center max-w-[916px]  mx-auto pt-[59px] bg-gradient-to-r from-white via-gray-400 to-white bg-clip-text text-transparent"
+          className="font-medium text-[60px] leading-[72px] text-center max-w-[916px] pt-[59px] bg-gradient-to-r from-white via-gray-400 to-white bg-clip-text text-transparent"
         >
           {config.hero.title}
         </motion.div>
@@ -55,16 +55,44 @@ const HeroSection = () => {
         >
           {config.hero.description}
         </motion.div>
+        <div className="mt-[30px] text-[20px] leading-[30px]">
+          Get access early
+        </div>
+
+        <Box pos={"relative"} w={"487px"} mt={"5px"}>
+          <Input
+            w={"full"}
+            h={"65px"}
+            variant={"outline"}
+            px={"24px"}
+            borderRadius={"100px"}
+            borderColor={"#898989"}
+            borderWidth={1}
+            placeholder="Your email"
+          />
+          <WhiteButton
+            TextComponent={() => (
+              <Box fontSize={"16px"} lineHeight={"24px"} fontWeight={"500"}>
+                {config.hero.joinButtonText}
+              </Box>
+            )}
+            RightIcon={ChevronRightIcon}
+            pos={"absolute"}
+            right={"10px"}
+            top={"10px"}
+            h={"45px"}
+          />
+        </Box>
         <div className="mt-[18px] relative">
-          <div className="flex flex-col sm:flex-row justify-center px-[60px] gap-[24px]">
+          {/* <div className="flex flex-col sm:flex-row justify-center px-[60px] gap-[24px]">
             <ComingSoonButton />
             <NoBgButton>
-              <Box color={"#898989"} fontWeight={"600"} fontSize={"16px"}>
-                Learn more
-              </Box>
-              <ChevronRightIcon color="grey" />
+            <Box color={"#898989"} fontWeight={"600"} fontSize={"16px"}>
+            Learn more
+            </Box>
+            <ChevronRightIcon color="grey" />
             </NoBgButton>
-          </div>
+            </div> */}
           <Box
             justifyContent={"center"}
             display={"flex"}
@@ -85,26 +113,20 @@ const HeroSection = () => {
               borderRadius={"143px"}
               filter={"blur(80px)"}
               top={"360px"}
-            ></Box>
+            />
           </Box>
         </div>
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          exit={{ opacity: 0, y: 20 }}
-          transition={{ duration: 0.5 }}
-          className="mt-[58px] relative z-[7]"
-        >
+        <motion.div className="mt-[58px] z-[20]">
           <div className="font-medium text-[60px] leading-[72px] px-[20px]">
             {config.hero.footerTitle}
           </div>
           <div className="font-normal text-[20px] leading-[24px] mt-[24px] text-[#898989] px-[20px] whitespace-pre-line">
             {config.hero.footerDescription}
           </div>
-          <BinaryCode />
         </motion.div>
+        <BinaryCode />
         {/* <div className="absolute w-[80%] top-[310px] left-1/2 transform -translate-x-1/2 h-[553px] bg-black backdrop-blur-md rounded-full"></div> */}
-      </div>
+      </VStack>
     </div>
   );
 };
@@ -127,6 +149,7 @@ const config = {
     footerDescription:
       "Our AI-powered toolkit delivers tailored strategies for liquidity, visibility, and growth.\n Choose the package that fits your goals and let our technology handle the heavy lifting.",
     rectanglesBg: "url(/images/Rectangles.svg)",
+    joinButtonText: "Join the waitlist",
   },
 };
 
