@@ -2,8 +2,8 @@ import { PublicKey, Keypair, TransactionMessage } from "@solana/web3.js";
 import { buySell, buySellVersioned, fakeVolumne, swap } from "./meteora";
 import { getDevWallet } from "../../testUtils";
 import { sendAndConfirmRawTransactionAndRetry, Sol } from "../../solUtils";
-import { connection, meteoraDynPool } from "../../config";
-import { sendAndConfirmJitoBundle } from "../../jitoUtils";
+import { primaryRpcConnection, meteoraDynPool } from "../../config";
+import { sendAndConfirmJitoTransactions } from "../../jitoUtils";
 import { measureTime } from "../../utils";
 import _ from "lodash";
 import { TOKEN_PROGRAM_ID } from "@solana/spl-token";
@@ -66,7 +66,7 @@ test("should buy and sell drew fast", async () => {
         });
 
         // simulate and log error
-        const simRes = await connection.simulateTransaction(res.buyTx1);
+        const simRes = await primaryRpcConnection.simulateTransaction(res.buyTx1);
         if (simRes.value.err) {
           console.error("Error in simRes", simRes.value.err);
         }

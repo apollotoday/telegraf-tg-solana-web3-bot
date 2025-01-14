@@ -2,7 +2,7 @@ import { Keypair, LAMPORTS_PER_SOL, PublicKey, TransactionMessage, VersionedTran
 import { loadFeePayers, sendAndConfirmRawTransactionAndRetry, sendSol, Sol } from "../../solUtils";
 import { getDevWallet } from "../../testUtils";
 import { sleep } from "../../utils";
-import { connection, goatPool, rugPool } from "../../config";
+import { primaryRpcConnection, goatPool, lpPoolForTests } from "../../config";
 import asyncBatch from "async-batch";
 
 import _ from "lodash";
@@ -12,7 +12,7 @@ import { computeRaydiumAmounts, swapRaydium } from "../markets/raydium";
 import { loadWalletFromEnv } from "../wallet/walletUtils";
 
 export async function makeShootingStar(args: { wallet: Keypair; pool: PublicKey; buyAmount: number }) {
-  const solAmount = await connection.getBalance(args.wallet.publicKey);
+  const solAmount = await primaryRpcConnection.getBalance(args.wallet.publicKey);
 
   console.log("solAmount", solAmount / LAMPORTS_PER_SOL);
 
@@ -71,5 +71,5 @@ if (require.main === module) {
 
   const wallet = loadWalletFromEnv("VOLUMNE_TICKS");
 
-  makeShootingStar({ wallet, pool: rugPool, buyAmount: 19.5 });
+  makeShootingStar({ wallet, pool: lpPoolForTests, buyAmount: 19.5 });
 }

@@ -1,28 +1,46 @@
-import { EJobStatus, EMarketMakingCycleType, EServiceType, EWalletType } from "@prisma/client";
-import { createCloseAccountInstruction, TOKEN_PROGRAM_ID } from "@solana/spl-token";
-import { Keypair, LAMPORTS_PER_SOL, PublicKey, SystemProgram, TransactionInstruction } from "@solana/web3.js";
-import { Command } from "commander";
-import _ from "lodash";
-import reattempt from "reattempt";
-import { connection, rugPool } from "../src/config";
-import prisma from "../src/lib/prisma";
-import { createBookedServiceAndWallet, getActiveBookedServiceByBotCustomerId } from "../src/modules/customer/bookedService";
-import { createBotCustomer, getBotCustomerByName } from "../src/modules/customer/botCustomer";
-import { scheduleNextBuyJob, updateBuyJobsWithValues } from "../src/modules/marketMaking/buyMarketMakingHandler";
-import { getActiveMarketMakingCycleByBotCustomerId, setupMarketMakingCycle } from "../src/modules/marketMaking/marketMakingService";
-import { executeJupiterSwap, getBalances } from "../src/modules/markets/jupiter";
-import { getBirdEyeUsdcRate } from "../src/modules/monitor/birdeye";
-import { sendAndConfirmTransactionAndRetry } from "../src/modules/solTransaction/solSendTransactionUtils";
-import { createTransactionForInstructions, groupSendAndConfirmTransactions } from "../src/modules/solTransaction/solTransactionUtils";
-import { overwriteConsoleLog } from "../src/modules/utils/changeConsoleLogWithTimestamp";
-import { exportSniperWallets, exportWallets, jsonToTextForFundingWallets } from "../src/modules/utils/exportUtils";
-import { getTokenBalanceForOwner, parseTokenAmount, transferTokenInstruction } from "../src/modules/utils/splUtils";
-import { createAndStoreBotCustomerWallets, pickRandomWalletFromCustomer } from "../src/modules/wallet/walletService";
-import { base58ToUint8Array, decryptWallet, loadWalletFromU8IntArrayStringified, uint8ArrayToBase58 } from "../src/modules/wallet/walletUtils";
-import { closeWallet, sendSol, Sol } from "../src/solUtils";
-import { sleep } from "../src/utils";
-import { getSplTokenByMint } from "../src/modules/splToken/splTokenDBService";
-import { rug } from "../src/modules/actions/getRichFast";
+import { EJobStatus, EMarketMakingCycleType, EServiceType, EWalletType } from '@prisma/client'
+import { createCloseAccountInstruction, TOKEN_PROGRAM_ID } from '@solana/spl-token'
+import { Keypair, LAMPORTS_PER_SOL, PublicKey, SystemProgram, TransactionInstruction } from '@solana/web3.js'
+import { Command } from 'commander'
+import _ from 'lodash'
+import reattempt from 'reattempt'
+import { primaryRpcConnection, lpPoolForTests } from '../src/config'
+import prisma from '../src/lib/prisma'
+import { createBookedServiceAndWallet, getActiveBookedServiceByBotCustomerId } from '../src/modules/customer/bookedService'
+import { createBotCustomer, getBotCustomerByName } from '../src/modules/customer/botCustomer'
+import { scheduleNextBuyJob, updateBuyJobsWithValues } from '../src/modules/marketMaking/buyMarketMakingHandler'
+import {
+  getActiveMarketMakingCycleByBotCustomerId,
+  setupMarketMakingCycle,
+} from '../src/modules/marketMaking/marketMakingService'
+import { executeJupiterSwap, getBalances } from '../src/modules/markets/jupiter'
+import { getBirdEyeUsdcRate } from '../src/modules/monitor/birdeye'
+import { sendAndConfirmTransactionAndRetry } from '../src/modules/solTransaction/solSendTransactionUtils'
+import {
+  createQuickTransactionForInstructions,
+  createTransactionForInstructions,
+  groupSendAndConfirmTransactions,
+} from '../src/modules/solTransaction/solTransactionUtils'
+import { overwriteConsoleLog } from '../src/modules/utils/changeConsoleLogWithTimestamp'
+import { exportSniperWallets, exportWallets, jsonToTextForFundingWallets } from '../src/modules/utils/exportUtils'
+import { getTokenBalanceForOwner, parseTokenAmount, transferTokenInstruction } from '../src/modules/utils/splUtils'
+import { createAndStoreBotCustomerWallets, pickRandomWalletFromCustomer } from '../src/modules/wallet/walletService'
+import { sendSolFromWalletToWalletWithCycles } from '../src/modules/solTransaction/solFundingService'
+import {
+  base58ToUint8Array,
+  decryptWallet,
+  loadWalletFromU8IntArrayStringified,
+  uint8ArrayToBase58,
+} from '../src/modules/wallet/walletUtils'
+import { closeWallet, getBalanceFromWallets, sendSol, Sol, waitUntilBalanceIsGreaterThan } from '../src/solUtils'
+import { sleep } from '../src/utils'
+import { getSplTokenByMint, getTokenOrCreate } from '../src/modules/splToken/splTokenDBService'
+import { buyPumpFunTokens, sellAllPumpFunTokensFromMultipleWalletsInstruction, sellPumpFunTokens, setupPumpFunToken } from '../src/modules/pumpfun/pumpfunService'
+import { distributeTotalAmountRandomlyAcrossWallets } from '../src/calculationUtils'
+import { sellMultiple } from "../src/modules/actions/sellMultiple";
+import { getBirdeyeOHLCV, getBirdeyeTokenInfo } from '../src/modules/splToken/birdEye';
+import { getTokenInfo } from '../src/modules/splToken/tokenInfoService';
+import asyncBatch from 'async-batch'
 
 const program = new Command();
 
@@ -62,7 +80,7 @@ program.command("initMarketMaking").action(async () => {
 });
 
 program.command("getParsedTx").action(async () => {
-  const detectedTransaction = await connection.getParsedTransaction(
+  const detectedTransaction = await primaryRpcConnection.getParsedTransaction(
     "5yJEMQTsBguRwsNBbwTX9oV8su5Rcj5BqLVZk4Ynfs63RxUss37XxwE119H94xHSLqqUvafaYYqUgwhmkdhmF78m",
     { commitment: "confirmed", maxSupportedTransactionVersion: 200 }
   );
@@ -101,6 +119,7 @@ program.command("initMarketMakingService").action(async () => {
     solAmount: 20,
     serviceType: EServiceType.MARKET_MAKING,
     usedSplTokenMint: splToken.tokenMint,
+    awaitingFunding: false,
   });
 
   console.log(`created booked service ${bookedService.id} for market making`);
@@ -163,7 +182,7 @@ program.command("migrateSniperToMarketMaking").action(async () => {
   for (const wallet of botCustomerWallets) {
     const keypair = decryptWallet(wallet.encryptedPrivKey);
 
-    const balance = await connection.getBalance(keypair.publicKey);
+    const balance = await primaryRpcConnection.getBalance(keypair.publicKey);
 
     console.log(`Wallet: ${keypair.publicKey.toBase58()} -> Balance: ${balance / LAMPORTS_PER_SOL} SOL`);
 
@@ -211,9 +230,9 @@ program.command("sellAll").action(async () => {
     })
   );
 
-  const pool = rugPool;
+  const pool = lpPoolForTests;
 
-  const res = await rug({ wallets, pool });
+  const res = await sellMultiple({ wallets, pool });
 
   await prisma.botCustomerWallet.updateMany({
     where: {
@@ -226,7 +245,7 @@ program.command("sellAll").action(async () => {
 });
 
 program.command("setupMarketMakingCycle").action(async () => {
-  const botCustomer = await getBotCustomerByName("Drew");
+  const botCustomer = await getBotCustomerByName("Puff");
 
   const bookedService = await getActiveBookedServiceByBotCustomerId({
     botCustomerId: botCustomer.id,
@@ -239,8 +258,8 @@ program.command("setupMarketMakingCycle").action(async () => {
       type: EMarketMakingCycleType.MAINTAIN,
       solSpentForCycle: 0,
       solEarnedForCycle: 0,
-      maxSolSpentForCycle: 2.5,
-      maxSolEarnedForCycle: 2.5,
+      maxSolSpentForCycle: 12,
+      maxSolEarnedForCycle: 12,
       buyMinAmount: 0.11,
       buyMaxAmount: 0.63,
       minDurationBetweenBuyAndSellInSeconds: 10,
@@ -248,7 +267,7 @@ program.command("setupMarketMakingCycle").action(async () => {
       minDurationBetweenJobsInSeconds: 50,
       maxDurationBetweenJobsInSeconds: 190,
       isActive: true,
-      sellToBuyValueRatio: 0.98,
+      sellToBuyValueRatio: 0.92,
       startTimestamp: new Date(),
     },
   });
@@ -310,6 +329,50 @@ program.command("inspectSniperWallets").action(async () => {
   const botCustomer = await getBotCustomerByName("SniperOne");
 });
 
+
+
+program.command('getTotalSOLInDB').action(async (e) => {
+  const botCustomer = await getBotCustomerByName('Puff')
+  const allWallets = await prisma.botCustomerWallet.findMany({
+    where: {
+      botCustomerId: {
+        not: botCustomer.id,
+      },
+      
+    }
+  })
+
+  const balances = await Promise.all(
+    allWallets.map(async (w) => {
+      return reattempt.run({ times: 5, delay: 200 }, async () => {
+        const balance = await primaryRpcConnection.getBalance(new PublicKey(w.pubkey))
+        const solBalance = balance / LAMPORTS_PER_SOL
+
+        console.log(`${w.pubkey} has ${solBalance} SOL`)
+
+        return { solBalance, wallet: w }
+      })
+    }),
+  )
+
+  const totalSOL = balances.reduce((acc, curr) => acc + curr.solBalance, 0)
+
+  const solBalanceByType = balances.reduce((acc, curr) => {
+    const walletType = curr.wallet.type
+    if (!acc[walletType]) {
+      acc[walletType] = 0
+    }
+    acc[walletType] += curr.solBalance
+    return acc
+  }, {})
+
+  for (const [type, balance] of Object.entries(solBalanceByType)) {
+    console.log(`Total SOL for ${type}: ${balance}`)
+  }
+
+  console.log(`Total SOL in DB: ${totalSOL}`)
+})
+
 program
   .command("inspectCustomerWallets")
   .option("-c, --customer <customer>", "The customer to inspect")
@@ -319,8 +382,8 @@ program
 
     const bookedService = await getActiveBookedServiceByBotCustomerId({
       botCustomerId: botCustomer.id,
-      serviceType: EServiceType.MARKET_MAKING,
-    });
+      serviceType: EServiceType.SNIPER,
+    })
 
     if (!botCustomer || !bookedService) {
       console.error("bot customer or booked service not found");
@@ -334,7 +397,7 @@ program
       where: {
         botCustomerId: botCustomer.id,
         type: {
-          in: [EWalletType.SNIPING, EWalletType.MARKET_MAKING, /*EWalletType.SNIPING_FUNDING, */ EWalletType.SERVICE_FUNDING],
+          in: [EWalletType.MARKET_MAKING],
         },
       },
     });
@@ -345,10 +408,10 @@ program
 
     const balances = await Promise.all(
       foundWallets.map(async (w) => {
-        const balance = await connection.getBalance(new PublicKey(w.pubkey));
+        const balance = await primaryRpcConnection.getBalance(new PublicKey(w.pubkey));
         const solBalance = balance / LAMPORTS_PER_SOL;
 
-        const tokenAccounts = await connection.getParsedTokenAccountsByOwner(new PublicKey(w.pubkey), {
+        const tokenAccounts = await primaryRpcConnection.getParsedTokenAccountsByOwner(new PublicKey(w.pubkey), {
           mint: new PublicKey(tokenMint),
         });
 
@@ -497,7 +560,7 @@ program
 
       const from = decryptWallet(marketMakingWallet.encryptedPrivKey);
 
-      const balance = await connection.getBalance(new PublicKey(marketMakingWallet.pubkey));
+      const balance = await primaryRpcConnection.getBalance(new PublicKey(marketMakingWallet.pubkey));
       const solBalance = balance / LAMPORTS_PER_SOL;
 
       if (solBalance < 0.01) {
@@ -579,7 +642,7 @@ program.command("fundMarketMakingWallets").action(async () => {
 
   console.log(fundingWallet.publicKey.toBase58());
 
-  const balanceOfWallet = (await connection.getBalance(fundingWallet.publicKey)) / LAMPORTS_PER_SOL;
+  const balanceOfWallet = (await primaryRpcConnection.getBalance(fundingWallet.publicKey)) / LAMPORTS_PER_SOL;
 
   console.log("Balance of funding wallet:", balanceOfWallet);
 
@@ -764,11 +827,12 @@ program.command("updateBuyJobWithValues").action(async () => {
   await updateBuyJobsWithValues();
 });
 
-program.command("convertUintPrivateKeyToBase58").action(async () => {
-  const keypair = loadWalletFromU8IntArrayStringified(process.env.KEY_TO_LOAD!);
-  const base58 = uint8ArrayToBase58(keypair.secretKey);
-  console.log(base58);
-});
+program.command('convertUintPrivateKeyToBase58').action(async () => {
+  const keypair = loadWalletFromU8IntArrayStringified(process.env.NEW_KEY_TO_LOAD!)
+  const base58 = uint8ArrayToBase58(keypair.secretKey)
+  console.log(base58)
+  console.log(keypair.publicKey.toBase58())
+})
 
 program.command("convertBase58ToUint8").action(async () => {
   const base58Key = "z4PS4JhznMyaknSwVDKWhJYoqAojFHgp4SHGnsVE1fMourqzhsrNQb6SrJ9mFw39LKUCHFckZktzrcqNfZXvZKU";
@@ -781,7 +845,7 @@ program.command("getTokenHolders").action(async () => {
 
   // Get the 250 largest holders
   // Fetch all token accounts associated with the token mint
-  const tokenAccounts = await connection.getProgramAccounts(TOKEN_PROGRAM_ID, {
+  const tokenAccounts = await primaryRpcConnection.getProgramAccounts(TOKEN_PROGRAM_ID, {
     filters: [
       {
         dataSize: 165, // Token account size
@@ -940,7 +1004,7 @@ program.command("sendAllFundsFromOneSetOfWalletsToAnother").action(async () => {
     const uIntArray = base58ToUint8Array(privateKey);
     const keypair = Keypair.fromSecretKey(uIntArray);
 
-    const balance = await connection.getBalance(keypair.publicKey);
+    const balance = await primaryRpcConnection.getBalance(keypair.publicKey);
 
     console.log(`Wallet: ${keypair.publicKey.toBase58()} -> Balance: ${balance / LAMPORTS_PER_SOL} SOL`);
 
@@ -1022,7 +1086,7 @@ program
     console.log(`${serviceFundingWallets.length} service funding wallets found`);
 
     for (const wallet of serviceFundingWallets) {
-      const balance = await connection.getBalance(new PublicKey(wallet.pubkey));
+      const balance = await primaryRpcConnection.getBalance(new PublicKey(wallet.pubkey));
 
       console.log(`${wallet.pubkey} -> ${balance / LAMPORTS_PER_SOL} SOL`);
 
@@ -1031,6 +1095,49 @@ program
 
     console.log(`Total service funding balance: ${totalBalance / LAMPORTS_PER_SOL} SOL`);
   });
+
+program.command('fundWalletFromAllWallets').action(async () => {
+  const botCustomer = await getBotCustomerByName('VENUS')
+  const targetKeypair = loadWalletFromU8IntArrayStringified(process.env.TARGET_WALLET!)
+
+  console.log(`Funding from all wallets to ${targetKeypair.publicKey.toBase58()}`)
+
+  const botCustomerWallets = await prisma.botCustomerWallet.findMany({
+    where: {
+      botCustomerId: botCustomer.id,
+      type: {
+        in: [EWalletType.SNIPING_FUNDING],
+      },
+    },
+  })
+
+  console.log(`${botCustomerWallets.length} market making wallets found`)
+
+  console.log(`Total balance: ${await getBalanceFromWallets(botCustomerWallets.map((wallet) => new PublicKey(wallet.pubkey)))} SOL`)
+
+  await asyncBatch(botCustomerWallets, async (botCustomerWallet) => {
+    const balance = await primaryRpcConnection.getBalance(new PublicKey(botCustomerWallet.pubkey))
+    const solBalance = balance / LAMPORTS_PER_SOL
+    const sourceKeypair = decryptWallet(botCustomerWallet.encryptedPrivKey)
+
+    if (solBalance < 0.001) {
+      console.log(`Skipping ${botCustomerWallet.pubkey} with balance ${solBalance} SOL`)
+      return
+    }
+
+    console.log(`Funding from ${botCustomerWallet.pubkey} with ${solBalance} SOL to ${targetKeypair.publicKey.toBase58()}`)
+
+    await sendSolFromWalletToWalletWithCycles({
+      cycles: 5,
+      sourceKeypair,
+      targetKeypair,
+      amount: Sol.fromLamports(balance),
+      sendAll: true,
+      customerId: botCustomer.id,
+      feePayerKeypair: targetKeypair,
+    })
+  }, 10)
+})
 
 program
   .command("setupSniping")
@@ -1075,7 +1182,7 @@ program
     const serviceFundingWalletsWithBalance: typeof serviceFundingWallets = [];
 
     for (const wallet of serviceFundingWallets) {
-      const balance = await connection.getBalance(new PublicKey(wallet.pubkey));
+      const balance = await primaryRpcConnection.getBalance(new PublicKey(wallet.pubkey));
 
       if (balance > minAmount * LAMPORTS_PER_SOL) {
         console.log(`taking service funding wallet with balance > 0.1 SOL: ${wallet.pubkey} => balance: ${balance / LAMPORTS_PER_SOL} SOL`);
@@ -1104,121 +1211,45 @@ program
         customerId: botCustomer.id,
       });
 
-      console.log(`created ${snipingFundingWalletCount} wallets for sniping funding for sniping wallet ${snipingWallet.pubkey}`);
+      console.log(`created ${snipingFundingWalletCount} wallets for sniping funding for sniping wallet ${snipingWallet.pubkey}`)
+      const serviceFundingWalletsWithBalance = (
+        await Promise.all(
+          serviceFundingWallets.map(async (wallet) => {
+            const balance = await reattempt.run({ times: 5, delay: 1000 }, async () => {
+              return await primaryRpcConnection.getBalance(new PublicKey(wallet.pubkey), 'confirmed')
+            })
 
-      for (let i = 0; i <= snipingFundingWalletCount; i++) {
-        try {
-          const serviceFundingWalletsWithBalance = (
-            await Promise.all(
-              serviceFundingWallets.map(async (wallet) => {
-                const balance = await reattempt.run({ times: 5, delay: 1000 }, async () => {
-                  return await connection.getBalance(new PublicKey(wallet.pubkey), "confirmed");
-                });
+            return {
+              solBalance: balance / LAMPORTS_PER_SOL,
+              wallet,
+            }
+          }),
+        )
+      ).filter((item) => item.solBalance > minAmount)
+      const serviceFundingWallet = _.sample(serviceFundingWalletsWithBalance)
 
-                return {
-                  solBalance: balance / LAMPORTS_PER_SOL,
-                  wallet,
-                };
-              })
-            )
-          ).filter((item) => item.solBalance > minAmount);
-          const serviceFundingWallet = _.sample(serviceFundingWalletsWithBalance);
-
-          if (!serviceFundingWallet || !serviceFundingWallet.wallet.encryptedPrivKey) {
-            console.error(`No service funding wallet found for ${snipingWallet.pubkey}`);
-            return;
-          }
-
-          if (i === 0) {
-            const maxAmountToSend = maxAmount > serviceFundingWallet.solBalance ? serviceFundingWallet.solBalance : maxAmount;
-
-            const amountToSend = _.random(minAmount, maxAmountToSend, true);
-
-            const amountToSendLamports = Sol.fromLamports(Math.floor(amountToSend * LAMPORTS_PER_SOL));
-
-            console.log(
-              `general funding wallet: ${serviceFundingWallet.wallet.pubkey} => first sniping funding wallet ${snipingFundingWallets[i].pubkey}: ${amountToSend} SOL`
-            );
-
-            const keypair = decryptWallet(serviceFundingWallet.wallet.encryptedPrivKey);
-
-            await reattempt.run({ times: 5, delay: 1000 }, async () => {
-              const { txSig, confirmedResult } = await sendSol({
-                amount: amountToSendLamports,
-                from: keypair,
-                to: new PublicKey(snipingFundingWallets[i].pubkey),
-                feePayer: keypair,
-              });
-
-              if (confirmedResult.value.err) {
-                console.log(`Error funding ${snipingFundingWallets[i].pubkey}: ${confirmedResult.value.err}`);
-                throw new Error(`Error funding ${snipingFundingWallets[i].pubkey}: ${confirmedResult.value.err}`);
-              }
-
-              console.log("Transaction sent and confirmed:", txSig, `to fund ${snipingFundingWallets[i].pubkey}`);
-            });
-          } else if (i === snipingFundingWalletCount) {
-            console.log(`last sniping funding wallet: ${snipingFundingWallets[i - 1].pubkey} => ${snipingWallet.pubkey}`);
-
-            const lastSnipingFundingWallet = snipingFundingWallets[i - 1];
-            const lastSnipingFundingWalletKeypair = decryptWallet(lastSnipingFundingWallet.encryptedPrivKey);
-            const serviceFundingKeyPair = decryptWallet(serviceFundingWallet.wallet.encryptedPrivKey);
-            const toKeypair = decryptWallet(snipingWallet.encryptedPrivKey);
-
-            await reattempt.run({ times: 7, delay: 1000 }, async () => {
-              const { txSig, confirmedResult } = await closeWallet({
-                waitTime: 10000,
-                from: lastSnipingFundingWalletKeypair,
-                to: toKeypair,
-                feePayer: serviceFundingKeyPair,
-              });
-
-              if (confirmedResult.value.err) {
-                console.log(`Error closing ${lastSnipingFundingWallet.pubkey} and funding ${snipingWallet.pubkey}: ${confirmedResult.value.err}`);
-                throw new Error(`Error closing ${lastSnipingFundingWallet.pubkey} and funding ${snipingWallet.pubkey}: ${confirmedResult.value.err}`);
-              }
-
-              console.log("Transaction sent and confirmed:", txSig, `to close ${lastSnipingFundingWallet.pubkey} and fund ${snipingWallet.pubkey}`);
-            });
-          } else {
-            console.log(`sniping funding wallet: ${snipingFundingWallets[i - 1].pubkey} => ${snipingFundingWallets[i].pubkey}`);
-
-            const serviceFundingKeyPair = decryptWallet(serviceFundingWallet.wallet.encryptedPrivKey);
-            const fromKeypair = decryptWallet(snipingFundingWallets[i - 1].encryptedPrivKey);
-            const toKeypair = decryptWallet(snipingFundingWallets[i].encryptedPrivKey);
-
-            await reattempt.run({ times: 7, delay: 1000 }, async () => {
-              const { txSig, confirmedResult } = await closeWallet({
-                from: fromKeypair,
-                to: toKeypair,
-                feePayer: serviceFundingKeyPair,
-                waitTime: 10000,
-              });
-
-              if (confirmedResult.value.err) {
-                console.log(
-                  `Error closing ${snipingFundingWallets[i - 1].pubkey} and funding ${snipingFundingWallets[i].pubkey}: ${confirmedResult.value.err}`
-                );
-                throw new Error(
-                  `Error closing ${snipingFundingWallets[i - 1].pubkey} and funding ${snipingFundingWallets[i].pubkey}: ${confirmedResult.value.err}`
-                );
-              }
-
-              console.log(
-                "Transaction sent and confirmed:",
-                txSig,
-                `to close ${snipingFundingWallets[i - 1].pubkey} and fund ${snipingFundingWallets[i].pubkey}`
-              );
-            });
-          }
-        } catch (err) {
-          console.error(`Error funding ${snipingFundingWallets[i].pubkey}: ${err}`);
-        }
-
-        await sleep(1500);
+      if (!serviceFundingWallet || !serviceFundingWallet.wallet.encryptedPrivKey) {
+        console.error(`No service funding wallet found for ${snipingWallet.pubkey}`)
+        return
       }
+
+      const maxAmountToSend = maxAmount > serviceFundingWallet.solBalance ? serviceFundingWallet.solBalance : maxAmount
+      const amountToSend = _.random(minAmount, maxAmountToSend, true)
+
+      const sourceKeypair = decryptWallet(serviceFundingWallet.wallet.encryptedPrivKey)
+      const targetKeypair = decryptWallet(snipingWallet.encryptedPrivKey)
+
+      await sendSolFromWalletToWalletWithCycles({
+        cycles: fundingCycles,
+        sourceKeypair,
+        targetKeypair,
+        amount: Sol.fromLamports(amountToSend * LAMPORTS_PER_SOL),
+        sendAll: false,
+        customerId: botCustomer.id,
+      })
     }
   });
+
 
 program
   .command("generateAndExportSniperWallets")
@@ -1246,118 +1277,502 @@ program
     await exportSniperWallets(customer);
   });
 
+program.command('sellPumpFunFromDistributed').action(async () => {
+  const tokenMint = '7k9msjoUnoSQN2ZZwA64mQ9UCp7DA2SMMYTvgwUEqAmQ'
+  const fundingWallet = loadWalletFromU8IntArrayStringified(process.env.FUNDING_WALLET!)
+  const wallets = [
+    '26AvpuwJYbHoTZaUPcfJCvnQsQUJCwqvbPhKDHacVh5Y',
+    '2DQdsowaZHYNKhQKNySasA1B3d3ZdyVHtv3aKYRRPA9Y',
+    '2G6sK963L6MiNBuHmJUp7Wz6QBDQowh2nFTWTv1sYUEZ',
+    '2hz3ogYi5vYqHKXxZ1v3ACQQi7gva85dSk6fsoPUeRV6',
+    '2jHnfdczhWk98RsvTE7QjxVvsoXqfnYuWbqpEQvLfLAd',
+    '2msMdAsLp6sFFhDx1mJPcbenaUPVaxafUgbYJNoU1XMG',
+    '2so2yrAJDbd19FSAETJ2nJWzRQs3L1Ao57kgr7A6jQes',
+    '2w9ZHjGmAvC5DnFBxUMCNwjQ9RB7EC4iwViPYUXYMzAK',
+    '384XxqdXrdzSDn2pt8oMN6AmxACrCdTDrsr3nNL8pkCc',
+    '3BTxmBAEX1ueAMbEjwaPMzyhBz5V8R4yJk6Wd5mRREH8',
+  ]
+
+  const marketMakingWallets = await prisma.botCustomerWallet.findMany({
+    where: {
+      pubkey: {
+        in: wallets,
+      },
+    },
+  })
+
+  const keypairs = marketMakingWallets.map((wallet) => decryptWallet(wallet.encryptedPrivKey))
+
+  const instructions = await sellAllPumpFunTokensFromMultipleWalletsInstruction({
+    wallets: keypairs,
+    tokenMint,
+  })
+
+
+
+  const { transaction: tokenTransaction, blockhash: tokenBlockhash } = await createQuickTransactionForInstructions({
+    wallet: fundingWallet.publicKey.toBase58(),
+    instructions: _.flatten(instructions),
+    signers: [fundingWallet, ...keypairs],
+    priorityFeeLamports: 500_000,
+    unitLimit: 500_000,
+  })
+
+})
+
 program.command("sendFromMainToSniperForPumpFun").action(async () => {
   const customer = await getBotCustomerByName("PF_SNIPER");
 
-  const [activeBookedService, marketMakingWallets, splToken] = await Promise.all([
-    getActiveBookedServiceByBotCustomerId({
+  
+})
+
+program.command('sellPumpFunTokens').action(async () => {
+  const tokenSymbol = 'VENUS'
+  const customer = await getBotCustomerByName(tokenSymbol)
+
+  const activeBookedService = await getActiveBookedServiceByBotCustomerId({ botCustomerId: customer.id, serviceType: EServiceType.SNIPER })
+
+  const tokenBalance = await getTokenBalanceForOwner({
+    ownerPubkey: activeBookedService.mainWallet.pubkey,
+    tokenMint: '7yM89M2JQZrnp6G3otC6RA9NKSb7Tkxxjy122YiFXJvr',
+  })
+
+  console.log(`Token balance for ${tokenSymbol}: ${tokenBalance.tokenBalance.amount}`)
+
+  const amountToSell = Math.floor(Number(tokenBalance.tokenBalance.amount) - 1000)
+
+  console.log(`Selling ${amountToSell} tokens`)
+
+  await sellPumpFunTokens({
+    mainWallet: activeBookedService.mainWallet,
+    tokenMint: activeBookedService.usedSplTokenMint,
+    tokenAmount: amountToSell,
+  })
+})
+
+program.command('sellMultiplePumpFunTokens').action(async () => {
+  const tokenSymbol = 'VENUS'
+  const customer = await getBotCustomerByName(tokenSymbol)
+  const activeBookedService = await getActiveBookedServiceByBotCustomerId({ botCustomerId: customer.id, serviceType: EServiceType.SNIPER })
+  const fundingWallet = loadWalletFromU8IntArrayStringified(process.env.FUNDING_WALLET!)
+  const mainWallet = decryptWallet(activeBookedService.mainWallet.encryptedPrivKey)
+
+  const allSellInstructions = await sellAllPumpFunTokensFromMultipleWalletsInstruction({
+    wallets: [fundingWallet, mainWallet],
+    tokenMint: activeBookedService.usedSplTokenMint,
+  })
+
+  const instrsToSend = _.flatten(allSellInstructions)
+
+  const { transaction: tokenTransaction, blockhash: tokenBlockhash } = await createQuickTransactionForInstructions({
+    wallet: fundingWallet.publicKey.toBase58(),
+    instructions: instrsToSend,
+    signers: [fundingWallet, mainWallet],
+    priorityFeeLamports: 500_000,
+    unitLimit: 500_000,
+  })
+
+  const { txSig: tokenTxSig, confirmedResult: tokenConfirmedResult } = await sendAndConfirmTransactionAndRetry(
+    tokenTransaction,
+    tokenBlockhash,
+  )
+
+  console.log('Transaction sent and confirmed:', tokenTxSig, tokenConfirmedResult)
+})
+
+program.command('birdeyeTokenInfo').action(async () => {
+  const tokenAddress = 'CzLSujWBLFsSjncfkh59rUFqvafWcY5tzedWJSuypump'
+  const tokenInfo = await getBirdeyeTokenInfo(tokenAddress)
+  console.log(tokenInfo)
+})
+
+program.command('birdeyeOHLCV').action(async () => {
+  const tokenAddress = 'CzLSujWBLFsSjncfkh59rUFqvafWcY5tzedWJSuypump'
+  const ohlcv = await getBirdeyeOHLCV({
+    tokenAddress,
+    timeFrame: '1h',
+    timeFrameStart: new Date(Date.UTC(
+      new Date().getUTCFullYear(),
+      new Date().getUTCMonth(),
+      new Date().getUTCDate() - 1,  // Yesterday
+      0, 0, 0, 0                    // Start of day
+    )),
+    timeFrameEnd: new Date(Date.UTC(
+      new Date().getUTCFullYear(),
+      new Date().getUTCMonth(),
+      new Date().getUTCDate() - 1,  // Yesterday
+      23, 59, 59, 999               // End of day
+    )),
+  })
+  console.log(ohlcv)
+})
+
+program.command('solTokenInfo').action(async () => {
+  const tokenAddress = 'So11111111111111111111111111111111111111112'
+  const tokenInfo = await getTokenInfo(tokenAddress)
+  console.log(tokenInfo)
+
+  await prisma.splToken.create({
+    data: {
+      tokenMint: tokenAddress,
+      symbol: tokenInfo.symbol,
+      name: tokenInfo.name,
+      decimals: tokenInfo.decimals,
+      isSPL: false,
+      lastUsdcPrice: tokenInfo.price,
+      priceChange30mPercent: tokenInfo.priceChange30mPercent,
+      priceChange1hPercent: tokenInfo.priceChange1hPercent,
+      priceChange2hPercent: tokenInfo.priceChange2hPercent,
+      priceChange4hPercent: tokenInfo.priceChange4hPercent,
+      priceChange6hPercent: tokenInfo.priceChange6hPercent,
+      priceChange12hPercent: tokenInfo.priceChange12hPercent,
+      priceChange24hPercent: tokenInfo.priceChange24hPercent,
+      v1hUSD: tokenInfo.v1hUSD,
+      vBuy1hUSD: tokenInfo.vBuy1hUSD,
+      vSell1hUSD: tokenInfo.vSell1hUSD,
+      v2hUSD: tokenInfo.v2hUSD,
+      vBuy2hUSD: tokenInfo.vBuy2hUSD,
+      vSell2hUSD: tokenInfo.vSell2hUSD,
+      v4hUSD: tokenInfo.v4hUSD,
+      vBuy4hUSD: tokenInfo.vBuy4hUSD,
+      vSell4hUSD: tokenInfo.vSell4hUSD,
+      v8hUSD: tokenInfo.v8hUSD,
+      vBuy8hUSD: tokenInfo.vBuy8hUSD,
+      vSell8hUSD: tokenInfo.vSell8hUSD,
+      v24hUSD: tokenInfo.v24hUSD,
+      vBuy24hUSD: tokenInfo.vBuy24hUSD,
+      vSell24hUSD: tokenInfo.vSell24hUSD,
+    },
+  })
+})
+
+program.command('testGetOrCreateToken').action(async () => {
+  const tokenAddress = 'CzLSujWBLFsSjncfkh59rUFqvafWcY5tzedWJSuypump'
+  const dbTokenInfo = await getTokenOrCreate(tokenAddress)
+  console.log(dbTokenInfo)
+})
+
+program.command('testTokenInfo').action(async () => {
+  const tokenAddress = 'G9tt98aYSznRk7jWsfuz9FnTdokxS6Brohdo9hSmjTRB'
+  const tokenInfo = await getTokenInfo(tokenAddress)
+  console.log(tokenInfo)
+})
+
+
+program.command('buyPumpFunTokens').action(async () => {
+  const tokenSymbol = 'VENUS'
+  const customer = await getBotCustomerByName(tokenSymbol)
+  const activeBookedService = await getActiveBookedServiceByBotCustomerId({ botCustomerId: customer.id, serviceType: EServiceType.SNIPER })
+  const fundingWallet = loadWalletFromU8IntArrayStringified(process.env.FUNDING_WALLET!)
+
+  await buyPumpFunTokens({
+    mainWallet: fundingWallet,
+    tokenMint: activeBookedService.usedSplTokenMint,
+    solAmount: 0.45,
+  })
+})
+
+program.command('checkWallets').action(async () => {
+  const customer = await getBotCustomerByName('VENUS')
+  
+  const marketMakingWallets = await prisma.botCustomerWallet.findMany({
+    where: {
       botCustomerId: customer.id,
-      serviceType: EServiceType.SNIPER,
-    }),
-    prisma.botCustomerWallet.findMany({
-      where: {
-        botCustomerId: customer.id,
-        type: EWalletType.MARKET_MAKING,
-      },
-    }),
-    prisma.splToken.create({
-      data: {
-        name: "CHILLCAT",
-        symbol: "CHILLCAT",
-        tokenMint: "Bv9jYA2MTLQM4qtUtWsBo6ovCWbeoKEZxnszL1nYpump",
-        decimals: 6,
-        isSPL: true,
-      },
-    }),
-  ]);
-  const tokenMint = new PublicKey(splToken.tokenMint);
+      type: EWalletType.MARKET_MAKING,
+    },
+  })
 
-  if (!activeBookedService.mainWallet) {
-    console.error("No main wallet found for active booked service");
-    return;
+  console.log(`found ${marketMakingWallets.length} market making wallets`)
+})
+
+program.command('distributeTokens').action(async () => {
+  const tokenSymbol = 'EARLY'
+  const customer = await getBotCustomerByName(tokenSymbol)
+
+  const activeBookedService = await getActiveBookedServiceByBotCustomerId({ botCustomerId: customer.id, serviceType: EServiceType.SNIPER })
+
+  const marketMakingWallets = await prisma.botCustomerWallet.findMany({
+    where: {
+      botCustomerId: customer.id,
+      type: EWalletType.MARKET_MAKING,
+    },
+  })
+
+  console.log(`Found ${marketMakingWallets.length} market making wallets`)
+
+  const { tokenBalance, tokenAccountPubkey } = await getTokenBalanceForOwner({
+    ownerPubkey: activeBookedService.mainWallet.pubkey,
+    tokenMint: activeBookedService.usedSplTokenMint,
+  })
+
+  if (!tokenAccountPubkey || !tokenBalance) {
+    console.error('No token balance found for main wallet')
+    return
   }
 
-  const mainWallet = activeBookedService.mainWallet;
-  const from = decryptWallet(mainWallet.encryptedPrivKey);
+  const tokenMint = new PublicKey(activeBookedService.usedSplTokenMint)
+  const mainWalletKeypair = decryptWallet(activeBookedService.mainWallet.encryptedPrivKey)
 
-  const { tokenAccountPubkey, tokenBalance } = await getTokenBalanceForOwner({
-    ownerPubkey: mainWallet.pubkey,
-    tokenMint: tokenMint.toBase58(),
-  });
-
-  if (!tokenAccountPubkey || !tokenBalance || tokenBalance.amount === 0) {
-    console.error("No token balance found for main wallet");
-    return;
-  }
-
-  const avgAmount = tokenBalance.amount / marketMakingWallets.length;
-
-  let remainingAmount = tokenBalance.amount;
-  const transferInstructions: { instructions: TransactionInstruction[]; keypair: Keypair }[] = [];
+  const amountsToReceive = distributeTotalAmountRandomlyAcrossWallets(tokenBalance.amount, marketMakingWallets.length, 5)
+  const transferInstructions: { instructions: TransactionInstruction[]; keypair?: Keypair }[] = []
 
   for (let i = 0; i < marketMakingWallets.length; i++) {
-    let amountToSend;
-    if (i === marketMakingWallets.length - 1) {
-      amountToSend = remainingAmount;
-    } else {
-      const variance = avgAmount * (Math.random() * 0.4 - 0.2);
-      amountToSend = avgAmount + variance;
-      remainingAmount -= amountToSend;
+    if (i >= amountsToReceive.length) {
+      break
     }
 
-    const transferTokenInstr =
-      Number(amountToSend) > 0
-        ? await transferTokenInstruction({
-            mint: tokenMint,
-            from: from.publicKey,
-            sourceTokenAccountPubkey: new PublicKey(tokenAccountPubkey),
-            to: new PublicKey(marketMakingWallets[i].pubkey),
-            amount: amountToSend,
-          })
-        : [];
+    const amountToSend = amountsToReceive[i]
 
-    transferInstructions.push({
-      instructions: transferTokenInstr,
-      keypair: from,
-    });
+    console.log(`${marketMakingWallets[i].pubkey} will receive ${amountToSend} ${tokenMint.toBase58()}`)
 
-    console.log(`${marketMakingWallets[i].pubkey} will receive ${amountToSend} ${tokenMint.toBase58()}`);
+    if (amountToSend > 0) {
+      const transferTokenInstr = await transferTokenInstruction({
+        mint: tokenMint,
+        from: mainWalletKeypair.publicKey,
+        sourceTokenAccountPubkey: new PublicKey(tokenAccountPubkey),
+        to: new PublicKey(marketMakingWallets[i].pubkey),
+        amount: Math.floor(amountToSend),
+      })
+
+      transferInstructions.push({
+        instructions: transferTokenInstr,
+      })
+    }
   }
 
-  const transactionResults = await groupSendAndConfirmTransactions(transferInstructions, from, 6);
+  const transactionResults = await groupSendAndConfirmTransactions(transferInstructions, mainWalletKeypair, 6)
+    
+});
+
+program.command('setupPumpFun').action(async () => {
+  const fromCustomer = await getBotCustomerByName('VENUS')
+  const tokenSymbol = 'EARLY'
+  const tokenImage = './assets/early.jpg'
+  const description = 'Missed out on 100x trades so far? Be $early this time.'
+  const twitter = 'https://x.com/WayTooEarly'
+  const shouldDistributeTokens = false
+  const fundingWallet = loadWalletFromU8IntArrayStringified(process.env.FUN_WALLET!)
+
+  let customer = await await prisma.botCustomer.findFirst({
+    where: {
+      name: tokenSymbol,
+    },
+  })
+  let activeBookedService = !!customer ? await getActiveBookedServiceByBotCustomerId({ botCustomerId: customer.id, serviceType: EServiceType.SNIPER }) : null
+
+  const newSPLToken = Keypair.generate()
+
+  console.log(`Launching pump fun token ${newSPLToken.publicKey.toBase58()}`)
+  console.log(`Pump URL: https://pump.fun/${newSPLToken.publicKey.toBase58()}`)
+  
+  const splToken = await prisma.splToken.create({
+    data: {
+      name: tokenSymbol,
+      symbol: tokenSymbol,
+      tokenMint: newSPLToken.publicKey.toBase58(),
+      decimals: 6,
+      isSPL: true,
+    },
+  })
+
+  if (!customer) {
+    console.log(`Creating new customer ${tokenSymbol}`)
+
+    customer = await createBotCustomer({
+      name: tokenSymbol,
+    })
+  
+    activeBookedService = await createBookedServiceAndWallet({
+      botCustomerId: customer.id,
+      serviceType: EServiceType.SNIPER,
+      solAmount: 88,
+      usedSplTokenMint: splToken.tokenMint,
+      awaitingFunding: false,
+    })
+
+    const mainWalletForNewCustomer = activeBookedService.mainWallet
+    const mainWalletForNewCustomerKeypair = decryptWallet(mainWalletForNewCustomer.encryptedPrivKey)
+
+    const { txSig, confirmedResult } = await sendSol({
+      from: fundingWallet,
+      to: mainWalletForNewCustomerKeypair.publicKey,
+      amount: Sol.fromLamports(87 * LAMPORTS_PER_SOL),
+      feePayer: fundingWallet,
+    })
+
+    console.log(`Funded main wallet with 1 SOL`, txSig)
+
+    const { balanceFound, balance } = await waitUntilBalanceIsGreaterThan({ from: mainWalletForNewCustomerKeypair.publicKey, amount: 0.1, waitTime: 20000 })
+
+    if (!balanceFound) {
+      console.error('Balance is not greater than 0.1 SOL, cannot continue')
+      return
+    }
+
+    console.log(`Balance is ${balance} SOL, continuing`)
+
+    const updatedMarketMakingWallets = await prisma.botCustomerWallet.updateMany({
+      data: {
+        botCustomerId: customer.id,
+      },
+      where: {
+        latestSolBalance: {
+          gt: 0.01,
+        },
+        type: EWalletType.MARKET_MAKING,
+        botCustomerId: fromCustomer.id,
+      },
+    })
+
+    console.log(`Updated ${updatedMarketMakingWallets.count} market making wallets to new customer`)
+  } else {
+    if (!activeBookedService) {
+      console.error('No active booked service found')
+      return
+    }
+
+    await prisma.bookedService.update({
+      data: {
+        usedSplTokenMint: splToken.tokenMint,
+      },
+      where: {
+        id: activeBookedService.id,
+      },
+    })
+  }
+
+  if (!activeBookedService || !splToken) {
+    console.error('No active booked service or spl token found')
+    return
+  }
+
+  const mainWalletKey = activeBookedService?.mainWallet ? decryptWallet(activeBookedService.mainWallet.encryptedPrivKey) : null
+
+  console.log(`Using main wallet: ${uint8ArrayToBase58(mainWalletKey?.secretKey!)}`)
+
+  console.log(`Setting up pump fun token for ${tokenSymbol}`)
+
+  const mainWallet = activeBookedService.mainWallet
+  const mainWalletKeypair = decryptWallet(mainWallet.encryptedPrivKey)
+  const marketMakingWallets = await prisma.botCustomerWallet.findMany({
+    where: {
+      botCustomerId: customer.id,
+      type: EWalletType.MARKET_MAKING,
+    },
+  })
+
+  const tokenMint = new PublicKey(splToken.tokenMint)
+
+  const pumpFunTokenBalance = await setupPumpFunToken({
+    mainWallet,
+    mint: newSPLToken,
+    tokenSymbol,
+    description,
+    twitter,
+    tokenImage,
+    solAmount: 85
+  })
+
+  if (!pumpFunTokenBalance) {
+    console.error('No pump fun token balance found')
+    return
+  }
+
+  const { splTokenAccount } = pumpFunTokenBalance
+  const { tokenAccountPubkey, tokenBalance, uiAmount } = splTokenAccount
+
+  console.log(`Token balance for main wallet: ${uiAmount}`)
+
+  if (!tokenAccountPubkey || !tokenBalance || tokenBalance.amount === 0) {
+    console.error('No token balance found for main wallet')
+    return
+  }
+
+  const amountsToReceive = distributeTotalAmountRandomlyAcrossWallets(tokenBalance.amount, marketMakingWallets.length, 5)
+  const transferInstructions: { instructions: TransactionInstruction[]; keypair?: Keypair }[] = []
+
+  if (!shouldDistributeTokens) {
+    console.log(`Not distributing tokens, skipping`)
+    return
+  }
+
+  for (let i = 0; i < marketMakingWallets.length; i++) {
+    if (i >= amountsToReceive.length) {
+      break
+    }
+
+    const amountToSend = amountsToReceive[i]
+
+    console.log(`${marketMakingWallets[i].pubkey} will receive ${amountToSend} ${tokenMint.toBase58()}`)
+
+    if (amountToSend > 0) {
+      const transferTokenInstr = await transferTokenInstruction({
+        mint: tokenMint,
+        from: mainWalletKeypair.publicKey,
+        sourceTokenAccountPubkey: new PublicKey(tokenAccountPubkey),
+        to: new PublicKey(marketMakingWallets[i].pubkey),
+        amount: Math.floor(amountToSend),
+      })
+
+      transferInstructions.push({
+        instructions: transferTokenInstr,
+      })
+    }
+  }
+
+  const transactionResults = await groupSendAndConfirmTransactions(transferInstructions, mainWalletKeypair, 6)
 
   console.log(
-    "Transaction sent and confirmed:",
+    'Transaction sent and confirmed:',
     transactionResults.map((item) => item.txSig),
     `with ${transactionResults.filter((item) => !item.confirmedResult.value.err).length} successes and ${
       transactionResults.filter((item) => !!item.confirmedResult.value.err).length
-    } failures`
-  );
-});
+    } failures`,
+  )
+})
 
-program.command("sendFromSniperToMain").action(async () => {
-  const customer = await getBotCustomerByName("PF_SNIPER");
-  const tokenMint = new PublicKey("Bv9jYA2MTLQM4qtUtWsBo6ovCWbeoKEZxnszL1nYpump");
-  const toWallet = new PublicKey("8ts4iTomEGiBfYME18Dz53HAT8XMpAVUEiPiLMwjRU8r");
+program.command('randomDistribution').action(async () => {
+
+  const totalAmount = 1_000_000_000
+  const walletCount = 126
+
+  const walletsToReceive = distributeTotalAmountRandomlyAcrossWallets(totalAmount, walletCount, 5)
+  console.log(walletsToReceive)
+})
+
+
+
+program.command('closeTokenAccountsForMarketMakingWallets').action(async () => {
+  const customer = await getBotCustomerByName('VENUS')
+  const tokenMint = new PublicKey('7k9msjoUnoSQN2ZZwA64mQ9UCp7DA2SMMYTvgwUEqAmQ')
+  const toWallet = new PublicKey('9FPqaSBG8EY1KuANnWbLqDhtwuakDfhJ1v5cKG2uvaRj')
+
+
+})
+
+program.command('sendFromSniperToMain').action(async () => {
+  const customer = await getBotCustomerByName('VENUS')
+  const tokenMint = new PublicKey('7k9msjoUnoSQN2ZZwA64mQ9UCp7DA2SMMYTvgwUEqAmQ')
+  const toWallet = new PublicKey('9FPqaSBG8EY1KuANnWbLqDhtwuakDfhJ1v5cKG2uvaRj')
 
   const snipingWallets = await prisma.botCustomerWallet.findMany({
     where: {
       botCustomerId: customer.id,
-      type: EWalletType.SNIPING,
+      type: EWalletType.MARKET_MAKING,
     },
-  });
+  })
 
-  const transferInstructions: { instructions: TransactionInstruction[]; keypair: Keypair }[] = [];
+  const transferInstructions: { instructions: TransactionInstruction[]; keypair: Keypair }[] = []
 
   for (const snipingWallet of snipingWallets) {
     const { tokenAccountPubkey, tokenBalance } = await getTokenBalanceForOwner({
       ownerPubkey: snipingWallet.pubkey,
       tokenMint: tokenMint.toBase58(),
-    });
+    })
 
-    console.log(`${snipingWallet.pubkey} has ${tokenBalance?.uiAmount} `);
+    console.log(`${snipingWallet.pubkey} has ${tokenBalance?.uiAmount} `)
 
-    if (!!tokenAccountPubkey && tokenBalance?.uiAmount && tokenBalance.uiAmount > 0) {
+    if (!!tokenAccountPubkey && !!tokenBalance && tokenBalance?.uiAmount && tokenBalance.uiAmount > 0) {
       const transferTokenInstructions = await transferTokenInstruction({
         mint: tokenMint,
         from: new PublicKey(snipingWallet.pubkey),
@@ -1426,4 +1841,5 @@ program
     });
   });
 
-program.parse(process.argv);
+program.parse(process.argv)
+

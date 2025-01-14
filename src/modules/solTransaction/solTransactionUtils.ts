@@ -9,7 +9,7 @@ import {
   TransactionMessage,
   VersionedTransaction,
 } from '@solana/web3.js'
-import { connection } from '../../config'
+import { primaryRpcConnection } from '../../config'
 import { getErrorFromRPCResponse } from './web3ErrorLogs'
 import { sendAndConfirmTransactionAndRetry } from './solSendTransactionUtils'
 import _ from 'lodash'
@@ -58,6 +58,45 @@ export const getSimulationComputeUnits = async (
   return rpcResponse.value.unitsConsumed || null
 }
 
+export async function createQuickTransactionForInstructions({
+  instructions,
+  signers,
+  wallet,
+  priorityFeeLamports,
+  unitLimit,
+}: {
+  instructions: TransactionInstruction[]
+  signers: Signer[]
+  wallet: string,
+  priorityFeeLamports?: number,
+  unitLimit?: number,
+}) {
+  const blockhash = await primaryRpcConnection.getLatestBlockhash({
+    commitment: 'confirmed',
+  })
+
+  const transaction = new Transaction({
+    feePayer: new PublicKey(wallet),
+    ...blockhash,
+  }).add(
+    increaseComputePriceInstruction(priorityFeeLamports ?? undefined),
+    increaseComputeUnitInstruction(unitLimit ?? undefined),
+    ...instructions,
+  )
+
+  if (signers.length > 0) {
+    console.log(
+      `Partial signing with `,
+      signers.map((s) => s.publicKey.toBase58()),
+    )
+    await transaction.partialSign(...signers)
+  }
+
+  console.log('Debug log for Solana transaction:', `Wallet: ${wallet}`, `Instructions count: ${transaction.instructions.length}`)
+
+  return { transaction, blockhash }
+}
+
 export async function createTransactionForInstructions({
   instructions,
   signers,
@@ -65,15 +104,16 @@ export async function createTransactionForInstructions({
 }: {
   instructions: TransactionInstruction[]
   signers: Signer[]
-  wallet: string
+  wallet: string,
+
 }) {
-  const blockhash = await connection.getLatestBlockhash({
+  const blockhash = await primaryRpcConnection.getLatestBlockhash({
     commitment: 'confirmed',
   })
 
   console.log(`blockhash`, blockhash)
 
-  const unitsConsumed = await getSimulationComputeUnits(connection, instructions, new PublicKey(wallet))
+  const unitsConsumed = await getSimulationComputeUnits(primaryRpcConnection, instructions, new PublicKey(wallet))
 
   if (!instructions.length) {
     throw new Error('No instructions provided')
@@ -102,11 +142,11 @@ export async function createTransactionForInstructions({
 }
 
 export async function groupSendAndConfirmTransactions(
-  transferInstructions: { instructions: TransactionInstruction[]; keypair: Keypair }[],
+  transferInstructions: { instructions: TransactionInstruction[]; keypair?: Keypair }[],
   feePayer: Signer,
   groupSize: number = 6,
 ) {
-  const groupedTransferInstructions: { instructions: TransactionInstruction[]; keypair: Keypair }[][] = []
+  const groupedTransferInstructions: { instructions: TransactionInstruction[]; keypair?: Keypair }[][] = []
 
   for (let i = 0; i < transferInstructions.length; i += groupSize) {
     groupedTransferInstructions.push(transferInstructions.slice(i, i + groupSize))
@@ -116,7 +156,7 @@ export async function groupSendAndConfirmTransactions(
     groupedTransferInstructions.map(async (group) => {
       return await reattempt.run({ times: 7, delay: 100 }, async () => {
         const allInstructions = _.flatten(group.map((item) => item.instructions))
-        const allSigners = group.map((item) => item.keypair)
+        const allSigners = group.map((item) => item.keypair).filter((item) => !!item)
 
         const { transaction: tokenTransaction, blockhash: tokenBlockhash } = await createTransactionForInstructions({
           wallet: feePayer.publicKey.toBase58(),

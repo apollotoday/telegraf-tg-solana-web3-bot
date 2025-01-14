@@ -2,7 +2,7 @@ import { Keypair, LAMPORTS_PER_SOL, PublicKey } from "@solana/web3.js";
 import { loadFeePayers, sendSol, Sol } from "../../solUtils";
 import { getDevWallet } from "../../testUtils";
 import { sleep } from "../../utils";
-import { connection, goatPool, rugPool } from "../../config";
+import { primaryRpcConnection, goatPool, lpPoolForTests } from "../../config";
 import asyncBatch from "async-batch";
 import _ from "lodash";
 import { loadWalletFromEnv } from "../wallet/walletUtils";
@@ -13,13 +13,13 @@ export async function runRajeetVolumneBot(args: { wallet: Keypair; pool: PublicK
 
   console.log(`wallet: ${args.wallet.publicKey.toBase58()}`);
 
-  const balance = await connection.getBalance(args.wallet.publicKey);
+  const balance = await primaryRpcConnection.getBalance(args.wallet.publicKey);
   console.log("balance", balance / LAMPORTS_PER_SOL);
 
   const feePayerPool = loadFeePayers(200);
 
   async function fundFeePayerIfNeeded(feePayer: Keypair) {
-    const balanceLamports = await connection.getBalance(feePayer.publicKey);
+    const balanceLamports = await primaryRpcConnection.getBalance(feePayer.publicKey);
     const balance = balanceLamports / LAMPORTS_PER_SOL;
     if (balance < 0.00002) {
       await sendSol({ from: args.wallet, to: feePayer.publicKey, amount: Sol.fromSol(0.002) });
@@ -76,7 +76,7 @@ if (require.main === module) {
 
     const wallet = loadWalletFromEnv("RIGGGED_VOLUMNE_BOT");
 
-    runRajeetVolumneBot({ wallet, pool: rugPool });
+    runRajeetVolumneBot({ wallet, pool: lpPoolForTests });
   }
   main();
 }

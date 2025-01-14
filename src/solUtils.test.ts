@@ -1,5 +1,5 @@
 import { Keypair } from "@solana/web3.js";
-import { connection } from "./config";
+import { primaryRpcConnection } from "./config";
 import { closeWallet, sendSol, Sol } from "./solUtils";
 import { getDevWallet } from "./testUtils";
 import { sleep } from "./utils";

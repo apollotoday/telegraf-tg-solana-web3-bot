@@ -10,7 +10,7 @@ import {
 } from "@solana/web3.js";
 import axios, { AxiosError } from "axios";
 import base58 from "bs58";
-import { connection, jitoFee as configJitoFee } from "./config";
+import { primaryRpcConnection, jitoFee as configJitoFee, jitoFee } from "./config";
 import { sleep } from "./utils";
 import { error } from "console";
 const { JitoJsonRpcClient } = require("jito-js-rpc");
@@ -46,7 +46,7 @@ export const sendAndConfirmJitoBundle = async ({
 
   try {
     console.log(`Calculated fee: ${jitoFee / LAMPORTS_PER_SOL} sol`);
-    let latestBlockhash = await connection.getLatestBlockhash();
+    let latestBlockhash = await primaryRpcConnection.getLatestBlockhash();
     const jitTipTxFeeMessage = new TransactionMessage({
       payerKey: payer.publicKey,
       recentBlockhash: latestBlockhash.blockhash,
@@ -108,7 +108,7 @@ export const sendAndConfirmJitoBundle = async ({
     if (successfulResults.length > 0) {
       console.log(`Successful response`);
 
-      const confirmation = await connection.confirmTransaction(
+      const confirmation = await primaryRpcConnection.confirmTransaction(
         {
           signature: jitoTxsignature,
           lastValidBlockHeight: latestBlockhash.lastValidBlockHeight,
@@ -163,7 +163,7 @@ export const sendAndConfirmJitoTransaction = async ({
 
   try {
     console.log(`Calculated fee: ${jitoFee / LAMPORTS_PER_SOL} sol`);
-    let latestBlockhash = await connection.getLatestBlockhash();
+    let latestBlockhash = await primaryRpcConnection.getLatestBlockhash();
     const jitTipTxFeeMessage = new TransactionMessage({
       payerKey: payer.publicKey,
       recentBlockhash: latestBlockhash.blockhash,

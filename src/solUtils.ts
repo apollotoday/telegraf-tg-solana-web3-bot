@@ -8,7 +8,7 @@ import {
   TransactionMessage,
   VersionedTransaction,
 } from "@solana/web3.js";
-import { connection } from "./config";
+import { primaryRpcConnection } from "./config";
 import reattempt from "reattempt";
 import fs from "fs";
 import base58 from "bs58";
@@ -51,10 +51,11 @@ export function solTransfer({ solAmount, from, to }: { solAmount: number; from: 
 
 export async function sendAndConfirmRawTransactionAndRetry(transaction: VersionedTransaction) {
   try {
-    const latestBlockHash = await connection.getLatestBlockhash();
+    const latestBlockHash = await primaryRpcConnection.getLatestBlockhash();
     const { txSig, confirmedResult } = await reattempt.run({ times: 3, delay: 200 }, async () => {
-      const [tx1, tx2, tx3] = await Promise.all([
-        connection.sendTransaction(transaction, {
+      console.log(`Sending transaction`);
+      const [tx1] = await Promise.all([
+        primaryRpcConnection.sendTransaction(transaction, {
           skipPreflight: true,
         }),
         // connection.sendTransaction(transaction, {
@@ -107,7 +108,7 @@ export async function confirmTransactionSignatureAndRetry(
 ) {
   try {
     return await reattempt.run({ times: 3, delay: 200 }, async () => {
-      return await connection.confirmTransaction(
+      return await primaryRpcConnection.confirmTransaction(
         {
           blockhash: blockhash.blockhash,
           lastValidBlockHeight: blockhash.lastValidBlockHeight,
@@ -133,7 +134,7 @@ export async function sendSol(args: { from: Keypair; to: PublicKey; amount: Sol;
       lamports: args.amount.lamports,
     }),
   ];
-  const blockhash = await connection.getLatestBlockhash();
+  const blockhash = await primaryRpcConnection.getLatestBlockhash();
   const messageV0 = new TransactionMessage({
     payerKey: args?.feePayer?.publicKey ?? args.from.publicKey,
     recentBlockhash: blockhash.blockhash,
@@ -151,30 +152,46 @@ export async function sendSol(args: { from: Keypair; to: PublicKey; amount: Sol;
   return await sendAndConfirmRawTransactionAndRetry(transaction);
 }
 
-export async function closeWallet(args: { from: Keypair; to: Keypair; feePayer?: Keypair; slotForBalanceCheck?: number; waitTime?: number }) {
+export async function waitUntilBalanceIsGreaterThan(args: { from: PublicKey; amount: number; waitTime?: number }) {
   const { waitTime = 5000 } = args;
   const waitPerRetry = 500;
   const retries = Math.floor(waitTime / waitPerRetry);
-  let balance = 0;
 
   for (let i = 0; i < retries; i++) {
-    console.log(`Checking balance for ${args.from.publicKey.toBase58()} for the ${i + 1} time`);
-    balance = await connection.getBalance(args.from.publicKey, {
-      commitment: "confirmed",
-      minContextSlot: args.slotForBalanceCheck,
-    });
-    const balanceSol = balance / LAMPORTS_PER_SOL;
-    if (balance > 0) {
-      console.log(`Balance is ${balanceSol} SOL`);
-      break;
-    } else {
-      console.log(`Balance is ${balanceSol} SOL, waiting for ${waitPerRetry}ms`);
+    const balance = await primaryRpcConnection.getBalance(args.from, 'confirmed');
+    const balanceFound = balance / LAMPORTS_PER_SOL
+    if (balanceFound > args.amount) {
+      console.log(`Balance is ${balanceFound} SOL, greater than ${args.amount} SOL, breaking`)
+      return { balanceFound: true, balance: balanceFound }
     }
 
+    console.log(`Balance is still ${balanceFound} SOL, waiting for ${waitPerRetry}ms`)
     await sleep(waitPerRetry);
   }
 
+  return { balanceFound: false }
+}
+
+export async function closeWallet(args: { from: Keypair; to: Keypair; feePayer?: Keypair; waitTime?: number }) {
+  await waitUntilBalanceIsGreaterThan({ from: args.from.publicKey, amount: 0.001, waitTime: args.waitTime })
+
+  const balance = await primaryRpcConnection.getBalance(args.from.publicKey, 'confirmed');
+
+  if (balance < (0.001 * LAMPORTS_PER_SOL)) {
+    throw new Error(`Balance is less than 0.1 SOL, cannot close wallet`)
+  }
+
   return await sendSol({ from: args.from, to: args.to.publicKey, amount: Sol.fromLamports(balance), feePayer: args.feePayer ?? args.to });
+}
+
+export async function getBalanceFromWallet(wallet: string) {
+  const balance = await primaryRpcConnection.getBalance(new PublicKey(wallet), 'confirmed')
+  return balance / LAMPORTS_PER_SOL
+}
+
+export async function getBalanceFromWallets(wallets: PublicKey[]) {
+  const balances = await Promise.all(wallets.map(wallet => primaryRpcConnection.getBalance(wallet, 'confirmed')))
+  return balances.reduce((acc, balance) => acc + balance, 0) / LAMPORTS_PER_SOL
 }
 
 export function solToLamports(sol: number) {
@@ -200,8 +217,18 @@ export function loadFeePayers(feePayerCount = 20): Keypair[] {
   return data.map((pkStr: string) => Keypair.fromSecretKey(base58.decode(pkStr)));
 }
 
-// if (require.main === module) {
-//   const loadedFeePayers = loadFeePayers();
-//   // log public keys
-//   console.log(loadedFeePayers.slice(0, 2).map((wallet) => wallet.publicKey.toString()));
-// }
+
+export function isValidSolanaAddress(address: string) {
+  try {
+    new PublicKey(address)
+    return true
+  } catch (e) {
+    return false
+  }
+}
+
+if (require.main === module) {
+  const loadedFeePayers = loadFeePayers();
+  // log public keys
+  console.log(loadedFeePayers.slice(0, 2).map((wallet) => wallet.publicKey.toString()));
+}

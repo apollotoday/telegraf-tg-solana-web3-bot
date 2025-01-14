@@ -1,5 +1,5 @@
 import { Percent } from "@raydium-io/raydium-sdk";
-import { connection, goatPool } from "../../config";
+import { primaryRpcConnection, goatPool } from "../../config";
 import { computeRaydiumAmounts, getTokensForPool, swapRaydium } from "../markets/raydium";
 import { getDevWallet } from "../../testUtils";
 import {
@@ -16,6 +16,7 @@ import { sendAndConfirmTransactionAndRetry } from "../solTransaction/solSendTran
 import { closeWallet, sendAndConfirmRawTransactionAndRetry, solToLamports } from "../../solUtils";
 import { transferTokenInstruction } from "../utils/splUtils";
 import { rug, rugJito } from "./getRichFast";
+import { sellMultiple } from "./sellMultiple";
 import { getAssociatedTokenAddress } from "@solana/spl-token";
 import { sleep } from "../../utils";
 import { loadWalletFromEnv } from "../wallet/walletUtils";
@@ -72,7 +73,7 @@ test("sell all", async () => {
         new TransactionMessage({
           instructions: instruction,
           payerKey: devWallet.publicKey,
-          recentBlockhash: (await connection.getLatestBlockhash()).blockhash,
+          recentBlockhash: (await primaryRpcConnection.getLatestBlockhash()).blockhash,
         }).compileToV0Message()
       );
       await tx.sign([devWallet]);
@@ -84,38 +85,26 @@ test("sell all", async () => {
 
   console.log("successfully distributed funds to wallets");
 
-  let walletBalances;
-  console.log("waiting for balances to update");
-  while (true) {
-    try {
-      walletBalances = await Promise.all(
-        wallets.map(async (wallet) => {
-          const tokenAccount = await getAssociatedTokenAddress(quoteToken, wallet.publicKey);
-          console.log(`checking balance for tokenAccount ${tokenAccount.toBase58()}`);
-          const res = await connection.getTokenAccountBalance(tokenAccount);
-          if (!res.value.uiAmount) throw new Error("No balance yet");
-          return { value: res, wallet: wallet.publicKey };
-        })
-      );
-      break;
-    } catch (e) {
-      await sleep(500);
-    }
-  }
+  let walletBalances = await Promise.all(
+    wallets.map(async (wallet) => {
+      const tokenAccount = await getAssociatedTokenAddress(quoteToken, wallet.publicKey);
+      console.log(`tokenAccount ${tokenAccount.toBase58()}`);
+      const res = await primaryRpcConnection.getTokenAccountBalance(tokenAccount);
 
   console.log(
     "walletBalances",
     walletBalances.map((w) => ({ balance: w.value.value.uiAmount, wallet: w.wallet.toBase58() }))
   );
 
-  const res = await rugJito({ pool: goatPool, wallets });
-  console.log("ruggedWallets", res.successfulSoldWallets.length);
+  await sellMultiple({ pool: goatPool, wallets });
 
   await sleep(10000);
 
   const closeAllWalletsRes = await Promise.all(
     wallets.map(async (wallet) => {
-      return await closeWallet({ from: wallet, to: devWallet });
+      const res = await primaryRpcConnection.getTokenAccountBalance(await getAssociatedTokenAddress(quoteToken, wallet.publicKey));
+
+      return { value: res, wallet: wallet.publicKey };
     })
   );
 

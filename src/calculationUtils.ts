@@ -39,3 +39,38 @@ export const randomAmount = (max: number, min: number, bal: number) => {
 
   return getRandomFloat(min, maxAmount)
 }
+
+export function distributeTotalAmountRandomlyAcrossWallets(totalAmount: number, walletCount: number, finalSplitCount: number) {
+  const avgAmount = totalAmount / (walletCount - finalSplitCount)
+  const walletsToReceive: number[] = []
+
+  let remainingAmount = totalAmount
+
+  for (let i = 0; i < walletCount; i++) {
+    const variance = avgAmount * (Math.random() * 0.4 - 0.2)
+    let amountToSend = avgAmount + variance
+
+    if (remainingAmount < 0) {
+      console.error('Remaining amount is less than 0')
+      continue
+    }
+
+    if ((remainingAmount - amountToSend) < 0) {
+      amountToSend = remainingAmount
+    }
+
+    remainingAmount -= amountToSend
+
+    console.log(`${i} will receive ${amountToSend}`)
+
+    walletsToReceive.push(amountToSend)
+  }
+
+  if (remainingAmount > 0) {
+    const avgAmountLeftOver = remainingAmount / finalSplitCount
+
+    walletsToReceive.push(...Array(finalSplitCount).fill(avgAmountLeftOver))
+  }
+
+  return walletsToReceive
+}

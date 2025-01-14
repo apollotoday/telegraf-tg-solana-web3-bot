@@ -1,24 +1,33 @@
 import { EServiceType, EWalletType } from '@prisma/client';
 import { generateAndEncryptWallet } from '../wallet/walletUtils';
 import prisma from '../../lib/prisma';
+import { getTokenOrCreate } from '../splToken/splTokenDBService';
 
 export async function createBookedServiceAndWallet({
   botCustomerId,
   solAmount,
   serviceType,
   usedSplTokenMint,
+  isActive = true,
+  awaitingFunding = true,
 }: {
   serviceType: EServiceType;
-  solAmount: number;
+  solAmount?: number;
   botCustomerId: string;
   usedSplTokenMint: string;
+  isActive?: boolean;
+  awaitingFunding?: boolean;
 }) {
   const newWallet = generateAndEncryptWallet();
+
+  const tokenInfo = await getTokenOrCreate(usedSplTokenMint)
 
   return await prisma.bookedService.create({
     data: {
       type: serviceType,
       solAmountForService: solAmount,
+      isActive,
+      awaitingFunding,
       botCustomer: {
         connect: {
           id: botCustomerId,
@@ -26,8 +35,13 @@ export async function createBookedServiceAndWallet({
       },
       usedSplToken: {
         connect: {
-          tokenMint: usedSplTokenMint,
+          tokenMint: tokenInfo.tokenMint,
         },
+      },
+      poolForService: {
+        connect: {
+          poolId: tokenInfo.quoteTokenLiquidityPools[0].poolId,
+        }
       },
       mainWallet: {
         create: {
@@ -40,9 +54,18 @@ export async function createBookedServiceAndWallet({
     },
     include: {
       mainWallet: true,
+      usedSplToken: true,
+      poolForService: true,
+      cycles: {
+        where: {
+          isActive: true,
+        }
+      }
     },
   });
 }
+
+export type TBookedService = Awaited<ReturnType<typeof createBookedServiceAndWallet>>
 
 export async function getActiveBookedServiceByBotCustomerId({ botCustomerId, serviceType }: { botCustomerId: string, serviceType: EServiceType }) {
   const bookedService = await prisma.bookedService.findFirst({
@@ -53,7 +76,13 @@ export async function getActiveBookedServiceByBotCustomerId({ botCustomerId, ser
     },
     include: {
       usedSplToken: true,
+      poolForService: true,
       mainWallet: true,
+      cycles: {
+        where: {
+          isActive: true,
+        }
+      }
     }
   });
 
@@ -63,3 +92,29 @@ export async function getActiveBookedServiceByBotCustomerId({ botCustomerId, ser
 
   return bookedService;
 }
+
+export async function getBookedServicesByBotCustomerId({ botCustomerId }: { botCustomerId: string }) {
+  return await prisma.bookedService.findMany({
+    where: {
+      botCustomerId,
+      isActive: true,
+      awaitingFunding: true,
+    },
+    include: {
+      usedSplToken: true,
+      poolForService: true,
+      mainWallet: {
+        select: {
+          pubkey: true
+        }
+      },
+      cycles: {
+        where: {
+          isActive: true,
+        }
+      }
+    }
+  });
+}
+
+export type TBookedServiceDefault = Awaited<ReturnType<typeof getBookedServicesByBotCustomerId>>[number];

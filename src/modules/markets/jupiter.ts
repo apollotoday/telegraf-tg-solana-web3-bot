@@ -1,6 +1,6 @@
 import { Keypair, LAMPORTS_PER_SOL, PublicKey, VersionedTransaction } from '@solana/web3.js'
 import { sendAndConfirmRawTransactionAndRetry } from '../../solUtils'
-import { connection, solTokenMint } from '../../config'
+import { primaryRpcConnection, solTokenMint } from '../../config'
 import { sleep } from '../../utils'
 
 export const fetchJupiterQuoteLink = async (
@@ -146,7 +146,7 @@ export async function executeJupiterSwap(
 }
 
 export async function getBalances({txSig, tokenMint, ownerPubkey}: {txSig: string, tokenMint: string, ownerPubkey: PublicKey}) {
-  const detectedTransaction = await connection.getParsedTransaction(txSig, {commitment: 'confirmed', maxSupportedTransactionVersion: 200})
+  const detectedTransaction = await primaryRpcConnection.getParsedTransaction(txSig, {commitment: 'confirmed', maxSupportedTransactionVersion: 200})
 
   if (detectedTransaction?.meta?.err) {
     console.log('Transaction failed', detectedTransaction.meta.err)
