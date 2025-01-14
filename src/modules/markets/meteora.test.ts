@@ -3,7 +3,7 @@ import { buySell, buySellVersioned, fakeVolumne, swap } from "./meteora";
 import { getDevWallet } from "../../testUtils";
 import { sendAndConfirmRawTransactionAndRetry, Sol } from "../../solUtils";
 import { connection, meteoraDynPool } from "../../config";
-import { sendAndConfirmJitoTransactions } from "../../jitoUtils";
+import { sendAndConfirmJitoBundle } from "../../jitoUtils";
 import { measureTime } from "../../utils";
 import _ from "lodash";
 import { TOKEN_PROGRAM_ID } from "@solana/spl-token";
@@ -41,7 +41,7 @@ test("should buy and sell drew", async () => {
       type: "sell",
     });
 
-    await sendAndConfirmJitoTransactions({
+    await sendAndConfirmJitoBundle({
       transactions: [buyRes.swapTx, sellRes.swapTx],
       payer: devWallet,
     });
@@ -71,7 +71,7 @@ test("should buy and sell drew fast", async () => {
           console.error("Error in simRes", simRes.value.err);
         }
 
-        return await sendAndConfirmJitoTransactions({
+        return await sendAndConfirmJitoBundle({
           transactions: [
             res.buyTx1,
             // res.sellTx

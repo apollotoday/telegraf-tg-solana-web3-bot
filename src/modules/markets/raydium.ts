@@ -35,7 +35,7 @@ import { TransactionMessage, VersionedTransaction } from "@solana/web3.js";
 // import { connection, puffAddr, solAddr } from "../../config"
 import { connection, net } from "../../config";
 import { calculatePartionedSwapAmount } from "../../calculationUtils";
-import { sendAndConfirmJitoTransactions } from "../../jitoUtils";
+import { sendAndConfirmJitoBundle } from "../../jitoUtils";
 import _ from "lodash";
 import { solToLamports } from "../../solUtils";
 
@@ -219,7 +219,7 @@ export class BaseRay {
     const updateCPIx = ComputeBudgetProgram.setComputeUnitPrice({ microLamports: 1_000_000 });
     const updateCLIx = ComputeBudgetProgram.setComputeUnitLimit({ units: 100_000 });
     const { amountIn, amountOut, poolKeys, user, fixedSide, tokenAccountIn, tokenAccountOut, feePayer } = input;
-    this.cacheIxs.push(updateCPIx,updateCLIx);
+    this.cacheIxs.push(updateCPIx, updateCLIx);
 
     const inToken = (amountIn as TokenAmount).token.mint;
 
@@ -806,7 +806,7 @@ export async function fakeVolumneTransaction(args: { pool: PublicKey; swapAmount
   ]);
 
   if (buyRes.tx && buyRes2.tx && sellRes.tx) {
-    const res = await sendAndConfirmJitoTransactions({
+    const res = await sendAndConfirmJitoBundle({
       transactions: [buyRes.tx, buyRes2.tx, sellRes.tx],
       payer: args.wallet,
       // signers: [args.wallet],
@@ -906,7 +906,7 @@ export async function fakeVolumneTransactionFeePayerPool(args: {
     buyRes.tx
     // &&  buyRes2.tx && sellRes.tx
   ) {
-    const res = await sendAndConfirmJitoTransactions({
+    const res = await sendAndConfirmJitoBundle({
       transactions: [buyRes.tx, buyRes2.tx, sellRes.tx],
       payer: args.wallet,
       // signers: [args.wallet],

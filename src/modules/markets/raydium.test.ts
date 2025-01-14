@@ -12,7 +12,7 @@ import { Percent, TokenAmount } from "@raydium-io/raydium-sdk";
 import { fakeVolumneTransaction, fakeVolumneTransactionFeePayerPool, getRaydiumPoolsByTokenAddress, swapRaydium } from "./raydium";
 import reattempt from "reattempt";
 import { getDevWallet } from "../../testUtils";
-import { sendAndConfirmJitoTransactions } from "../../jitoUtils";
+import { sendAndConfirmJitoBundle } from "../../jitoUtils";
 import { sendAndConfirmRawTransactionAndRetry, Sol } from "../../solUtils";
 import _ from "lodash";
 import { calculatePartionedSwapAmount } from "../../calculationUtils";
@@ -69,7 +69,7 @@ test("swap raydium jito", async () => {
       ]);
 
       if (buyRes.tx && buyRes2.tx && sellRes.tx) {
-        const res = await sendAndConfirmJitoTransactions({
+        const res = await sendAndConfirmJitoBundle({
           transactions: [buyRes.tx, buyRes2.tx, sellRes.tx],
           payer: devWallet,
           // signers: [devwallet2],
@@ -165,7 +165,7 @@ test("swap raydium with different fee payer", async () => {
       ]);
 
       if (buyRes.tx && buyRes2.tx && sellRes.tx) {
-        const res = await sendAndConfirmJitoTransactions({
+        const res = await sendAndConfirmJitoBundle({
           transactions: [
             buyRes.tx,
             // buyRes2.tx,
@@ -313,7 +313,7 @@ test("send simple tx", async () => {
         console.log("error", res.value.err);
       }
 
-      return await sendAndConfirmJitoTransactions({
+      return await sendAndConfirmJitoBundle({
         payer: devWallet,
         transactions: [sendFundsTx, sendFunsBackTx],
         // feeTxInstructions: [

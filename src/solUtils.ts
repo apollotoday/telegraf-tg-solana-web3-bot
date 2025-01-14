@@ -53,7 +53,6 @@ export async function sendAndConfirmRawTransactionAndRetry(transaction: Versione
   try {
     const latestBlockHash = await connection.getLatestBlockhash();
     const { txSig, confirmedResult } = await reattempt.run({ times: 3, delay: 200 }, async () => {
-      console.log(`Sending transaction`);
       const [tx1, tx2, tx3] = await Promise.all([
         connection.sendTransaction(transaction, {
           skipPreflight: true,
@@ -86,7 +85,7 @@ export async function sendAndConfirmRawTransactionAndRetry(transaction: Versione
 
       console.log(`Confirmed transaction`, confirmedResult);
 
-      return { txSig: tx1, confirmedResult };
+      return { txSig: tx1, confirmedResult, latestBlockHash };
     });
     console.log({ txSig, confirmedResult });
     console.log("Successfully sent transaction: ", txSig);
@@ -152,29 +151,27 @@ export async function sendSol(args: { from: Keypair; to: PublicKey; amount: Sol;
   return await sendAndConfirmRawTransactionAndRetry(transaction);
 }
 
-export async function closeWallet(args: { from: Keypair; to: Keypair; feePayer?: Keypair; waitTime?: number }) {
+export async function closeWallet(args: { from: Keypair; to: Keypair; feePayer?: Keypair; slotForBalanceCheck?: number; waitTime?: number }) {
   const { waitTime = 5000 } = args;
   const waitPerRetry = 500;
   const retries = Math.floor(waitTime / waitPerRetry);
-  console.log(`Waiting for ${retries} retries`);
   let balance = 0;
 
   for (let i = 0; i < retries; i++) {
     console.log(`Checking balance for ${args.from.publicKey.toBase58()} for the ${i + 1} time`);
-    balance = await connection.getBalance(args.from.publicKey, "confirmed");
-    const balanceFound = balance / LAMPORTS_PER_SOL;
-    if (balanceFound > 0.1) {
-      console.log(`Balance is ${balanceFound} SOL, greater than 0.1 SOL, breaking`);
+    balance = await connection.getBalance(args.from.publicKey, {
+      commitment: "confirmed",
+      minContextSlot: args.slotForBalanceCheck,
+    });
+    const balanceSol = balance / LAMPORTS_PER_SOL;
+    if (balance > 0) {
+      console.log(`Balance is ${balanceSol} SOL`);
       break;
     } else {
-      console.log(`Balance is ${balanceFound} SOL, waiting for ${waitPerRetry}ms`);
+      console.log(`Balance is ${balanceSol} SOL, waiting for ${waitPerRetry}ms`);
     }
 
     await sleep(waitPerRetry);
-  }
-
-  if (balance < 0.1 * LAMPORTS_PER_SOL) {
-    throw new Error(`Balance is less than 0.1 SOL, cannot close wallet`);
   }
 
   return await sendSol({ from: args.from, to: args.to.publicKey, amount: Sol.fromLamports(balance), feePayer: args.feePayer ?? args.to });
@@ -203,8 +200,8 @@ export function loadFeePayers(feePayerCount = 20): Keypair[] {
   return data.map((pkStr: string) => Keypair.fromSecretKey(base58.decode(pkStr)));
 }
 
-if (require.main === module) {
-  const loadedFeePayers = loadFeePayers();
-  // log public keys
-  console.log(loadedFeePayers.slice(0, 2).map((wallet) => wallet.publicKey.toString()));
-}
+// if (require.main === module) {
+//   const loadedFeePayers = loadFeePayers();
+//   // log public keys
+//   console.log(loadedFeePayers.slice(0, 2).map((wallet) => wallet.publicKey.toString()));
+// }

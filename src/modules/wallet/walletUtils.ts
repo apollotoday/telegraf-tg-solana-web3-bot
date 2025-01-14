@@ -3,7 +3,7 @@ import * as CryptoJS from "crypto-js";
 import bs58 from "bs58";
 import pako from "pako";
 
-const secret = "knininiin";
+export const secret = "knininiin";
 
 export function generateAndEncryptWallet() {
   const keypair = Keypair.generate();

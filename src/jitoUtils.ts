@@ -12,9 +12,10 @@ import axios, { AxiosError } from "axios";
 import base58 from "bs58";
 import { connection, jitoFee as configJitoFee } from "./config";
 import { sleep } from "./utils";
+import { error } from "console";
 const { JitoJsonRpcClient } = require("jito-js-rpc");
 
-export const sendAndConfirmJitoTransactions = async ({
+export const sendAndConfirmJitoBundle = async ({
   transactions,
   payer,
   signers,
@@ -133,16 +134,16 @@ export const sendAndConfirmJitoTransactions = async ({
   }
 };
 
-export const sendAndConfirmJitoTransactionsRpc = async ({
-  transactions,
+export const sendAndConfirmJitoTransaction = async ({
   payer,
   signers,
-  feeTxInstructions,
+  instructions,
+  ...args
 }: {
-  transactions: VersionedTransaction[] | Transaction[];
   payer: Keypair;
   signers?: Keypair[];
-  feeTxInstructions?: TransactionInstruction[];
+  instructions?: TransactionInstruction[];
+  jitoFee?: number;
 }) => {
   const tipAccounts = [
     "Cw8CFyM9FkoMi7K7Crf6HNQqf4uEMzpKw6QNghXLvLkY",
@@ -156,6 +157,8 @@ export const sendAndConfirmJitoTransactionsRpc = async ({
   ];
   const jitoFeeWallet = new PublicKey(tipAccounts[Math.floor(tipAccounts.length * Math.random())]);
 
+  const jitoFee = args.jitoFee ?? configJitoFee;
+
   // console.log(`Selected Jito fee wallet: ${jitoFeeWallet.toBase58()}`);
 
   try {
@@ -165,12 +168,12 @@ export const sendAndConfirmJitoTransactionsRpc = async ({
       payerKey: payer.publicKey,
       recentBlockhash: latestBlockhash.blockhash,
       instructions: [
-        ...(feeTxInstructions ?? []),
         SystemProgram.transfer({
           fromPubkey: payer.publicKey,
           toPubkey: jitoFeeWallet,
           lamports: jitoFee,
         }),
+        ...(instructions ?? []),
       ],
     }).compileToV0Message();
 
@@ -180,75 +183,53 @@ export const sendAndConfirmJitoTransactionsRpc = async ({
     const jitoTxsignature = base58.encode(jitoFeeTx.signatures[0]);
 
     // Serialize the transactions once here
-    const serializedjitoFeeTx = base58.encode(jitoFeeTx.serialize());
-    const serializedTransactions = [serializedjitoFeeTx];
-    for (let i = 0; i < transactions.length; i++) {
-      const serializedTransaction = base58.encode(transactions[i].serialize());
-      serializedTransactions.push(serializedTransaction);
-    }
+    const serializedJitoTx = base58.encode(jitoFeeTx.serialize());
 
     const endpoints = [
-      "https://ny.mainnet.block-engine.jito.wtf/api/v1",
-      // "https://tokyo.mainnet.block-engine.jito.wtf/api/v1/bundles",
-      // "https://amsterdam.mainnet.block-engine.jito.wtf/api/v1",
-      // "https://frankfurt.mainnet.block-engine.jito.wtf/api/v1/bundles",
-      // 'https://mainnet.block-engine.jito.wtf/api/v1/bundles',
+      "https://ny.mainnet.block-engine.jito.wtf/api/v1/transactions",
+      // "https://tokyo.mainnet.block-engine.jito.wtf/api/v1/transactions",
+      // "https://amsterdam.mainnet.block-engine.jito.wtf/api/v1/transactions",
+      // "https://frankfurt.mainnet.block-engine.jito.wtf/api/v1/transactions",
+      // 'https://mainnet.block-engine.jito.wtf/api/v1/transactions',
     ];
 
-    const jitoClient = new JitoJsonRpcClient(endpoints[0], "");
+    const result = await axios
+      .post(endpoints[0], {
+        jsonrpc: "2.0",
+        id: 1,
+        method: "sendTransaction",
+        params: [serializedJitoTx],
+      })
+      .catch((e) => e);
 
-    // const requests = endpoints.map((url) =>
-    //   axios.post(url, {
-    //     jsonrpc: "2.0",
-    //     id: 1,
-    //     method: "sendBundle",
-    //     params: [serializedTransactions],
-    //   })
-    // );
-
-    const result = await jitoClient.sendBundle([serializedTransactions]);
-    console.log("Bundle send result:", result);
-
-    const bundleId = result.result;
-
-    console.log("jito bundle tx", bundleId);
-
-    const signatures = transactions.map((tx) => {
-      if (tx instanceof VersionedTransaction) {
-        return base58.encode(tx.signatures[0]);
-      } else {
-        return base58.encode(tx.signatures[0].signature!);
-      }
-    });
-    console.log("jito results", [jitoTxsignature, ...signatures]);
-
-    const inflightStatus = await jitoClient.confirmInflightBundle(bundleId, 120000);
-
-    if (inflightStatus.confirmation_status === "confirmed") {
-      console.log(`Successful response`);
-
-      const confirmation = await connection.confirmTransaction(
-        {
-          signature: jitoTxsignature,
-          lastValidBlockHeight: latestBlockhash.lastValidBlockHeight,
-          blockhash: latestBlockhash.blockhash,
-        },
-        "confirmed"
-      );
-
-      console.log(confirmation);
-
-      return { confirmed: !confirmation.value.err, jitoTxsignature };
-    } else {
-      console.log(`No successful responses received for jito`);
+    if (result instanceof Error) {
+      console.log(`No successful response received for jito`, result);
+      return { confirmed: false, error: result };
     }
 
-    return { confirmed: false };
+    console.log("jito tx id", result.data.result);
+
+    console.log("jito transacation signature", jitoTxsignature);
+
+    const confirmation = await connection.confirmTransaction(
+      {
+        signature: jitoTxsignature,
+        lastValidBlockHeight: latestBlockhash.lastValidBlockHeight,
+        blockhash: latestBlockhash.blockhash,
+      },
+      "confirmed"
+    );
+
+    console.log(confirmation);
+
+    return { confirmed: true, confirmedResult: confirmation };
   } catch (error) {
-    if (error instanceof AxiosError) {
-      console.log("Failed to execute jito transaction");
-    }
-    console.log("Error during transaction execution", error);
-    return { confirmed: false };
+    // if (error instanceof AxiosError) {
+    //   console.log("Failed to execute jito transaction");
+    // }
+    // console.log("Error during transaction execution", error);
+    // return { confirmed: false };
+    console.log("Error during jitotransaction execution", error);
+    throw error;
   }
 };
