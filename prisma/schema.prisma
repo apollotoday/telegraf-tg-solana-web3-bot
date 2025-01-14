@@ -48,6 +48,26 @@ enum EServiceType {
   SNIPER
 }
 
+model TokenPriceInformationOCHLV{
+  tokenMint String 
+  token SplToken @relation(fields: [tokenMint], references: [tokenMint])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  unixTimestamp Int
+
+  openingPrice Float?
+  closingPrice Float?
+  highPrice Float?
+  lowPrice Float?
+  volume Float?
+
+  timeframe String
+
+  @@id([tokenMint, unixTimestamp, timeframe])
+}
+
 model SplToken {
   tokenMint      String                        @id
   symbol         String                        
@@ -66,18 +86,44 @@ model SplToken {
   priceChange12hPercent Float?
   priceChange24hPercent Float?
 
+  tradeCount30m Int?
+  buyCount30m Int?
+  sellCount30m Int?
+  v30mUSD Float?
+  vBuy30mUSD Float?
+  vSell30mUSD Float?
+
+  tradeCount1h Int?
+  buyCount1h Int?
+  sellCount1h Int?
   v1hUSD Float?
   vBuy1hUSD Float?
   vSell1hUSD Float?
+
+  tradeCount2h Int?
+  buyCount2h Int?
+  sellCount2h Int?
   v2hUSD Float?
   vBuy2hUSD Float?
   vSell2hUSD Float?
+
+  tradeCount4h Int?
+  buyCount4h Int?
+  sellCount4h Int?
   v4hUSD Float?
   vBuy4hUSD Float?
   vSell4hUSD Float?
+
+  tradeCount8h Int?
+  buyCount8h Int?
+  sellCount8h Int?
   v8hUSD Float?
   vBuy8hUSD Float?
   vSell8hUSD Float?
+
+  tradeCount24h Int?
+  buyCount24h Int?
+  sellCount24h Int?
   v24hUSD Float?
   vBuy24hUSD Float?
   vSell24hUSD Float?
@@ -86,6 +132,7 @@ model SplToken {
   quoteTokenLiquidityPools LiquidityPoolInfo[] @relation("quoteTokenLiquidityPools")
 
   usedInBookedServices BookedService[]
+  pastOCHLVPriceInformations TokenPriceInformationOCHLV[]
 }
 
 model LiquidityPoolInfo {

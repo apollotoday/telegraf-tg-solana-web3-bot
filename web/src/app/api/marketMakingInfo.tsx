@@ -64,14 +64,13 @@ export async function getMarketMakingInfoForCustomer(customerId: string) {
     },
   })
 
-
   return {
     customer,
     bookedService,
     marketMakingCycle,
     botCustomerWallets,
     marketMakingJobs,
-    usedToken: bookedService.usedSplTokenMint,
+    usedToken: bookedService.usedSplToken,
     liquidityPoolInfo: bookedService.poolForService
   }
 }

@@ -38,7 +38,7 @@ import { getSplTokenByMint, getTokenOrCreate } from '../src/modules/splToken/spl
 import { buyPumpFunTokens, sellAllPumpFunTokensFromMultipleWalletsInstruction, sellPumpFunTokens, setupPumpFunToken } from '../src/modules/pumpfun/pumpfunService'
 import { distributeTotalAmountRandomlyAcrossWallets } from '../src/calculationUtils'
 import { sellMultiple } from "../src/modules/actions/sellMultiple";
-import { getBirdeyeTokenInfo } from '../src/modules/splToken/birdEye';
+import { getBirdeyeOHLCV, getBirdeyeTokenInfo } from '../src/modules/splToken/birdEye';
 import { getTokenInfo } from '../src/modules/splToken/tokenInfoService';
 import asyncBatch from 'async-batch'
 
@@ -1384,6 +1384,27 @@ program.command('birdeyeTokenInfo').action(async () => {
   const tokenAddress = 'CzLSujWBLFsSjncfkh59rUFqvafWcY5tzedWJSuypump'
   const tokenInfo = await getBirdeyeTokenInfo(tokenAddress)
   console.log(tokenInfo)
+})
+
+program.command('birdeyeOHLCV').action(async () => {
+  const tokenAddress = 'CzLSujWBLFsSjncfkh59rUFqvafWcY5tzedWJSuypump'
+  const ohlcv = await getBirdeyeOHLCV({
+    tokenAddress,
+    timeFrame: '1h',
+    timeFrameStart: new Date(Date.UTC(
+      new Date().getUTCFullYear(),
+      new Date().getUTCMonth(),
+      new Date().getUTCDate() - 1,  // Yesterday
+      0, 0, 0, 0                    // Start of day
+    )),
+    timeFrameEnd: new Date(Date.UTC(
+      new Date().getUTCFullYear(),
+      new Date().getUTCMonth(),
+      new Date().getUTCDate() - 1,  // Yesterday
+      23, 59, 59, 999               // End of day
+    )),
+  })
+  console.log(ohlcv)
 })
 
 program.command('solTokenInfo').action(async () => {

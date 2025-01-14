@@ -1,3 +1,4 @@
+import { _1000 } from '@raydium-io/raydium-sdk';
 import axios from 'axios';
 
 const BIRDEYE_API_KEY = process.env.BIRDEYE_API_KEY!
@@ -6,6 +7,33 @@ const BIRDEYE_API_KEY = process.env.BIRDEYE_API_KEY!
 export async function getBirdeyeTokenInfo(tokenAddress: string) {
   const birdEyeRes = await axios.get(
     `https://public-api.birdeye.so/defi/token_overview?address=${tokenAddress}`,
+    {
+      headers: {
+        'x-api-key': BIRDEYE_API_KEY
+      }
+    }
+  )
+
+  return birdEyeRes.data.data
+}
+
+export async function getBirdeyeOHLCV({
+  tokenAddress,
+  timeFrame,
+  timeFrameStart,
+  timeFrameEnd
+}: {
+  tokenAddress: string
+  timeFrame: '5m' | '15m' | '30m' | '1h' | '4h' | '8h' | '24h'
+  timeFrameStart: Date
+  timeFrameEnd: Date
+}) {
+
+  const timeFrameStartUnix = timeFrameStart.getTime() / _1000
+  const timeFrameEndUnix = timeFrameEnd.getTime() / _1000
+
+  const birdEyeRes = await axios.get(
+    `https://public-api.birdeye.so/defi/ohlcv?address=${tokenAddress}&timeframe=${timeFrame}&time_from=${timeFrameStartUnix}&time_to=${timeFrameEndUnix}`,
     {
       headers: {
         'x-api-key': BIRDEYE_API_KEY
