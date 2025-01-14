@@ -49,14 +49,15 @@ const JoinTheWaitlist = ({ ...props }) => {
         languages: language,
         timeZone: timeZone,
       };
-      console.log("User information", data);
-      toaster.create({
-        title: "Success",
-        description: "Your Email successfully saved",
-      });
-      const endpoint = "/api/save-user";
+      const endpoint = "/api/market";
 
-      const saveInfoResponse = await axios.post(endpoint, data);
+      const saveInfoResponse = await axios.post(endpoint, {
+        email: data.email,
+        ip: data.ip,
+        location: data.city + ", " + data.region + ", " + data.country,
+        timeZone: data.timeZone,
+        languages: data.languages,
+      });
       if (saveInfoResponse.status === 200) {
         toaster.create({
           title: "Success",
@@ -65,7 +66,11 @@ const JoinTheWaitlist = ({ ...props }) => {
         return;
       }
     } catch (error) {
-      console.error("Error fetching user information", error);
+      toaster.create({
+        type: "error",
+        title: "Failed",
+        description: (error as Error).message,
+      });
     }
   };
 

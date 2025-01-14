@@ -1,7 +1,7 @@
 "use server";
 
 import React from "react";
-import { getMarketMakingInfoForCustomer } from "../../api/marketMakingInfo";
+import { getMarketMakingInfoForCustomer } from "../../api/actions/marketMakingInfo";
 import { Box, Text } from "@chakra-ui/react";
 
 export default async function MarketMakingPage({

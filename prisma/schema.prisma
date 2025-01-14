@@ -325,7 +325,7 @@ model WaitingList {
   ip                    String
   location              String
   timeZone              String
-  language              String
+  languages             String
   createdAt             DateTime           @default(now())
   updatedAt             DateTime           @updatedAt
 }
