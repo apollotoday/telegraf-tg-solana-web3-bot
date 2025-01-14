@@ -1,4 +1,3 @@
-import { _1000 } from '@raydium-io/raydium-sdk';
 import axios from 'axios';
 
 const BIRDEYE_API_KEY = process.env.BIRDEYE_API_KEY!
@@ -29,8 +28,8 @@ export async function getBirdeyeOHLCV({
   timeFrameEnd: Date
 }) {
 
-  const timeFrameStartUnix = timeFrameStart.getTime() / _1000
-  const timeFrameEndUnix = timeFrameEnd.getTime() / _1000
+  const timeFrameStartUnix = timeFrameStart.getTime() / 1000
+  const timeFrameEndUnix = timeFrameEnd.getTime() / 1000
 
   const birdEyeRes = await axios.get(
     `https://public-api.birdeye.so/defi/ohlcv?address=${tokenAddress}&timeframe=${timeFrame}&time_from=${timeFrameStartUnix}&time_to=${timeFrameEndUnix}`,
