@@ -16,6 +16,33 @@ export async function getBirdeyeTokenInfo(tokenAddress: string) {
   return birdEyeRes.data.data
 }
 
+export async function getBirdeyeOHLCV({
+  tokenAddress,
+  timeFrame,
+  timeFrameStart,
+  timeFrameEnd
+}: {
+  tokenAddress: string
+  timeFrame: '5m' | '15m' | '30m' | '1h' | '4h' | '8h' | '24h'
+  timeFrameStart: Date
+  timeFrameEnd: Date
+}) {
+
+  const timeFrameStartUnix = timeFrameStart.getTime() / 1000
+  const timeFrameEndUnix = timeFrameEnd.getTime() / 1000
+
+  const birdEyeRes = await axios.get(
+    `https://public-api.birdeye.so/defi/ohlcv?address=${tokenAddress}&timeframe=${timeFrame}&time_from=${timeFrameStartUnix}&time_to=${timeFrameEndUnix}`,
+    {
+      headers: {
+        'x-api-key': BIRDEYE_API_KEY
+      }
+    }
+  )
+
+  return birdEyeRes.data.data
+}
+
 export async function getBirdeyeTokenMarkets(tokenAddress: string) {
   const birdEyeRes = await axios.get(
     `https://public-api.birdeye.so/defi/v2/markets?address=${tokenAddress}`,

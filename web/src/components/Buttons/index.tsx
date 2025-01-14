@@ -7,7 +7,7 @@ import { ChevronRightIcon } from "@/components/Icons";
 type WhiteButtonProps = ButtonProps & {
   width?: string;
   height?: string;
-  TextComponent?: React.ElementType;
+  TextComponent?: React.ReactNode;
   LeftIcon?: React.ElementType;
   RightIcon?: React.ElementType;
   onClick?: () => void;
@@ -44,7 +44,7 @@ export const WhiteButton: React.FC<WhiteButtonProps> = ({
       {...props}
     >
       {LeftIcon && <LeftIcon color={isHovered ? "white" : "black"} />}
-      {TextComponent && <TextComponent />}
+      {TextComponent}
       {RightIcon && <RightIcon color={isHovered ? "white" : "black"} />}
     </Button>
   );

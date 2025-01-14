@@ -1,4 +1,22 @@
-import { getBirdeyeTokenInfo, getBirdeyeTokenMarkets } from './birdEye'
+import { getBirdeyeOHLCV, getBirdeyeTokenInfo, getBirdeyeTokenMarkets } from './birdEye'
+import { subDays } from 'date-fns'
+
+
+export async function getStandardOHLCVForToken(tokenAddress: string) {
+  // past 7 days in 24hr ohlcv
+  const ohlcv24h = await getBirdeyeOHLCV({
+    tokenAddress,
+    timeFrame: '24h',
+    timeFrameStart: subDays(new Date(), 7),
+    timeFrameEnd: new Date(),
+  })
+
+  // past 24 hours in 1hr ohlcv
+
+  // past 3 hours in 15m ohlcv
+
+  // past 1 hour in 5m ohlcv
+}
 
 export async function getTokenInfo(tokenAddress: string) {
   try {
