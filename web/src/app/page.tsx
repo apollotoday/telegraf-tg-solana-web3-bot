@@ -1,8 +1,7 @@
-"use client";
-
 import Header from "@/components/Header/Header";
 import Footer from "@/components/Footer/Footer";
 import Banner from "@/components/Banner/Banner";
+import { Toaster } from "@/components/ui/toaster";
 
 import {
   CardSection,
@@ -37,6 +36,7 @@ const Home = () => {
         <UnLockSection />
       </main>
       <Footer />
+      <Toaster />
     </div>
   );
 };

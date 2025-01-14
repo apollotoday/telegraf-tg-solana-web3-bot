@@ -1,8 +1,8 @@
 "use client";
 
 import { useState, useCallback } from "react";
-import { Logo } from "./Logo";
-import { HeaderMenu } from "../components/menu";
+import { Logo } from "@/components/Logo/Logo";
+import { HeaderMenu } from "@/components/menu";
 import { Flex, Center } from "@chakra-ui/react";
 import { Menu } from "@/config/menu";
 import Link from "next/link";

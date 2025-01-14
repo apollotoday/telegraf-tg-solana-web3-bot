@@ -1,5 +1,3 @@
-"use client";
-
 import { Box, VStack, Flex, Input } from "@chakra-ui/react";
 
 import { ChevronRightIcon } from "@/components/Icons";
@@ -41,7 +39,7 @@ const SignUpSection = () => {
       >
         <Box color={"#000000"}>{config.singupText}</Box>
         <Input
-          w={"200px"}
+          w={{ base: "100px", md: "200px" }}
           placeholder=""
           variant={"flushed"}
           mx={"10px"}

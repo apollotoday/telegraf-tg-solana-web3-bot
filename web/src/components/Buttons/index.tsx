@@ -10,6 +10,7 @@ type WhiteButtonProps = ButtonProps & {
   TextComponent?: React.ElementType;
   LeftIcon?: React.ElementType;
   RightIcon?: React.ElementType;
+  onClick?: () => void;
 };
 
 export const WhiteButton: React.FC<WhiteButtonProps> = ({
@@ -18,6 +19,7 @@ export const WhiteButton: React.FC<WhiteButtonProps> = ({
   LeftIcon,
   TextComponent,
   RightIcon,
+  onClick,
   ...props
 }) => {
   const [isHovered, setIsHovered] = useState(false);
@@ -38,6 +40,7 @@ export const WhiteButton: React.FC<WhiteButtonProps> = ({
       }
       color={isHovered ? "white" : "black"}
       boxShadow="inset 0px 2px 10px #CACACAC9"
+      onClick={onClick}
       {...props}
     >
       {LeftIcon && <LeftIcon color={isHovered ? "white" : "black"} />}

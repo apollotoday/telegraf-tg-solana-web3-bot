@@ -12,7 +12,8 @@ const inter = Inter({
 
 export const metadata: Metadata = {
   title: "MomentumAI",
-  description: "Next-level market making, with decision making driven by AI - automating trading, liquidity and treasury management for tokens.",
+  description:
+    "Next-level market making, with decision making driven by AI - automating trading, liquidity and treasury management for tokens.",
 };
 
 export default function RootLayout({
