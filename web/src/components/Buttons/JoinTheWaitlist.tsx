@@ -89,11 +89,11 @@ const JoinTheWaitlist = ({ ...props }) => {
       />
       <WhiteButton
         onClick={fetchUserInfo}
-        TextComponent={() => (
+        TextComponent={
           <Box fontSize={"16px"} lineHeight={"24px"} fontWeight={"500"}>
             Join the waitlist
           </Box>
-        )}
+        }
         RightIcon={ChevronRightIcon}
         pos={"absolute"}
         right={"10px"}

@@ -84,7 +84,7 @@ export const ComingSoonButton = ({ ...props }) => {
 
   return (
     <WhiteButton
-      TextComponent={TextComponent}
+      TextComponent={<TextComponent />}
       RightIcon={ChevronRightIcon}
       {...props}
     />
@@ -101,7 +101,7 @@ export const GetInTouchTeamButton = ({ ...props }) => {
 
   return (
     <WhiteButton
-      TextComponent={TextComponent}
+      TextComponent={<TextComponent />}
       RightIcon={ChevronRightIcon}
       {...props}
     />

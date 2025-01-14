@@ -78,7 +78,7 @@ const PackageCardSection = () => {
         >
           {config.launch.description}
         </Box>
-        <WhiteButton TextComponent={TextComponent} mt={"24px"} />
+        <WhiteButton TextComponent={<TextComponent />} mt={"24px"} />
 
         {/* Package cards */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-[32px] px-[20px] md:px-[80px] mt-[51px] max-w-[1440px]">
