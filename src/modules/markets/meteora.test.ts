@@ -1,7 +1,7 @@
 import { PublicKey, Keypair, TransactionMessage } from "@solana/web3.js";
 import { buySell, buySellVersioned, fakeVolumne, swap } from "./meteora";
 import { getDevWallet } from "../../testUtils";
-import { sendAndConfirmRawTransactionAndRetry, Sol } from "../../solUtils";
+import { sendAndConfirmVersionedTransactionAndRetry, Sol } from "../../solUtils";
 import { primaryRpcConnection, meteoraDynPool } from "../../config";
 import { sendAndConfirmJitoTransactions } from "../../jitoUtils";
 import { measureTime } from "../../utils";
@@ -113,7 +113,7 @@ test("ranking bot", async () => {
           pool: new PublicKey(meteoraDynPool),
         });
 
-        await sendAndConfirmRawTransactionAndRetry(buyRes.swapTx);
+        await sendAndConfirmVersionedTransactionAndRetry({transaction: buyRes.swapTx, useStakedRpc: true});
       } catch (e) {
         errorCount++;
         console.log(e);

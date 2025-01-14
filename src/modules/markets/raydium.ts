@@ -37,7 +37,8 @@ import { primaryRpcConnection, net } from "../../config";
 import { calculatePartionedSwapAmount } from "../../calculationUtils";
 import { sendAndConfirmJitoTransactions } from "../../jitoUtils";
 import _ from "lodash";
-import { solToLamports } from "../../solUtils";
+import { sendAndConfirmVersionedTransactionAndRetry, solToLamports } from "../../solUtils";
+import { sendAndConfirmTransactionAndRetry } from '../solTransaction/solSendTransactionUtils';
 
 export type BuyFromPoolInput = {
   poolKeys: LiquidityPoolKeys;
@@ -621,6 +622,7 @@ export type SwapInput = {
   slippage: Percent;
 };
 
+
 export async function swapRaydium(input: {
   keypair: Keypair;
   poolId: PublicKey;
@@ -931,4 +933,33 @@ export async function getTokensForPool(poolId: PublicKey): Promise<{ baseToken: 
     baseToken: poolKeys.baseMint,
     quoteToken: poolKeys.quoteMint,
   };
+}
+
+
+export async function executeRaydiumSwap({
+  swapParams,
+  priorityFeeLamports,
+}: {
+  swapParams: Parameters<typeof swapRaydium>[0],
+  priorityFeeLamports: number,
+}) {
+  const { tx, amountIn, amountOut } = await swapRaydium({
+    ...swapParams,
+    additionalInstructions: [
+      ComputeBudgetProgram.setComputeUnitPrice({
+        microLamports: priorityFeeLamports,
+      })
+    ]
+  });
+
+  const txRes = await sendAndConfirmVersionedTransactionAndRetry({
+    transaction: tx,
+    useStakedRpc: true,
+  });
+
+  return {
+    ...txRes,
+    amountIn,
+    amountOut,
+  }
 }

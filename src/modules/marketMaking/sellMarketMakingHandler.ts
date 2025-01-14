@@ -5,7 +5,7 @@ import { MarketMakingJobWithCycleAndBookedService } from './typesMarketMaking';
 import { getRandomFloat, getRandomInt, randomAmount } from '../../calculationUtils';
 import { decryptWallet } from '../wallet/walletUtils';
 import reattempt from 'reattempt';
-import { executeJupiterSwap } from '../markets/jupiter';
+import { executeAndParseSwap } from '../markets/swapExecutor';
 import { LAMPORTS_PER_SOL, PublicKey } from '@solana/web3.js';
 import { primaryRpcConnection, solTokenMint } from '../../config';
 import prisma from '../../lib/prisma';
@@ -52,13 +52,16 @@ export async function handleSellMarketMakingJob(job: MarketMakingJobWithCycleAnd
       solPreBalance,
       solPostBalance,
     } = await reattempt.run({ times: 4, delay: 200 }, async () => {
-      return await executeJupiterSwap(
+      return await executeAndParseSwap(
         {
+          type: 'sell',
           pubkey: new PublicKey(wallet.pubkey),
           maxSlippage: 500,
           inputAmount: inputSellAmount,
           inputMint: job.cycle.bookedService.usedSplTokenMint,
           outputMint: solTokenMint,
+          poolId: new PublicKey(job.cycle.bookedService.poolForService.poolId),
+          poolSource: 'Raydium',
         },
         keypair,
       )

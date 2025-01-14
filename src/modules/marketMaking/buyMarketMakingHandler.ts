@@ -1,16 +1,19 @@
 import { EJobStatus, EOnChainTransactionStatus, EWalletType, MarketMakingJob } from '@prisma/client'
 import { pickRandomWalletFromCustomer } from '../wallet/walletService'
 import { MarketMakingJobWithCycleAndBookedService } from './typesMarketMaking'
-import { executeJupiterSwap, getBalances } from '../markets/jupiter'
+import { executeAndParseSwap } from '../markets/swapExecutor'
 import { getRandomInt, randomAmount } from '../../calculationUtils'
 import { solTokenMint } from '../../config'
 import { decryptWallet } from '../wallet/walletUtils'
 import { PublicKey } from '@solana/web3.js'
 import reattempt from 'reattempt'
 import prisma from '../../lib/prisma'
+import { getBalancesFromTxSig } from '../solTransaction/solTransactionUtils'
 
 export async function handleBuyMarketMakingJob(job: MarketMakingJobWithCycleAndBookedService) {
   try {
+
+
     console.log(
       `Handling buy job ${job.id} for ${job.cycle.bookedService.usedSplTokenMint} token mint for customer ${job.cycle.botCustomerId}`,
     )
@@ -42,13 +45,16 @@ export async function handleBuyMarketMakingJob(job: MarketMakingJobWithCycleAndB
       actualOutputAmount,
       outputTokenBalance,
     } = await reattempt.run({ times: 4, delay: 200 }, async () => {
-      return await executeJupiterSwap(
+      return await executeAndParseSwap(
         {
+          type: 'buy',
           pubkey: new PublicKey(wallet.pubkey),
           maxSlippage: 500,
           inputAmount: randomBuyAmount,
           inputMint: solTokenMint,
           outputMint: job.cycle.bookedService.usedSplTokenMint,
+          poolId: new PublicKey(job.cycle.bookedService.poolForService.poolId),
+          poolSource: 'Raydium',
         },
         keypair,
       )
@@ -174,7 +180,7 @@ export async function updateBuyJobsWithValues() {
     try {
 
 
-      const { tokenDifference, solPreBalance, solPostBalance, outputTokenBalance, lamportsDifference, inputTokenBalance } = await getBalances({
+      const { tokenDifference, solPreBalance, solPostBalance, outputTokenBalance, lamportsDifference, inputTokenBalance } = await getBalancesFromTxSig({
         txSig: job.buyTransactionSignature,
         tokenMint: job.cycle.bookedService.usedSplTokenMint,
         ownerPubkey: new PublicKey(job.buyWalletPubkey),

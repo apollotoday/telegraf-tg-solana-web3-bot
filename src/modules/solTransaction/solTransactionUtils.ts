@@ -9,7 +9,7 @@ import {
   TransactionMessage,
   VersionedTransaction,
 } from '@solana/web3.js'
-import { primaryRpcConnection } from '../../config'
+import { primaryRpcConnection, solTokenMint } from '../../config'
 import { getErrorFromRPCResponse } from './web3ErrorLogs'
 import { sendAndConfirmTransactionAndRetry } from './solSendTransactionUtils'
 import _ from 'lodash'
@@ -177,4 +177,35 @@ export async function groupSendAndConfirmTransactions(
   )
 
   return transactionResults
+}
+
+
+export async function getBalancesFromTxSig({txSig, tokenMint, ownerPubkey}: {txSig: string, tokenMint: string, ownerPubkey: PublicKey}) {
+  const detectedTransaction = await primaryRpcConnection.getParsedTransaction(txSig, {commitment: 'confirmed', maxSupportedTransactionVersion: 200})
+
+  if (detectedTransaction?.meta?.err) {
+    console.log('Transaction failed', detectedTransaction.meta.err)
+    
+    throw new Error(`Transaction failed: ${detectedTransaction.meta.err.toString()}`)
+  }
+
+  const inputTokenBalance = detectedTransaction?.meta?.preTokenBalances?.find(b => b.mint === tokenMint && b.owner === ownerPubkey.toString())?.uiTokenAmount
+  const outputTokenBalance = detectedTransaction?.meta?.postTokenBalances?.find(b => b.mint === tokenMint && b.owner === ownerPubkey.toString())?.uiTokenAmount
+
+  const tokenDifference = (outputTokenBalance?.uiAmount ?? 0) - (inputTokenBalance?.uiAmount ?? 0)
+
+  const lamportsDifference = (isNaN(Number(outputTokenBalance?.amount)) ? 0 : Number(outputTokenBalance?.amount)) - 
+                             (isNaN(Number(inputTokenBalance?.amount)) ? 0 : Number(inputTokenBalance?.amount))
+
+  const solPreBalance = detectedTransaction?.meta?.preTokenBalances?.find(b => b.mint === solTokenMint && b.owner === ownerPubkey.toString())?.uiTokenAmount.uiAmount ?? 0
+  const solPostBalance = detectedTransaction?.meta?.postTokenBalances?.find(b => b.mint === solTokenMint && b.owner === ownerPubkey.toString())?.uiTokenAmount.uiAmount ?? 0
+
+  return {
+    inputTokenBalance,
+    outputTokenBalance,
+    tokenDifference,
+    lamportsDifference,
+    solPreBalance,
+    solPostBalance,
+  }
 }

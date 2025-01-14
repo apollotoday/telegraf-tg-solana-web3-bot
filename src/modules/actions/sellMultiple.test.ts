@@ -4,7 +4,7 @@ import { computeRaydiumAmounts, getTokensForPool, swapRaydium } from "../markets
 import { getDevWallet } from "../../testUtils";
 import { Keypair, sendAndConfirmTransaction, SystemProgram, Transaction, TransactionMessage, VersionedTransaction } from "@solana/web3.js";
 import { sendAndConfirmTransactionAndRetry } from "../solTransaction/solSendTransactionUtils";
-import { sendAndConfirmRawTransactionAndRetry, solToLamports } from "../../solUtils";
+import { sendAndConfirmVersionedTransactionAndRetry, solToLamports } from "../../solUtils";
 import { transferTokenInstruction } from "../utils/splUtils";
 import { sellMultiple } from "./sellMultiple";
 import { getAssociatedTokenAddress } from "@solana/spl-token";
@@ -36,7 +36,7 @@ test("sell all", async () => {
     slippage: new Percent(10, 100),
   });
 
-  const buyTxRes = await sendAndConfirmRawTransactionAndRetry(buyRes.tx);
+  const buyTxRes = await sendAndConfirmVersionedTransactionAndRetry({transaction: buyRes.tx, useStakedRpc: true});
   if (buyTxRes.confirmedResult.value.err) throw new Error("buy tx failed");
 
   const testWalletSize = 1;
@@ -64,7 +64,7 @@ test("sell all", async () => {
       );
       await tx.sign([devWallet]);
 
-      await sendAndConfirmRawTransactionAndRetry(tx);
+      await sendAndConfirmVersionedTransactionAndRetry({transaction: tx, useStakedRpc: true});
       return wallet;
     })
   );

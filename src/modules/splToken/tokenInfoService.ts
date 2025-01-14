@@ -35,6 +35,10 @@ export async function getTokenInfo(tokenAddress: string) {
 
     console.log(`found raydium pool address=${raydiumPool.address} for symbol=${birdeyeInfo.symbol}`)
 
+    if (!raydiumPool) {
+      throw new Error(`No Raydium pool found for token=${birdeyeInfo.symbol}`)
+    }
+
     return {
       symbol: birdeyeInfo.symbol,
       name: birdeyeInfo.name,

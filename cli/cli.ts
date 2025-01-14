@@ -41,6 +41,7 @@ import { sellMultiple } from "../src/modules/actions/sellMultiple";
 import { getBirdeyeOHLCV, getBirdeyeTokenInfo } from '../src/modules/splToken/birdEye';
 import { getTokenInfo } from '../src/modules/splToken/tokenInfoService';
 import asyncBatch from 'async-batch'
+import { executeAndParseSwap } from '../src/modules/markets/swapExecutor'
 
 const program = new Command();
 
@@ -50,7 +51,7 @@ overwriteConsoleLog();
 
 program.command("initMarketMaking").action(async () => {
   const botCustomer = await createBotCustomer({
-    name: "Rajeet",
+    name: "CATF",
   });
 
   console.log(`created bot customer ${botCustomer.id}: ${botCustomer.name}`);
@@ -804,8 +805,9 @@ program.command("executeJupiterSwap").action(async () => {
 
   const decryptedWallet = decryptWallet(wallet.encryptedPrivKey);
 
-  const { txSig, confirmedResult, actualOutputAmount, slippage, outputTokenBalance, expectedOutputAmount } = await executeJupiterSwap(
+  const { txSig, confirmedResult, actualOutputAmount, slippage, outputTokenBalance, expectedOutputAmount } = await executeAndParseSwap(
     {
+      type: 'buy',
       inputAmount: 0.14,
       inputMint: "So11111111111111111111111111111111111111112",
       outputMint: drewTokenMint.toBase58(),

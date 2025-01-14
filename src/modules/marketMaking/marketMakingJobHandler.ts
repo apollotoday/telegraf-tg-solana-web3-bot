@@ -29,7 +29,8 @@ export async function handleOpenMarketMakingJobs() {
         include: {
           bookedService: {
             include: {
-              usedSplToken: true
+              usedSplToken: true,
+              poolForService: true
             }
           },
         }
@@ -59,7 +60,8 @@ export async function handleOpenMarketMakingJobs() {
         include: {
           bookedService: {
             include: {
-              usedSplToken: true
+              usedSplToken: true,
+              poolForService: true
             }
           },
         }

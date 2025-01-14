@@ -1,5 +1,5 @@
 import { Keypair, LAMPORTS_PER_SOL, PublicKey, TransactionMessage, VersionedTransaction } from "@solana/web3.js";
-import { loadFeePayers, sendAndConfirmRawTransactionAndRetry, sendSol, Sol } from "../../solUtils";
+import { loadFeePayers, sendAndConfirmVersionedTransactionAndRetry, sendSol, Sol } from "../../solUtils";
 import { getDevWallet } from "../../testUtils";
 import { sleep } from "../../utils";
 import { primaryRpcConnection, goatPool, lpPoolForTests } from "../../config";
