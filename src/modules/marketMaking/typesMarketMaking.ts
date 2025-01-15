@@ -4,7 +4,7 @@ export type MarketMakingJobWithCycleAndBookedService = MarketMakingJob & {
   cycle: MarketMakingCycle & {
     bookedService: BookedService & {
       usedSplToken: SplToken
-      poolForService: LiquidityPoolInfo
+      poolForService?: LiquidityPoolInfo | null
     }
   }
 }

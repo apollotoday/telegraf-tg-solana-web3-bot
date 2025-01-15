@@ -13,7 +13,6 @@ import { getBalancesFromTxSig } from '../solTransaction/solTransactionUtils'
 export async function handleBuyMarketMakingJob(job: MarketMakingJobWithCycleAndBookedService) {
   try {
 
-
     console.log(
       `Handling buy job ${job.id} for ${job.cycle.bookedService.usedSplTokenMint} token mint for customer ${job.cycle.botCustomerId}`,
     )
@@ -53,8 +52,8 @@ export async function handleBuyMarketMakingJob(job: MarketMakingJobWithCycleAndB
           inputAmount: randomBuyAmount,
           inputMint: solTokenMint,
           outputMint: job.cycle.bookedService.usedSplTokenMint,
-          poolId: new PublicKey(job.cycle.bookedService.poolForService.poolId),
-          poolSource: 'Raydium',
+          poolId: job.cycle.bookedService.poolForService?.poolId ? new PublicKey(job.cycle.bookedService.poolForService.poolId) : undefined,
+          poolSource: job.cycle.bookedService.poolForService?.poolSource ? job.cycle.bookedService.poolForService.poolSource as 'Raydium' | 'Jupiter' : undefined,
         },
         keypair,
       )

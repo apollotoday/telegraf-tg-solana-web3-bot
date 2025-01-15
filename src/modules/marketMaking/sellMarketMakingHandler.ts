@@ -60,8 +60,8 @@ export async function handleSellMarketMakingJob(job: MarketMakingJobWithCycleAnd
           inputAmount: inputSellAmount,
           inputMint: job.cycle.bookedService.usedSplTokenMint,
           outputMint: solTokenMint,
-          poolId: new PublicKey(job.cycle.bookedService.poolForService.poolId),
-          poolSource: 'Raydium',
+          poolId: job.cycle.bookedService.poolForService?.poolId ? new PublicKey(job.cycle.bookedService.poolForService.poolId) : undefined,
+          poolSource: job.cycle.bookedService.poolForService?.poolSource ? job.cycle.bookedService.poolForService.poolSource as 'Raydium' | 'Jupiter' : undefined,
         },
         keypair,
       )
