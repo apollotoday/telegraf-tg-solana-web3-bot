@@ -54,5 +54,8 @@
   },
   "keywords": [],
   "author": "",
-  "license": "ISC"
+  "license": "ISC",
+  "prisma": {
+    "schema": "web/prisma/schema.prisma"
+  }
 }
