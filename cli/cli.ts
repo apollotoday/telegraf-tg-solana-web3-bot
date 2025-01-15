@@ -45,7 +45,7 @@ import {
 import { distributeTotalAmountRandomlyAcrossWallets, randomAmount } from '../src/calculationUtils'
 import { sellMultiple } from '../src/modules/actions/sellMultiple'
 import { getBirdeyeOHLCV, getBirdeyeTokenInfo } from '../src/modules/splToken/birdEye'
-import { getTokenInfo } from '../src/modules/splToken/tokenInfoService'
+import { getTokenAndPoolInfo, getTokenAndPoolInfoForPrisma } from '../src/modules/splToken/tokenInfoService'
 import asyncBatch from 'async-batch'
 import { executeAndParseSwap } from '../src/modules/markets/swapExecutor'
 
@@ -611,6 +611,8 @@ program
       console.error('No active market making cycle found')
       return
     }
+
+    const tokenInfo = await getTokenAndPoolInfo(activeCycle.bookedService.usedSplTokenMint)
 
     await scheduleNextBuyJob({
       cycleId: activeCycle.id,
@@ -1535,39 +1537,12 @@ program.command('birdeyeOHLCV').action(async () => {
 
 program.command('solTokenInfo').action(async () => {
   const tokenAddress = 'So11111111111111111111111111111111111111112'
-  const tokenInfo = await getTokenInfo(tokenAddress)
+  const tokenInfo = await getTokenAndPoolInfoForPrisma(tokenAddress, 'create')
   console.log(tokenInfo)
 
   await prisma.splToken.create({
     data: {
-      tokenMint: tokenAddress,
-      symbol: tokenInfo.symbol,
-      name: tokenInfo.name,
-      decimals: tokenInfo.decimals,
-      isSPL: false,
-      lastUsdcPrice: tokenInfo.price,
-      priceChange30mPercent: tokenInfo.priceChange30mPercent,
-      priceChange1hPercent: tokenInfo.priceChange1hPercent,
-      priceChange2hPercent: tokenInfo.priceChange2hPercent,
-      priceChange4hPercent: tokenInfo.priceChange4hPercent,
-      priceChange6hPercent: tokenInfo.priceChange6hPercent,
-      priceChange12hPercent: tokenInfo.priceChange12hPercent,
-      priceChange24hPercent: tokenInfo.priceChange24hPercent,
-      v1hUSD: tokenInfo.v1hUSD,
-      vBuy1hUSD: tokenInfo.vBuy1hUSD,
-      vSell1hUSD: tokenInfo.vSell1hUSD,
-      v2hUSD: tokenInfo.v2hUSD,
-      vBuy2hUSD: tokenInfo.vBuy2hUSD,
-      vSell2hUSD: tokenInfo.vSell2hUSD,
-      v4hUSD: tokenInfo.v4hUSD,
-      vBuy4hUSD: tokenInfo.vBuy4hUSD,
-      vSell4hUSD: tokenInfo.vSell4hUSD,
-      v8hUSD: tokenInfo.v8hUSD,
-      vBuy8hUSD: tokenInfo.vBuy8hUSD,
-      vSell8hUSD: tokenInfo.vSell8hUSD,
-      v24hUSD: tokenInfo.v24hUSD,
-      vBuy24hUSD: tokenInfo.vBuy24hUSD,
-      vSell24hUSD: tokenInfo.vSell24hUSD,
+      ...tokenInfo,
     },
   })
 })
@@ -1580,7 +1555,7 @@ program.command('testGetOrCreateToken').action(async () => {
 
 program.command('testTokenInfo').action(async () => {
   const tokenAddress = 'G9tt98aYSznRk7jWsfuz9FnTdokxS6Brohdo9hSmjTRB'
-  const tokenInfo = await getTokenInfo(tokenAddress)
+  const tokenInfo = await getTokenAndPoolInfo(tokenAddress)
   console.log(tokenInfo)
 })
 
