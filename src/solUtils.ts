@@ -51,17 +51,23 @@ export function solTransfer({ solAmount, from, to }: { solAmount: number; from: 
 
 export async function sendAndConfirmVersionedTransactionAndRetry({
   transaction,
+  latestBlockhash,
   useStakedRpc = false,
 }: {
   transaction: VersionedTransaction
+  latestBlockhash?: {
+    blockhash: string
+    lastValidBlockHeight: number
+  }
   useStakedRpc?: boolean
 }) {
   try {
-    const latestBlockHash = await (useStakedRpc ? primaryStakedRpcConnection : primaryRpcConnection).getLatestBlockhash()
+    const connectionToUse = useStakedRpc ? primaryStakedRpcConnection : primaryRpcConnection
+    const blockhash = latestBlockhash ?? await connectionToUse.getLatestBlockhash()
     const { txSig, confirmedResult } = await reattempt.run({ times: 3, delay: 200 }, async () => {
-      console.log(`Sending transaction`)
+      console.log(`Sending transaction via ${useStakedRpc ? 'staked' : 'non-staked'} RPC`)
       const [tx1] = await Promise.all([
-        primaryRpcConnection.sendTransaction(transaction, {
+        connectionToUse.sendTransaction(transaction, {
           skipPreflight: true,
         }),
         // connection.sendTransaction(transaction, {
@@ -84,18 +90,18 @@ export async function sendAndConfirmVersionedTransactionAndRetry({
         // }),
       ])
 
-      console.log(`Sent transaction`, { tx1 })
+      console.log(`Sent transaction via ${useStakedRpc ? 'staked' : 'non-staked'} RPC`, { tx1 })
 
       const confirmedResult = await confirmTransactionSignatureAndRetry(tx1, {
-        ...latestBlockHash,
+        ...blockhash,
       })
 
-      console.log(`Confirmed transaction`, confirmedResult)
+      console.log(`Confirmed transaction via ${useStakedRpc ? 'staked' : 'non-staked'} RPC`, confirmedResult)
 
       return { txSig: tx1, confirmedResult }
     })
     console.log({ txSig, confirmedResult })
-    console.log('Successfully sent transaction: ', txSig)
+    console.log(`Successfully sent transaction via ${useStakedRpc ? 'staked' : 'non-staked'} RPC: ${txSig}`)
 
     return { txSig, confirmedResult }
   } catch (e) {
