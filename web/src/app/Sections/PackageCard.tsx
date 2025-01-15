@@ -25,6 +25,8 @@ const PackageCardSection = () => {
       mt={"29px"}
       overflow={"hidden"}
       pb={"132px"}
+      id="packages"
+      scrollMarginTop={"50vh"}
     >
       <Box
         w={"full"}

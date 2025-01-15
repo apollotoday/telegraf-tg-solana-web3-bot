@@ -1,10 +1,16 @@
 import { IntroductionCard } from "@/components/Cards";
 
-const CardSection = () => {
+type CardSectionProps = {
+  id?: string;
+};
+
+const CardSection: React.FC<CardSectionProps> = ({ id }) => {
   return (
-    <div>
+    <div id={id}>
       <div className="grid grid-cols-1 md:grid-cols-11 px-[12px] md:px-[48px] gap-[18px]">
         <IntroductionCard
+          id="features"
+          scrollMarginTop={"200px"}
           className="col-span-1 md:col-span-6"
           title={config.cards.volume.title}
           description={config.cards.volume.description}
@@ -37,6 +43,8 @@ const CardSection = () => {
           bgPos={"right"}
         />
         <IntroductionCard
+          id="market-making"
+          scrollMarginTop={"30vh"}
           className="col-span-1 md:col-span-11"
           title={config.cards.aiDriven.title}
           description={config.cards.aiDriven.description}

@@ -1,24 +1,24 @@
-'use server'
+"use server";
 
-import React from 'react'
-import { Box, Text } from '@chakra-ui/react'
-import prisma from '../../../../src/lib/prisma'
+import React from "react";
+import { Box, Text } from "@chakra-ui/react";
+import prisma from "../../lib/prisma";
 
 export async function getMarketMakingInfoForCustomer(customerId: string) {
   const customer = await prisma.botCustomer.findUnique({
     where: {
       id: customerId,
     },
-  })
+  });
 
   if (!customer) {
-    throw new Error('Customer not found')
+    throw new Error("Customer not found");
   }
 
   const bookedService = await prisma.bookedService.findFirst({
     where: {
       botCustomerId: customerId,
-      type: 'MARKET_MAKING',
+      type: "MARKET_MAKING",
       isActive: true,
       awaitingFunding: false,
     },
@@ -26,10 +26,10 @@ export async function getMarketMakingInfoForCustomer(customerId: string) {
       usedSplToken: true,
       poolForService: true,
     },
-  })
+  });
 
   if (!bookedService) {
-    throw new Error('Market making service not found')
+    throw new Error("Market making service not found");
   }
 
   const marketMakingCycle = await prisma.marketMakingCycle.findFirst({
@@ -37,16 +37,16 @@ export async function getMarketMakingInfoForCustomer(customerId: string) {
       bookedServiceId: bookedService.id,
       isActive: true,
     },
-  })
+  });
 
   if (!marketMakingCycle) {
-    throw new Error('Market making cycle not found')
+    throw new Error("Market making cycle not found");
   }
 
   const botCustomerWallets = await prisma.botCustomerWallet.findMany({
     where: {
       botCustomerId: customerId,
-      type: 'MARKET_MAKING',
+      type: "MARKET_MAKING",
     },
     select: {
       pubkey: true,
@@ -55,13 +55,13 @@ export async function getMarketMakingInfoForCustomer(customerId: string) {
       createdAt: true,
       updatedAt: true,
     },
-  })
+  });
 
   const marketMakingJobs = await prisma.marketMakingJob.findMany({
     where: {
       cycleId: marketMakingCycle.id,
     },
-  })
+  });
 
   return {
     customer,
@@ -71,7 +71,7 @@ export async function getMarketMakingInfoForCustomer(customerId: string) {
     marketMakingJobs,
     usedToken: bookedService.usedSplToken,
     liquidityPoolInfo: bookedService.poolForService,
-  }
+  };
 }
 
 export async function addUserInfoToWaitlist({
@@ -81,11 +81,11 @@ export async function addUserInfoToWaitlist({
   timeZone,
   languages,
 }: {
-  email: string
-  ip: string
-  location: string
-  timeZone: string
-  languages: string
+  email: string;
+  ip: string;
+  location: string;
+  timeZone: string;
+  languages: string;
 }) {
   // Add email to waitlist
   const user = await prisma.waitingList.create({
@@ -96,20 +96,24 @@ export async function addUserInfoToWaitlist({
       timeZone,
       languages,
     },
-  })
+  });
 
   if (!user.id) {
-    throw new Error('Error adding user to waitlist')
+    throw new Error("Error adding user to waitlist");
   }
-  return user
+  return user;
 }
 
-export async function MarketMakingDashboardForCustomer({ customerId }: { customerId: string }) {
-  const marketMakingInfo = await getMarketMakingInfoForCustomer(customerId)
+export async function MarketMakingDashboardForCustomer({
+  customerId,
+}: {
+  customerId: string;
+}) {
+  const marketMakingInfo = await getMarketMakingInfoForCustomer(customerId);
 
   return (
     <Box>
       <Text>Hi {marketMakingInfo.customer.name}</Text>
     </Box>
-  )
+  );
 }

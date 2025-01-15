@@ -1,18 +1,18 @@
 export const Menu = [
   {
-    name: "Volume Bot",
-    link: "/volume",
+    name: "Features",
+    link: "#features",
   },
   {
-    name: "Ranking Bot",
-    link: "/ranking",
+    name: "Market Making",
+    link: "#market-making",
   },
   {
-    name: "Boost",
-    link: "/boost",
+    name: "Packages",
+    link: "#packages",
   },
   {
-    name: "Pricing",
-    link: "/pricing",
+    name: "Early Access",
+    link: "#early-access",
   },
 ];

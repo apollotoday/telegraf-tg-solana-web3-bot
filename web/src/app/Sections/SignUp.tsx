@@ -5,6 +5,8 @@ import { ChevronRightIcon } from "@/components/Icons";
 const SignUpSection = () => {
   return (
     <VStack
+      id={"early-access"}
+      scrollMarginTop={"30vh"}
       mx={{ base: "24px", md: "48px" }}
       bgColor={"#000000"}
       bgImage={config.images.starBackground}

@@ -9,6 +9,8 @@ import { toaster } from "@/components/ui/toaster";
 import { WhiteButton } from "@/components/Buttons";
 import { ChevronRightIcon } from "@/components/Icons";
 
+import { addUserInfoToWaitlist } from "@/app/api/marketMakingInfo";
+
 type userInformationType = {
   email: string;
   ip: string;
@@ -49,22 +51,20 @@ const JoinTheWaitlist = ({ ...props }) => {
         languages: language,
         timeZone: timeZone,
       };
-      const endpoint = "/api/market";
 
-      const saveInfoResponse = await axios.post(endpoint, {
+      await addUserInfoToWaitlist({
         email: data.email,
         ip: data.ip,
         location: data.city + ", " + data.region + ", " + data.country,
         timeZone: data.timeZone,
         languages: data.languages,
       });
-      if (saveInfoResponse.status === 200) {
-        toaster.create({
-          title: "Success",
-          description: "Your Email successfully saved",
-        });
-        return;
-      }
+
+      toaster.create({
+        title: "Success",
+        description: "Your Email successfully saved",
+      });
+      return;
     } catch (error) {
       toaster.create({
         type: "error",
