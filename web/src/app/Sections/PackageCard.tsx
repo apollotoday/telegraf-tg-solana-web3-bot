@@ -99,11 +99,12 @@ const config = {
     description:
       "Momentum AI offers tailored packages to elevate your token. From holder growth to volume and rankings, our premium package features an AI Decision Engine to execute the right strategies at the right time.",
     buttonText: "BETA Coming Soon",
-    background: "url(/images/LaunchBG.svg)",
+    background: "url(/images/Grid.svg)",
   },
   packages: [
     {
-      title: "Momentum Spark",
+      type: "Momentum Spark",
+      title: "Small Package",
       description:
         "Ignite your token’s presence with essential tools to boost holders and volume.",
       supports: [
@@ -118,7 +119,8 @@ const config = {
       ],
     },
     {
-      title: "Momentum Pulse",
+      type: "Momentum Pulse",
+      title: "Medium Package",
       description:
         "Strengthen your token’s impact with advanced tools for visibility and growth.",
       supports: [
@@ -141,7 +143,8 @@ const config = {
       ],
     },
     {
-      title: "Momentum Apex",
+      type: "Momentum Apex",
+      title: "Big Package",
       description:
         "Utilizes our full toolkit with the AI Decision Engine, autonomously optimizing strategies and executing actions for your goals.",
       supports: [
