@@ -24,7 +24,7 @@ const PackageCardSection = () => {
       position={"relative"}
       mt={"29px"}
       overflow={"hidden"}
-      pb={"132px"}
+      pb={{ base: "40px", md: "132px" }}
       id="packages"
       scrollMarginTop={"50vh"}
     >
@@ -61,10 +61,10 @@ const PackageCardSection = () => {
         pos={"absolute"}
         zIndex={6}
       /> */}
-      <VStack zIndex={8} pos={"relative"} mt={"239px"}>
+      <VStack zIndex={8} pos={"relative"} mt={{ base: "100px", md: "239px" }}>
         <Box
           color={"white"}
-          fontSize={"60px"}
+          fontSize={{ base: "40px", md: "60px" }}
           lineHeight={"72px"}
           fontWeight={500}
         >
@@ -76,6 +76,7 @@ const PackageCardSection = () => {
           color={"#898989"}
           lineHeight={"24px"}
           fontWeight={"400"}
+          px={"24px"}
           mt={"24px"}
         >
           {config.launch.description}

@@ -42,45 +42,47 @@ const Header = () => {
         </Flex>
       </header>
 
-      <header className="block md:hidden fixed w-full top-0 left-0 bg-black z-[100]">
-        <div className="relative flex justify-between items-center bg-black p-3 z-[70]">
-          <Logo />
-          <div onClick={toggleMenu}>
-            <div
-              className={`transition-transform duration-300 ease-in-out ${
-                isMenuOpen ? "rotate-180" : "rotate-0"
-              }`}
-            >
-              {isMenuOpen ? <CloseIcon /> : <HamburgerIcon />}
+      <header className="sticky md:hidden w-full top-0 left-0 bg-black z-[102]">
+        <div className="relative">
+          <div className="relative flex justify-between items-center bg-black p-3 z-[70]">
+            <Logo />
+            <div onClick={toggleMenu}>
+              <div
+                className={`transition-transform duration-300 ease-in-out ${
+                  isMenuOpen ? "rotate-180" : "rotate-0"
+                }`}
+              >
+                {isMenuOpen ? <CloseIcon /> : <HamburgerIcon />}
+              </div>
             </div>
           </div>
-        </div>
-        <div
-          className={`absolute top-[0px] mt-[54px] left-0 w-full bg-black transition-transform duration-300 ease-in-out z-[50] ${
-            isMenuOpen
-              ? "transform translate-y-0"
-              : "transform -translate-y-full"
-          }`}
-        >
-          <div className="bg-gray-black pt-[16px] pb-[40px]">
-            <Flex
-              gap={"8px"}
-              direction={"column"}
-              className="text-[14px] leading-[20px] font-normal text-[#727272]"
-            >
-              {Menu.map((list) => {
-                return (
-                  <Center key={list.name} className="p-[10px]">
-                    <Link href={list.link} className="cursor-pointer">
-                      {list.name}
-                    </Link>
-                  </Center>
-                );
-              })}
-            </Flex>
-            <Center mt={"32px"}>
-              <ComingSoonButton />
-            </Center>
+          <div
+            className={`absolute top-[0px] mt-[54px] left-0 w-full bg-black transition-transform duration-300 ease-in-out z-[50] ${
+              isMenuOpen
+                ? "transform translate-y-0"
+                : "transform -translate-y-full"
+            }`}
+          >
+            <div className="bg-gray-black pt-[16px] pb-[40px]">
+              <Flex
+                gap={"8px"}
+                direction={"column"}
+                className="text-[14px] leading-[20px] font-normal text-[#727272]"
+              >
+                {Menu.map((list) => {
+                  return (
+                    <Center key={list.name} className="p-[10px]">
+                      <Link href={list.link} className="cursor-pointer">
+                        {list.name}
+                      </Link>
+                    </Center>
+                  );
+                })}
+              </Flex>
+              <Center mt={"32px"}>
+                <ComingSoonButton />
+              </Center>
+            </div>
           </div>
         </div>
       </header>
