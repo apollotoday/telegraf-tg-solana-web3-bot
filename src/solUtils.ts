@@ -227,8 +227,8 @@ export function isValidSolanaAddress(address: string) {
   }
 }
 
-if (require.main === module) {
-  const loadedFeePayers = loadFeePayers();
-  // log public keys
-  console.log(loadedFeePayers.slice(0, 2).map((wallet) => wallet.publicKey.toString()));
-}
+// if (require.main === module) {
+//   const loadedFeePayers = loadFeePayers();
+//   // log public keys
+//   console.log(loadedFeePayers.slice(0, 2).map((wallet) => wallet.publicKey.toString()));
+// }

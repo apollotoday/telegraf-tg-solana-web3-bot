@@ -1,15 +1,14 @@
-import { getBirdeyeOHLCV, getBirdeyeTokenInfo, getBirdeyeTokenMarkets } from './birdEye'
-import { subDays } from 'date-fns'
-
+import { getBirdeyeOHLCV, getBirdeyeTokenInfo, getBirdeyeTokenMarkets } from "./birdEye";
+import { subDays } from "date-fns";
 
 export async function getStandardOHLCVForToken(tokenAddress: string) {
   // past 7 days in 24hr ohlcv
   const ohlcv24h = await getBirdeyeOHLCV({
     tokenAddress,
-    timeFrame: '24h',
+    timeFrame: "24h",
     timeFrameStart: subDays(new Date(), 7),
     timeFrameEnd: new Date(),
-  })
+  });
 
   // past 24 hours in 1hr ohlcv
 
@@ -20,20 +19,20 @@ export async function getStandardOHLCVForToken(tokenAddress: string) {
 
 export async function getTokenInfo(tokenAddress: string) {
   try {
-    const birdeyeInfo = await getBirdeyeTokenInfo(tokenAddress)
+    const birdeyeInfo = await getBirdeyeTokenInfo(tokenAddress);
 
-    console.log(`found symbol=${birdeyeInfo.symbol} for address=${tokenAddress}`)
+    console.log(`found symbol=${birdeyeInfo.symbol} for address=${tokenAddress}`);
 
-    const birdeyeMarkets = await getBirdeyeTokenMarkets(tokenAddress)
+    const birdeyeMarkets = await getBirdeyeTokenMarkets(tokenAddress);
 
-    console.log('birdeyeMarkets', birdeyeMarkets)
+    console.log("birdeyeMarkets", birdeyeMarkets);
 
     const raydiumPool = birdeyeMarkets
-      .filter((market: any) => market.base.symbol === 'SOL' || market.quote.symbol === 'SOL')
+      .filter((market: any) => market.base.symbol === "SOL" || market.quote.symbol === "SOL")
       .sort((a: any, b: any) => b.liquidity - a.liquidity)
-      .find((market: any) => market.source.includes('Raydium'))
+      .find((market: any) => market.source.includes("Raydium"));
 
-    console.log(`found raydium pool address=${raydiumPool.address} for symbol=${birdeyeInfo.symbol}`)
+    console.log(`found raydium pool address=${raydiumPool.address} for symbol=${birdeyeInfo.symbol}`);
 
     return {
       symbol: birdeyeInfo.symbol,
@@ -64,9 +63,9 @@ export async function getTokenInfo(tokenAddress: string) {
       vSell24hUSD: birdeyeInfo.vSell24hUSD,
       raydiumPool: raydiumPool,
       poolId: raydiumPool.address,
-    }
+    };
   } catch (error) {
-    console.error(`Error getting token info for address=${tokenAddress}`, error)
-    throw new Error(`Error getting token info for address=${tokenAddress}. Please send a valid token address.`)
+    console.error(`Error getting token info for address=${tokenAddress}`, error);
+    throw new Error(`Error getting token info for address=${tokenAddress}. Please send a valid token address.`);
   }
 }

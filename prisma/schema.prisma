@@ -189,6 +189,8 @@ model BookedService {
   poolIdForService String?
   poolForService LiquidityPoolInfo? @relation(fields: [poolIdForService], references: [poolId])
 
+  transactionsPerMinute Int?
+
   createdAt             DateTime           @default(now())
   updatedAt             DateTime           @updatedAt
 

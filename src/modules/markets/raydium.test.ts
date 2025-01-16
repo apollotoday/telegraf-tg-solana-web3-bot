@@ -195,7 +195,7 @@ test("swap raydium with different fee payer", async () => {
   console.log("successful", successful);
 });
 
-test("fake volumne transaction", async () => {
+test("fake volume transaction", async () => {
   const feePayer = Keypair.generate();
   const wallet = loadWalletFromEnv("RIGGGED_VOLUMNE_BOT");
 

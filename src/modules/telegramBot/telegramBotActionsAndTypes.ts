@@ -30,6 +30,7 @@ export const tradingStyles = {
 
 export const userConfigurationInputs = {
   tokenCA: 'Token CA',
+  transactionsPerMinute: 'Transactions Per Minute',
   solSpent: 'SOL Spent',
   tokenSpent: 'Token Spent',
   aiMarketMakingGoal: 'AI Market Making Goal',

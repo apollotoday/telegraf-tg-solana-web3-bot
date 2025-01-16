@@ -22,6 +22,8 @@ export const primaryRpcUrl = heliusApiKey1 ? `${heliusBaseRpcURL}${heliusApiKey1
 export const primaryRpcConnection = new Connection(net == "mainnet-beta" ? primaryRpcUrl : devRpc);
 export const primaryStakedRpcConnection = new Connection(net == "mainnet-beta" ? `${heliusStakedBasedRpcURL}${heliusApiKey1}` : devRpc);
 
+export const connection = primaryRpcConnection;
+
 export const alternativeRpcConnections = [
   heliusApiKey2 ? new Connection(`${heliusBaseRpcURL}${heliusApiKey2}`) : null,
   heliusApiKey3 ? new Connection(`${heliusBaseRpcURL}${heliusApiKey3}`) : null,
