@@ -14,6 +14,8 @@ export const telegramBotActions = {
   aiMarketMaking: 'ai_market_making',
 }
 
+
+
 export type TBotAction = keyof typeof telegramBotActions
 
 export const aiMarketMakingGoals = {
