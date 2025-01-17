@@ -1,13 +1,18 @@
 "use client";
 
-import { Box, VStack, Flex, Input } from "@chakra-ui/react";
+import { Box, VStack } from "@chakra-ui/react";
 
-import { ChevronRightIcon } from "@/components/Icons";
+// import { ChevronRightIcon } from "@/components/Icons";
+import JoinTheWaitlist from "@/components/Buttons/JoinTheWaitlist";
 
 const SignUpSection = () => {
   return (
     <VStack
-      mx={{ base: "24px", md: "48px" }}
+      id={"early-access"}
+      scrollMarginTop={"30vh"}
+      mx={{ base: "12px", md: "48px" }}
+      mt={{ md: "47px" }}
+      px={"24px"}
       bgColor={"#000000"}
       bgImage={config.images.starBackground}
       bgSize={"cover"}
@@ -17,10 +22,9 @@ const SignUpSection = () => {
       h={"460px"}
       direction={"column"}
       justifyContent={"center"}
-      mt={"47px"}
       textAlign={"center"}
     >
-      <Box fontWeight={"normal"} fontSize={{ base: "40px", md: "48px" }}>
+      <Box fontWeight={"normal"} fontSize={{ base: "30px", md: "48px" }}>
         {config.title}
       </Box>
       <Box
@@ -32,7 +36,7 @@ const SignUpSection = () => {
       >
         {config.description}
       </Box>
-      <Flex
+      {/* <Flex
         borderRadius={"100px"}
         mt={"24px"}
         bg={"white"}
@@ -41,14 +45,16 @@ const SignUpSection = () => {
       >
         <Box color={"#000000"}>{config.singupText}</Box>
         <Input
-          w={"200px"}
+          w={{ base: "100px", md: "200px" }}
           placeholder=""
           variant={"flushed"}
           mx={"10px"}
           color={"black"}
         />
         <ChevronRightIcon />
-      </Flex>
+      </Flex> */}
+      <div className="mt-[24px]" />
+      <JoinTheWaitlist />
     </VStack>
   );
 };

@@ -68,6 +68,7 @@ const UnLockSection = () => {
         width={"1069px"}
         height={"200px"}
         pos={"absolute"}
+        display={{ base: "none", md: "block" }}
         left={"50%"}
         borderRadius={"50%"}
         transform={"translate(-50%, 50%)"}

@@ -24,7 +24,9 @@ const PackageCardSection = () => {
       position={"relative"}
       mt={"29px"}
       overflow={"hidden"}
-      pb={"132px"}
+      pb={{ base: "40px", md: "132px" }}
+      id="packages"
+      scrollMarginTop={"50vh"}
     >
       <Box
         w={"full"}
@@ -59,10 +61,10 @@ const PackageCardSection = () => {
         pos={"absolute"}
         zIndex={6}
       /> */}
-      <VStack zIndex={8} pos={"relative"} mt={"239px"}>
+      <VStack zIndex={8} pos={"relative"} mt={{ base: "100px", md: "239px" }}>
         <Box
           color={"white"}
-          fontSize={"60px"}
+          fontSize={{ base: "40px", md: "60px" }}
           lineHeight={"72px"}
           fontWeight={500}
         >
@@ -74,11 +76,12 @@ const PackageCardSection = () => {
           color={"#898989"}
           lineHeight={"24px"}
           fontWeight={"400"}
+          px={"24px"}
           mt={"24px"}
         >
           {config.launch.description}
         </Box>
-        <WhiteButton TextComponent={TextComponent} mt={"24px"} />
+        <WhiteButton TextComponent={<TextComponent />} mt={"24px"} />
 
         {/* Package cards */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-[32px] px-[20px] md:px-[80px] mt-[51px] max-w-[1440px]">
@@ -97,11 +100,12 @@ const config = {
     description:
       "Momentum AI offers tailored packages to elevate your token. From holder growth to volume and rankings, our premium package features an AI Decision Engine to execute the right strategies at the right time.",
     buttonText: "BETA Coming Soon",
-    background: "url(/images/LaunchBG.svg)",
+    background: "url(/images/Grid.svg)",
   },
   packages: [
     {
-      title: "Momentum Spark",
+      type: "Momentum Spark",
+      title: "Small Package",
       description:
         "Ignite your token’s presence with essential tools to boost holders and volume.",
       supports: [
@@ -116,7 +120,8 @@ const config = {
       ],
     },
     {
-      title: "Momentum Pulse",
+      type: "Momentum Pulse",
+      title: "Medium Package",
       description:
         "Strengthen your token’s impact with advanced tools for visibility and growth.",
       supports: [
@@ -139,7 +144,8 @@ const config = {
       ],
     },
     {
-      title: "Momentum Apex",
+      type: "Momentum Apex",
+      title: "Big Package",
       description:
         "Utilizes our full toolkit with the AI Decision Engine, autonomously optimizing strategies and executing actions for your goals.",
       supports: [
