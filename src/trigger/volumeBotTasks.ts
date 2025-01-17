@@ -45,11 +45,16 @@ export const volumneBotTask = schemaTask({
       });
 
       currentBalance = lamportsToSol(await connection.getBalance(new PublicKey(service.mainWallet.pubkey)));
+      console.log("currentBalance", currentBalance);
 
       console.log(`fakeVolumneTransaction res`, res);
 
       await wait.for({ seconds: 60 / service.transactionsPerMinute });
     }
+
+    console.log("volume bot finished");
+
+    // todo sent remainig funds to
   },
 });
 
@@ -76,7 +81,7 @@ export const awaitFundsTask = schemaTask({
 
       await wait.for({ seconds: 30 });
     }
-    console.log("found balance");
+    console.log("found balance", solBalance);
 
     return {
       solBalance,
