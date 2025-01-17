@@ -19,6 +19,7 @@ import {
   userConfigurationInputs,
 } from "./telegramBotActionsAndTypes";
 import { volumneBotTask } from "../../trigger/volumeBotTasks";
+import { getBirdEyeSolPrice, getBirdEyeUsdcRate } from "../splToken/birdEye";
 
 export const telegrafBot = new Telegraf<MomentumBotContext>(process.env.MOMENTUM_AI_TELEGRAM_BOT_TOKEN!);
 
@@ -298,13 +299,31 @@ Current balance: 0 SOL / 0 ${bookedService.usedSplToken.symbol}
           serviceId: bookedService.id,
         });
 
+        const solUsdcPrice = await getBirdEyeSolPrice();
+
+        function calculateVolume(solAmount: number) {
+          return (solAmount * 0.8 * solUsdcPrice.data.value) / 0.00275;
+        }
+
+        const volumeExamples = [3, 5, 10, 20, 42]
+          .map((solAmount, i) => {
+            return `\t ${Array.from({ length: i + 1 })
+              .map((i) => "🚀")
+              .join("")} ${solAmount} SOL => ${Math.round(calculateVolume(solAmount)).toLocaleString()} $`;
+          })
+          .join("\n");
+
         ctx.replyWithPhoto("https://s3.us-west-1.amazonaws.com/storage.monet.community/5z7kgy95vb.png", {
           caption: fmt`
   🪄🪄🪄🪄🪄
   
   Volume Boost service for ${bookedService.usedSplToken.symbol} has been setup.
+
+  Here are some examples of volume you can expect:
+
+${volumeExamples}
   
-  Please deposit SOL and tokens to the following address to continue:
+  Please deposit SOL to the following address to continue:
   ${bold(pubkey)}
   
   Deposit a minimum of 1 SOL to the address to start the service.
@@ -318,7 +337,6 @@ Current balance: 0 SOL / 0 ${bookedService.usedSplToken.symbol}
         });
 
         ctx.session.serviceAwaitingFunds = bookedService;
-        ctx.session.currentFieldToFill = userConfigurationInputs.transactionsPerMinute;
       } catch (error) {
         console.error("Error creating booked service", error);
 
