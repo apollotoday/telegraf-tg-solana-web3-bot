@@ -32,8 +32,6 @@ export async function handleSellMarketMakingJob(job: MarketMakingJobWithCycleAnd
       minTokenBalance: minSellAmount,
     })
 
-    const preSolBalanceFromConn = await primaryRpcConnection.getBalance(new PublicKey(wallet.pubkey), 'recent')
-
     const inputSellAmount = randomAmount(maxSellAmount, minSellAmount, wallet.latestTokenBalance ?? 0);
 
     console.log(`Using wallet ${wallet.pubkey} for buy job ${job.id} to sell ${inputSellAmount} tokens`)
@@ -51,6 +49,7 @@ export async function handleSellMarketMakingJob(job: MarketMakingJobWithCycleAnd
       outputTokenBalance,
       solPreBalance,
       solPostBalance,
+      solSpent,
     } = await reattempt.run({ times: 4, delay: 200 }, async () => {
       return await executeAndParseSwap(
         {
@@ -67,14 +66,10 @@ export async function handleSellMarketMakingJob(job: MarketMakingJobWithCycleAnd
       )
     })
 
+    const expectedSolEarned = expectedOutputAmount
+    const solEarned = solSpent > 0 ? solSpent * -1 : (expectedSolEarned - 0.0001)
 
-    const postSolBalanceFromConn = await primaryRpcConnection.getBalance(new PublicKey(wallet.pubkey), 'recent')
-
-    const expectedSolEarned = expectedOutputAmount / LAMPORTS_PER_SOL
-    const lamportsEarned = postSolBalanceFromConn - preSolBalanceFromConn
-    const solEarned = lamportsEarned > 0 ? (lamportsEarned / LAMPORTS_PER_SOL) : (expectedSolEarned - 0.0001)
-
-    console.log({ postSolBalanceFromConn, preSolBalanceFromConn, solEarned })
+    console.log({ solEarned })
 
     console.log(`Finished sell job ${job.id} with txSig ${txSig}, sold ${inputAmount} tokens, expected: ${expectedSolEarned} SOL, actual: ${solEarned} SOL, post balance: ${solPostBalance / LAMPORTS_PER_SOL} SOL`)
 
@@ -95,7 +90,7 @@ export async function handleSellMarketMakingJob(job: MarketMakingJobWithCycleAnd
         },
         solEarned,
         sellExpectedSolOutputAmount: expectedOutputAmount,
-        sellOutputSolBalance: postSolBalanceFromConn,
+        sellOutputSolBalance: solPostBalance,
         sellStatus: EJobStatus.FINISHED,
         tokenSold: inputAmount,
         executedAtForSell: new Date(),
@@ -110,7 +105,7 @@ export async function handleSellMarketMakingJob(job: MarketMakingJobWithCycleAnd
           decrement: inputAmount,
         },
         latestSolBalance: {
-          increment: lamportsEarned,
+          increment: solEarned,
         },
       },
     })

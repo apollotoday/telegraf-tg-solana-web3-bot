@@ -4,11 +4,11 @@ import { Keypair, LAMPORTS_PER_SOL, PublicKey, SystemProgram, TransactionInstruc
 import { Command } from 'commander'
 import _ from 'lodash'
 import reattempt from 'reattempt'
-import { primaryRpcConnection, lpPoolForTests } from '../src/config'
+import { primaryRpcConnection, lpPoolForTests, solAddr, solTokenMint } from '../src/config'
 import prisma from '../src/lib/prisma'
 import { createBookedServiceAndWallet, getActiveBookedServiceByBotCustomerId } from '../src/modules/customer/bookedService'
 import { createBotCustomer, getBotCustomerByName } from '../src/modules/customer/botCustomer'
-import { scheduleNextBuyJob, updateBuyJobsWithValues } from '../src/modules/marketMaking/buyMarketMakingHandler'
+import { scheduleNextBuyJob, updateBuyJobsWithValuesIfTokenDifferenceWasntDetected } from '../src/modules/marketMaking/buyMarketMakingHandler'
 import {
   getActiveMarketMakingCycleByBotCustomerId,
   setupMarketMakingCycle,
@@ -44,7 +44,7 @@ import {
 } from '../src/modules/pumpfun/pumpfunService'
 import { distributeTotalAmountRandomlyAcrossWallets, randomAmount } from '../src/calculationUtils'
 import { sellMultiple } from '../src/modules/actions/sellMultiple'
-import { getBirdeyeOHLCV, getBirdeyeTokenInfo } from '../src/modules/splToken/birdEye'
+import { getBirdeyeOHLCV, getBirdeyePriceInfo, getBirdeyeTokenInfo, getBirdeyeTokenMarkets } from '../src/modules/splToken/birdEye'
 import { getTokenAndPoolInfo, getTokenAndPoolInfoForPrisma } from '../src/modules/splToken/tokenInfoService'
 import asyncBatch from 'async-batch'
 import { executeAndParseSwap } from '../src/modules/markets/swapExecutor'
@@ -65,9 +65,9 @@ program.command('getParsedTx').action(async () => {
 
 program.command('getBalancesFromTxSig').action(async () => {
   const balances = await getBalancesFromTxSig({
-    txSig: '5yJEMQTsBguRwsNBbwTX9oV8su5Rcj5BqLVZk4Ynfs63RxUss37XxwE119H94xHSLqqUvafaYYqUgwhmkdhmF78m',
-    tokenMint: drewTokenMint.toBase58(),
-    ownerPubkey: new PublicKey('62z1RHg3VpzM12fmDRftXyqPkXngEfWzibXPUk94WaM1'),
+    txSig: '26ZxgBRpLomxETWjTARApcjaAzgPSFcnmREgergorm3vbE6uvUtNfTwU2euWUcsaVVT9vR4pNXAQxwatHoc6igie',
+    tokenMint: '7uCHQdxAz2ojRgEpXRHas1nJAeTTo9b7JWNgpXXi9D9p',
+    ownerPubkey: new PublicKey('Cun6yaUyUvJ4RowrXXo1GT2nBb6oVEKePwxBvK6iqSaz'),
   })
   console.log(balances)
 })
@@ -222,25 +222,26 @@ program
       },
     })
 
+    
+
     const totalBuyAmount = jobs.reduce((acc, curr) => acc + (curr.solSpent ?? 0), 0)
     const totalSellAmount = jobs.reduce((acc, curr) => acc + (curr.solEarned ?? 0), 0)
 
+    console.log(`total transaction count: ${jobs.length * 2}`)
     console.log(`total buy amount: ${totalBuyAmount} SOL`)
     console.log(`total sell amount: ${totalSellAmount} SOL`)
 
-    const buyAmount24Hr = jobs.reduce(
-      (acc, curr) =>
-        acc +
-        (curr.executedAtForBuy && curr.executedAtForBuy > new Date(Date.now() - 24 * 60 * 60 * 1000) ? curr.solSpent ?? 0 : 0),
-      0,
-    )
-    const sellAmount24Hr = jobs.reduce(
-      (acc, curr) =>
-        acc +
-        (curr.executedAtForSell && curr.executedAtForSell > new Date(Date.now() - 24 * 60 * 60 * 1000) ? curr.solEarned ?? 0 : 0),
-      0,
-    )
+    const jobs24Hr = jobs.filter((job) => {
+      return job.executedAtForBuy && job.executedAtForBuy > new Date(Date.now() - 24 * 60 * 60 * 1000)
+    })
 
+    const buyAmount24Hr = jobs24Hr.reduce(
+      (acc, curr) => acc + (curr.solSpent ?? 0),
+      0,
+    )
+    const sellAmount24Hr = jobs24Hr.reduce((acc, curr) => acc + (curr.solEarned ?? 0), 0)
+
+    console.log(`transaction count 24hr: ${jobs24Hr.length * 2}`)
     console.log(`buy amount 24hr: ${buyAmount24Hr} SOL`)
     console.log(`sell amount 24hr: ${sellAmount24Hr} SOL`)
   })
@@ -585,7 +586,7 @@ program.command('fundMarketMakingWallets').action(async () => {
 })
 
 program.command('updateBuyJobWithValues').action(async () => {
-  await updateBuyJobsWithValues()
+  await updateBuyJobsWithValuesIfTokenDifferenceWasntDetected()
 })
 
 
@@ -636,6 +637,11 @@ program
   
     const tokenMint = activeBookedService.usedSplTokenMint
 
+    const tokenInfo = await getTokenAndPoolInfoForPrisma(tokenMint, 'update')
+    const solPriceInfo = await getTokenAndPoolInfoForPrisma(solTokenMint, 'update')
+
+    const tokenToSolPrice = (tokenInfo.lastUsdcPrice as number) / (solPriceInfo.lastUsdcPrice as number)
+
     const wallet = await pickRandomWalletFromCustomer({
       customerId: botCustomer.id,
       walletType: EWalletType.MARKET_MAKING,
@@ -645,7 +651,7 @@ program
   
     const decryptedWallet = decryptWallet(wallet.encryptedPrivKey)
 
-    const buyAmount = randomAmount(0.8, 0.1, wallet.latestSolBalance ?? 0.2)
+    const buyAmount = randomAmount(0.05, 0.01, wallet.latestSolBalance ?? 0.2)
   
     const { txSig, confirmedResult, actualOutputAmount, slippage, outputTokenBalance, expectedOutputAmount } =
       await executeAndParseSwap(
@@ -1499,9 +1505,19 @@ program.command('fundWalletFromAllWallets').action(async () => {
 })
 
 program.command('birdeyeTokenInfo').action(async () => {
-  const tokenAddress = 'CzLSujWBLFsSjncfkh59rUFqvafWcY5tzedWJSuypump'
+  const tokenAddress = '7uCHQdxAz2ojRgEpXRHas1nJAeTTo9b7JWNgpXXi9D9p'
   const tokenInfo = await getBirdeyeTokenInfo(tokenAddress)
   console.log(tokenInfo)
+
+  const priceInfo = await getBirdeyePriceInfo(tokenAddress)
+  console.log(priceInfo)
+
+  const markets = await getBirdeyeTokenMarkets(tokenAddress)
+  const market = markets.find((market) => market.source.includes('Raydium'))
+  console.log(market)
+
+  const tokenSOLPrice = 1 / (market?.price ?? 1)
+  console.log(`Token price: ${tokenSOLPrice} SOL`)
 })
 
 program.command('birdeyeOHLCV').action(async () => {

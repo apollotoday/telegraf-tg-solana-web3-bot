@@ -1,4 +1,4 @@
-import { Keypair, PublicKey } from '@solana/web3.js';
+import { Keypair, LAMPORTS_PER_SOL, PublicKey } from '@solana/web3.js';
 import { MarketMakingJobWithCycleAndBookedService } from '../marketMaking/typesMarketMaking';
 import { executeJupiterSwap } from './jupiter';
 import { executeRaydiumSwap, swapRaydium } from './raydium';
@@ -22,31 +22,32 @@ export async function executeAndParseSwap(
   { type, inputAmount, inputMint, outputMint, pubkey, maxSlippage: slippage, poolId, poolSource }: TSwapExecutorInput,
   feePayer: Keypair
 ) {
-  const {txSig, confirmedResult, expectedOutputAmount} = await executeSwap({ type, inputAmount, inputMint, outputMint, pubkey, maxSlippage: slippage, poolId, poolSource }, feePayer)
+  const {txSig, confirmedResult, minAmountOut, expectedOutputAmount} = await executeSwap({ type, inputAmount, inputMint, outputMint, pubkey, maxSlippage: slippage, poolId, poolSource }, feePayer)
 
   const mintForTokenBalance = inputMint === solTokenMint ? outputMint : inputMint
 
   await sleep(2500)
 
-  const { inputTokenBalance, outputTokenBalance, tokenDifference, lamportsDifference, solPreBalance, solPostBalance } = await getBalancesFromTxSig({
+  const { inputTokenBalance, outputTokenBalance, tokenDifference, solPreBalance, solPostBalance, solSpent } = await getBalancesFromTxSig({
     txSig,
     tokenMint: mintForTokenBalance,
     ownerPubkey: pubkey,
   })
-
-  console.log('lamports difference', lamportsDifference)
+  
 
   return {
     txSig,
     confirmedResult,
     inputAmount,
+    minAmountOut,
     expectedOutputAmount,
     actualOutputAmount: tokenDifference,
-    slippage: Math.abs(((lamportsDifference - expectedOutputAmount) / expectedOutputAmount) * 100),
+    slippage: Math.abs(((tokenDifference - expectedOutputAmount) / expectedOutputAmount) * 100),
     inputTokenBalance,
     outputTokenBalance,
     solPreBalance,
     solPostBalance,
+    solSpent,
   }
 
 }
@@ -60,7 +61,8 @@ export async function executeSwap(
 
     const {
       amountIn,
-      amountOut,
+      minAmountOut,
+      expectedAmountOut,
       txSig,
       confirmedResult,
     } = await executeRaydiumSwap({
@@ -78,7 +80,8 @@ export async function executeSwap(
     return {
       txSig,
       confirmedResult,
-      expectedOutputAmount: Number(amountOut.toExact())
+      minAmountOut,
+      expectedOutputAmount: Number(expectedAmountOut?.toExact() ?? minAmountOut?.toExact())
     }
     
   } else {
@@ -90,7 +93,7 @@ export async function executeSwap(
     return {
       txSig: jupiterSwapRes.txSig,
       confirmedResult: jupiterSwapRes.confirmedResult,
-      expectedOutputAmount: jupiterSwapRes.expectedOutputAmount,
+      expectedOutputAmount: jupiterSwapRes.expectedOutputAmount / LAMPORTS_PER_SOL,
     }
   }
 }

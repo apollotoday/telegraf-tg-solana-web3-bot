@@ -684,10 +684,11 @@ export async function swapRaydium(input: {
   const feePayer = input?.feePayer ?? input.keypair
   console.log('feePayer', feePayer.publicKey.toBase58())
 
-  const { instructions, signers, amountIn, amountOut } = await createSwapRaydiumInstructions(input)
+  const { instructions, signers, amountIn, minAmountOut, expectedAmountOut } = await createSwapRaydiumInstructions(input)
 
   console.log('amountIn', amountIn.toFixed(4))
-  console.log('amountOut', amountOut.toFixed(4))
+  console.log('minAmountOut', minAmountOut.toFixed(4))
+  console.log('expectedAmountOut', expectedAmountOut?.toFixed(4))
 
   const latestBlockhash = await primaryRpcConnection.getLatestBlockhash()
 
@@ -704,7 +705,8 @@ export async function swapRaydium(input: {
   return {
     tx,
     amountIn,
-    amountOut,
+    minAmountOut,
+    expectedAmountOut,
     latestBlockhash,
   }
 }
@@ -722,7 +724,10 @@ export async function createSwapRaydiumInstructions(input: {
   const baseRay = new BaseRay()
   const feePayer = input?.feePayer ?? input.keypair
 
-  const { amountIn, amountOut, tokenAccountIn, tokenAccountOut, poolKeys } = await computeRaydiumAmounts(input)
+  const { amountIn, amountOut, tokenAccountIn, tokenAccountOut, poolKeys, swapAmountInfoNoSlippage } = await computeRaydiumAmounts(input)
+
+  const minAmountOut = amountOut
+  const expectedAmountOut = swapAmountInfoNoSlippage?.amountOut
 
   console.log(`swap ${amountIn.toFixed(4)} ${amountIn.token.mint} to ${amountOut.toFixed(4)} ${amountOut.token.mint}`)
 
@@ -748,7 +753,8 @@ export async function createSwapRaydiumInstructions(input: {
     instructions: txInfo.ixs,
     signers: txInfo.signers,
     amountIn,
-    amountOut,
+    minAmountOut,
+    expectedAmountOut,
   }
 }
 
@@ -772,22 +778,35 @@ export async function computeRaydiumAmounts(input: {
     throw new Error('pool not found')
   }
 
-  const swapAmountInfo = await baseRay
-    .computeAmount({
-      amount: input.amount,
-      type: input.type,
-      amountSide: input.amountSide,
-      poolKeys,
-      user,
-      slippage,
+  const [swapAmountInfo, swapAmountInfoNoSlippage] = await Promise.all([
+    baseRay
+      .computeAmount({
+        amount: input.amount,
+        type: input.type,
+        amountSide: input.amountSide,
+        poolKeys,
+        user,
+        slippage,
+    })
+    .catch((computeBuyAmountError) => console.log({ computeBuyAmountError })),
+    baseRay
+      .computeAmount({
+        amount: input.amount,
+        type: input.type,
+        amountSide: input.amountSide,
+        poolKeys,
+        user,
+        slippage: new Percent(0),
     })
     .catch((computeBuyAmountError) => console.log({ computeBuyAmountError }))
+  ])
 
-  if (!swapAmountInfo) throw new Error('failed to calculate the amount')
+  if (!swapAmountInfo || !swapAmountInfoNoSlippage) throw new Error('failed to calculate the amount')
 
   return {
     ...swapAmountInfo,
     poolKeys,
+    swapAmountInfoNoSlippage
   }
 }
 
@@ -1008,7 +1027,7 @@ export async function executeRaydiumSwap({
   priorityFeeLamports: number
 }) {
   const useJito = false
-  const { tx, amountIn, amountOut, latestBlockhash } = await swapRaydium({
+  const { tx, amountIn, minAmountOut, expectedAmountOut, latestBlockhash } = await swapRaydium({
     ...swapParams,
     additionalInstructions: [
       /*ComputeBudgetProgram.setComputeUnitPrice({
@@ -1018,8 +1037,6 @@ export async function executeRaydiumSwap({
       ...(useJito ? getJitoFeeInstructions(swapParams.keypair) : []),
     ],
   })
-
-  
 
   const simulateRes = await primaryStakedRpcConnection.simulateTransaction(tx)
 
@@ -1039,6 +1056,7 @@ export async function executeRaydiumSwap({
   return {
     ...txRes,
     amountIn,
-    amountOut,
+    minAmountOut,
+    expectedAmountOut,
   }
 }
