@@ -6,10 +6,10 @@ export async function getStandardOHLCVForToken(tokenAddress: string) {
   // past 7 days in 24hr ohlcv
   const ohlcv24h = await getBirdeyeOHLCV({
     tokenAddress,
-    timeFrame: '24h',
+    timeFrame: "24h",
     timeFrameStart: subDays(new Date(), 7),
     timeFrameEnd: new Date(),
-  })
+  });
 
   // past 24 hours in 1hr ohlcv
 
@@ -42,8 +42,8 @@ export async function getTokenAndPoolInfo(tokenAddress: string) {
       raydiumPool,
     }
   } catch (error) {
-    console.error(`Error getting token info for address=${tokenAddress}`, error)
-    throw new Error(`Error getting token info for address=${tokenAddress}. Please send a valid token address.`)
+    console.error(`Error getting token info for address=${tokenAddress}`, error);
+    throw new Error(`Error getting token info for address=${tokenAddress}. Please send a valid token address.`);
   }
 }
 

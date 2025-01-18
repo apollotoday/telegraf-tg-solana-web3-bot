@@ -1,7 +1,7 @@
-import { EServiceType, EWalletType } from '@prisma/client';
-import { generateAndEncryptWallet } from '../wallet/walletUtils';
-import prisma from '../../lib/prisma';
-import { getTokenOrCreate } from '../splToken/splTokenDBService';
+import { EServiceType, EWalletType } from "@prisma/client";
+import { generateAndEncryptWallet } from "../wallet/walletUtils";
+import prisma from "../../lib/prisma";
+import { getTokenOrCreate } from "../splToken/splTokenDBService";
 
 export async function createBookedServiceAndWallet({
   botCustomerId,
@@ -10,6 +10,7 @@ export async function createBookedServiceAndWallet({
   usedSplTokenMint,
   isActive = true,
   awaitingFunding = true,
+  transactionsPerMinute,
 }: {
   serviceType: EServiceType;
   solAmount?: number;
@@ -17,10 +18,11 @@ export async function createBookedServiceAndWallet({
   usedSplTokenMint: string;
   isActive?: boolean;
   awaitingFunding?: boolean;
+  transactionsPerMinute?: number;
 }) {
   const newWallet = generateAndEncryptWallet();
 
-  const tokenInfo = await getTokenOrCreate(usedSplTokenMint)
+  const tokenInfo = await getTokenOrCreate(usedSplTokenMint);
 
   return await prisma.bookedService.create({
     data: {
@@ -28,6 +30,7 @@ export async function createBookedServiceAndWallet({
       solAmountForService: solAmount,
       isActive,
       awaitingFunding,
+      transactionsPerMinute,
       botCustomer: {
         connect: {
           id: botCustomerId,
@@ -41,7 +44,7 @@ export async function createBookedServiceAndWallet({
       poolForService: {
         connect: {
           poolId: tokenInfo.quoteTokenLiquidityPools[0].poolId,
-        }
+        },
       },
       mainWallet: {
         create: {
@@ -59,15 +62,15 @@ export async function createBookedServiceAndWallet({
       cycles: {
         where: {
           isActive: true,
-        }
-      }
+        },
+      },
     },
   });
 }
 
-export type TBookedService = Awaited<ReturnType<typeof createBookedServiceAndWallet>>
+export type TBookedService = Awaited<ReturnType<typeof createBookedServiceAndWallet>>;
 
-export async function getActiveBookedServiceByBotCustomerId({ botCustomerId, serviceType }: { botCustomerId: string, serviceType: EServiceType }) {
+export async function getActiveBookedServiceByBotCustomerId({ botCustomerId, serviceType }: { botCustomerId: string; serviceType: EServiceType }) {
   const bookedService = await prisma.bookedService.findFirst({
     where: {
       botCustomerId,
@@ -81,9 +84,9 @@ export async function getActiveBookedServiceByBotCustomerId({ botCustomerId, ser
       cycles: {
         where: {
           isActive: true,
-        }
-      }
-    }
+        },
+      },
+    },
   });
 
   if (!bookedService) {
@@ -105,15 +108,15 @@ export async function getBookedServicesByBotCustomerId({ botCustomerId }: { botC
       poolForService: true,
       mainWallet: {
         select: {
-          pubkey: true
-        }
+          pubkey: true,
+        },
       },
       cycles: {
         where: {
           isActive: true,
-        }
-      }
-    }
+        },
+      },
+    },
   });
 }
 

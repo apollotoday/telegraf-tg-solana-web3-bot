@@ -41,7 +41,7 @@ test("should buy and sell drew", async () => {
       type: "sell",
     });
 
-    await sendAndConfirmJitoTransactions({
+    await sendAndConfirmJitoBundle({
       transactions: [buyRes.swapTx, sellRes.swapTx],
       payer: devWallet,
     });
@@ -71,7 +71,7 @@ test("should buy and sell drew fast", async () => {
           console.error("Error in simRes", simRes.value.err);
         }
 
-        return await sendAndConfirmJitoTransactions({
+        return await sendAndConfirmJitoBundle({
           transactions: [
             res.buyTx1,
             // res.sellTx

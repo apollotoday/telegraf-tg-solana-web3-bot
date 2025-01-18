@@ -2,7 +2,16 @@ import { Percent } from "@raydium-io/raydium-sdk";
 import { primaryRpcConnection, goatPool } from "../../config";
 import { computeRaydiumAmounts, getTokensForPool, swapRaydium } from "../markets/raydium";
 import { getDevWallet } from "../../testUtils";
-import { Keypair, sendAndConfirmTransaction, SystemProgram, Transaction, TransactionMessage, VersionedTransaction } from "@solana/web3.js";
+import {
+  ComputeBudgetInstruction,
+  ComputeBudgetProgram,
+  Keypair,
+  sendAndConfirmTransaction,
+  SystemProgram,
+  Transaction,
+  TransactionMessage,
+  VersionedTransaction,
+} from "@solana/web3.js";
 import { sendAndConfirmTransactionAndRetry } from "../solTransaction/solSendTransactionUtils";
 import { sendAndConfirmVersionedTransactionAndRetry, solToLamports } from "../../solUtils";
 import { transferTokenInstruction } from "../utils/splUtils";
@@ -14,10 +23,10 @@ import { loadWalletFromEnv } from "../wallet/walletUtils";
 test("sell all", async () => {
   const { quoteToken } = await getTokensForPool(goatPool);
 
-  const devWallet = loadWalletFromEnv("RAJEET_VOLUMNE_BOT") ?? getDevWallet();
+  const devWallet = loadWalletFromEnv("RIGGGED_VOLUMNE_BOT") ?? getDevWallet();
 
   const calculateBuyRes = await computeRaydiumAmounts({
-    amount: 0.01,
+    amount: 0.001,
     amountSide: "in",
     type: "buy",
     keypair: devWallet,
@@ -39,19 +48,23 @@ test("sell all", async () => {
   const buyTxRes = await sendAndConfirmVersionedTransactionAndRetry({transaction: buyRes.tx, useStakedRpc: true});
   if (buyTxRes.confirmedResult.value.err) throw new Error("buy tx failed");
 
-  const testWalletSize = 1;
+  console.log("buy tx confirmed", buyTxRes.txSig);
+
+  const testWalletSize = 20;
 
   const wallets = await Promise.all(
-    Array.from({ length: 1 }).map(async () => {
+    Array.from({ length: testWalletSize }).map(async () => {
       const wallet = Keypair.generate();
 
       const instruction = [
+        ComputeBudgetProgram.setComputeUnitPrice({ microLamports: 5001 }),
+        ComputeBudgetProgram.setComputeUnitLimit({ units: 100_000 }),
         SystemProgram.transfer({ fromPubkey: devWallet.publicKey, toPubkey: wallet.publicKey, lamports: solToLamports(0.01) }),
         ...(await transferTokenInstruction({
           mint: quoteToken,
           from: devWallet.publicKey,
           to: wallet.publicKey,
-          amount: Math.floor((buyAmount / 1) * 10 ** 6),
+          amount: Math.floor((buyAmount / (testWalletSize - 1)) * 10 ** 6),
         })),
       ];
 
@@ -64,42 +77,39 @@ test("sell all", async () => {
       );
       await tx.sign([devWallet]);
 
-      await sendAndConfirmVersionedTransactionAndRetry({transaction: tx, useStakedRpc: true});
-      return wallet;
+      const txRes = await sendAndConfirmVersionedTransactionAndRetry({transaction: tx, useStakedRpc: true});
+      return {wallet, txRes};
     })
   );
 
-  await sleep(30000);
+  console.log("successfully distributed funds to wallets");
 
   let walletBalances = await Promise.all(
     wallets.map(async (wallet) => {
-      const tokenAccount = await getAssociatedTokenAddress(quoteToken, wallet.publicKey);
+      const tokenAccount = await getAssociatedTokenAddress(quoteToken, wallet.wallet.publicKey);
       console.log(`tokenAccount ${tokenAccount.toBase58()}`);
       const res = await primaryRpcConnection.getTokenAccountBalance(tokenAccount);
-
-      return { value: res, wallet: wallet.publicKey };
+      return { value: res, wallet: wallet.wallet.publicKey, txRes: wallet.txRes };
     })
-  );
+  )
 
-  await sleep(5000);
   console.log(
     "walletBalances",
     walletBalances.map((w) => ({ balance: w.value.value.uiAmount, wallet: w.wallet.toBase58() }))
   );
 
-  await sellMultiple({ pool: goatPool, wallets });
+  await sellMultiple({ pool: goatPool, wallets: wallets.map((w) => w.wallet) });
 
-  walletBalances = await Promise.all(
+  await sleep(10000);
+
+  const closeAllWalletsRes = await Promise.all(
     wallets.map(async (wallet) => {
-      const res = await primaryRpcConnection.getTokenAccountBalance(await getAssociatedTokenAddress(quoteToken, wallet.publicKey));
+      const res = await primaryRpcConnection.getTokenAccountBalance(await getAssociatedTokenAddress(quoteToken, wallet.wallet.publicKey));
 
-      return { value: res, wallet: wallet.publicKey };
+      return { value: res, wallet: wallet.wallet.publicKey, txRes: wallet.txRes };
     })
   );
 
-  await sleep(5000);
-  console.log(
-    "walletBalances",
-    walletBalances.map((w) => ({ balance: w.value.value.uiAmount, wallet: w.wallet.toBase58() }))
-  );
+  const allWalletsClosed = closeAllWalletsRes.every((res) => res.txRes.confirmedResult.value.err === null);
+  console.log("allWalletsClosed", allWalletsClosed);
 });

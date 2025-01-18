@@ -14,6 +14,8 @@ export const telegramBotActions = {
   aiMarketMaking: 'ai_market_making',
 }
 
+
+
 export type TBotAction = keyof typeof telegramBotActions
 
 export const aiMarketMakingGoals = {
@@ -30,6 +32,7 @@ export const tradingStyles = {
 
 export const userConfigurationInputs = {
   tokenCA: 'Token CA',
+  transactionsPerMinute: 'Transactions Per Minute',
   solSpent: 'SOL Spent',
   tokenSpent: 'Token Spent',
   aiMarketMakingGoal: 'AI Market Making Goal',

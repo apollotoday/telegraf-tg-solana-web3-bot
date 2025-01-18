@@ -43,7 +43,7 @@ import { TransactionMessage, VersionedTransaction } from '@solana/web3.js'
 // import { connection, puffAddr, solAddr } from "../../config"
 import { primaryRpcConnection, net, primaryStakedRpcConnection } from '../../config'
 import { calculatePartionedSwapAmount } from '../../calculationUtils'
-import { getJitoFeeInstructions, sendAndConfirmJitoTransactions, sendAndConfirmJitoTransactionViaRPC } from '../../jitoUtils'
+import { getJitoFeeInstructions, sendAndConfirmJitoBundle, sendAndConfirmJitoTransactionViaRPC } from '../../jitoUtils'
 import _ from 'lodash'
 import { sendAndConfirmVersionedTransactionAndRetry, solToLamports } from '../../solUtils'
 import { sendAndConfirmTransactionAndRetry } from '../solTransaction/solSendTransactionUtils'
@@ -892,7 +892,7 @@ export async function fakeVolumneTransaction(args: {
   ])
 
   if (buyRes.tx && buyRes2.tx && sellRes.tx) {
-    const res = await sendAndConfirmJitoTransactions({
+    const res = await sendAndConfirmJitoBundle({
       transactions: [buyRes.tx, buyRes2.tx, sellRes.tx],
       payer: args.wallet,
       // signers: [args.wallet],
@@ -992,7 +992,7 @@ export async function fakeVolumneTransactionFeePayerPool(args: {
     buyRes.tx
     // &&  buyRes2.tx && sellRes.tx
   ) {
-    const res = await sendAndConfirmJitoTransactions({
+    const res = await sendAndConfirmJitoBundle({
       transactions: [buyRes.tx, buyRes2.tx, sellRes.tx],
       payer: args.wallet,
       // signers: [args.wallet],

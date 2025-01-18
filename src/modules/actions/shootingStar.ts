@@ -7,7 +7,7 @@ import asyncBatch from "async-batch";
 
 import _ from "lodash";
 import { Percent } from "@raydium-io/raydium-sdk";
-import { sendAndConfirmJitoTransactions } from "../../jitoUtils";
+import { sendAndConfirmJitoBundle } from "../../jitoUtils";
 import { computeRaydiumAmounts, swapRaydium } from "../markets/raydium";
 import { loadWalletFromEnv } from "../wallet/walletUtils";
 
@@ -50,7 +50,7 @@ export async function makeShootingStar(args: { wallet: Keypair; pool: PublicKey;
   console.log("sellAmount", sellRes.amountIn.toExact());
 
   if (buyRes.tx && sellRes.tx) {
-    const res = await sendAndConfirmJitoTransactions({
+    const res = await sendAndConfirmJitoBundle({
       transactions: [buyRes.tx, sellRes.tx],
       payer: args.wallet,
       // signers: [args.wallet],

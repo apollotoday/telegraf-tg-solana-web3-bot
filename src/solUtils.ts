@@ -103,7 +103,7 @@ export async function sendAndConfirmVersionedTransactionAndRetry({
     console.log({ txSig, confirmedResult })
     console.log(`Successfully sent transaction via ${useStakedRpc ? 'staked' : 'non-staked'} RPC: ${txSig}`)
 
-    return { txSig, confirmedResult }
+    return { txSig, confirmedResult, blockhash }
   } catch (e) {
     console.error('Failed to send transaction: ', e)
     throw new Error('Please retry! Failed to send transaction: ' + e)
@@ -243,8 +243,8 @@ export function isValidSolanaAddress(address: string) {
   }
 }
 
-if (require.main === module) {
-  const loadedFeePayers = loadFeePayers()
-  // log public keys
-  console.log(loadedFeePayers.slice(0, 2).map((wallet) => wallet.publicKey.toString()))
-}
+// if (require.main === module) {
+//   const loadedFeePayers = loadFeePayers();
+//   // log public keys
+//   console.log(loadedFeePayers.slice(0, 2).map((wallet) => wallet.publicKey.toString()));
+// }

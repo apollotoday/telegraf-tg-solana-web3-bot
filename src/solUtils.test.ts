@@ -9,16 +9,38 @@ test("close wallet", async () => {
   const testWallet = Keypair.generate();
   console.log("generated test wallet", testWallet.publicKey.toBase58());
 
-  await sendSol({ from: devWallet, to: testWallet.publicKey, amount: Sol.fromSol(0.001) });
+  const res = await sendSol({ from: devWallet, to: testWallet.publicKey, amount: Sol.fromSol(0.001) });
+
+  console.log("transaction confirmed", !res.confirmedResult.value.err);
+
+  const startTime = Date.now();
 
   while (true) {
-    const balance = await primaryRpcConnection.getBalance(testWallet.publicKey);
+    const balance = await connection
+      .getBalance(testWallet.publicKey, { commitment: "confirmed", 
+        // minContextSlot: res.confirmedResult.context.slot 
+      })
+      .catch((e) => {
+        return 0;
+      });
     if (balance > 0) {
-      console.log("balance received", balance);
+      console.log(`balance received after ${Date.now() - startTime}ms`, balance);
       break;
+    } else {
+      console.log("no balance yet, waiting");
     }
-    sleep(1000);
+    sleep(200);
   }
 
-  await closeWallet({ from: testWallet, to: devWallet });
+  await closeWallet({ from: testWallet, to: devWallet, slotForBalanceCheck: res.confirmedResult.context.slot });
 });
+
+// test("sendSol and check balance", async () => {
+//   const devWallet = getDevWallet();
+//   const receiverWallet = Keypair.generate();
+
+//   const res = await sendSol({ from: devWallet, to: receiverWallet.publicKey, amount: Sol.fromSol(0.001) });
+
+//   res.confirmedResult.context.slot
+
+// });
