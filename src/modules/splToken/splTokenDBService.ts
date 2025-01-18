@@ -2,6 +2,7 @@ import { PublicKey } from '@solana/web3.js';
 import prisma from '../../lib/prisma';
 import { getTokenAndPoolInfo, getTokenAndPoolInfoForPrisma } from './tokenInfoService';
 import { EServiceType } from '@prisma/client';
+import { solTokenMint } from '../../config';
 
 export async function getSplTokenByMint(mintPubKey: string) {
   return await prisma.splToken.findFirst({
@@ -88,16 +89,24 @@ export async function updateTokenInfos() {
       }
     }
   })
+  const solTokenInfo = await prisma.splToken.findFirst({
+    where: {
+      tokenMint: solTokenMint,
+    }
+  })
 
   const updatedTokens = []
   console.log(`Found ${tokenInfos.length} tokens to update`)
 
-  for (const tokenInfo of tokenInfos) {
+  for (const tokenInfo of [...tokenInfos, solTokenInfo]) {
     try {
+      if (!tokenInfo) {
+        continue
+      }
       const updatedToken = await updateSplToken(tokenInfo.tokenMint)
       updatedTokens.push(updatedToken)
     } catch (error) {
-      console.error(`Error updating token ${tokenInfo.symbol}`, error)
+      console.error(`Error updating token=${tokenInfo?.symbol}`, error)
     }
   }
 
