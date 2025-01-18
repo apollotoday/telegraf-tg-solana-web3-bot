@@ -651,7 +651,7 @@ program
   
     const decryptedWallet = decryptWallet(wallet.encryptedPrivKey)
 
-    const buyAmount = randomAmount(0.05, 0.01, wallet.latestSolBalance ?? 0.2)
+    const buyAmount = randomAmount(0.5, 0.2, wallet.latestSolBalance ?? 0.2)
   
     const { txSig, confirmedResult, actualOutputAmount, slippage, outputTokenBalance, expectedOutputAmount } =
       await executeAndParseSwap(
