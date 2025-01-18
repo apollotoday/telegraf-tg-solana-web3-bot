@@ -7,6 +7,8 @@ import { ArrowUpRightIcon } from "@/components/Icons";
 const Banner = () => {
   return (
     <Box
+      pos={"relative"}
+      zIndex={105}
       height={"56px"}
       bg={
         "linear-gradient(90deg, #373737 0%, #141414 33%, #414141 51%, #252525 75%, #0E0C0F 100%)"
@@ -20,7 +22,9 @@ const Banner = () => {
         w={"90%"}
         mx={"auto"}
       >
-        <Box>Sign up for Early Access. Beta coming soon!</Box>
+        <Box fontSize={{ base: "14px" }}>
+          Sign up for Early Access. Beta coming soon!
+        </Box>
         <NoBgButton>
           <Box>Sign Up</Box>
           <ArrowUpRightIcon />

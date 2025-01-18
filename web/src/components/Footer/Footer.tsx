@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { Flex, Box } from "@chakra-ui/react";
-import { Logo } from "./Logo";
-import { HeaderMenu } from "../menu";
+import { Logo } from "@/components/Logo/Logo";
+import { HeaderMenu } from "@/components/menu";
 import { Menu } from "@/config/menu";
 import { TelegramIcon, DiscordIcon } from "@/components/Icons";
 import { ComingSoonButton } from "@/components/Buttons";

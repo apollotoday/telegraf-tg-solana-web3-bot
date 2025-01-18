@@ -1,9 +1,15 @@
-import { CardSection, SignUpSection, PackageCardSection, HeroSection, UnLockSection } from './Sections'
+import {
+  CardSection,
+  SignUpSection,
+  PackageCardSection,
+  HeroSection,
+  UnLockSection,
+} from "./Sections";
 
 const Home = () => {
   return (
-    <main className='w-full'>
-      <div className='min-h-[15px] w-full'></div>
+    <main className="w-full scroll-smooth">
+      <div className="min-h-[15px] w-full"></div>
 
       {/* Hero section */}
       <HeroSection />
@@ -20,7 +26,7 @@ const Home = () => {
       {/* Unlock the full potential of Momentum Labs section*/}
       <UnLockSection />
     </main>
-  )
-}
+  );
+};
 
-export default Home
+export default Home;
