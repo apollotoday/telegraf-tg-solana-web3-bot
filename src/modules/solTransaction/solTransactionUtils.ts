@@ -2,6 +2,7 @@ import {
   ComputeBudgetProgram,
   Connection,
   Keypair,
+  LAMPORTS_PER_SOL,
   PublicKey,
   Signer,
   Transaction,
@@ -9,7 +10,7 @@ import {
   TransactionMessage,
   VersionedTransaction,
 } from '@solana/web3.js'
-import { primaryRpcConnection } from '../../config'
+import { primaryRpcConnection, solTokenMint } from '../../config'
 import { getErrorFromRPCResponse } from './web3ErrorLogs'
 import { sendAndConfirmTransactionAndRetry } from './solSendTransactionUtils'
 import _ from 'lodash'
@@ -177,4 +178,68 @@ export async function groupSendAndConfirmTransactions(
   )
 
   return transactionResults
+}
+
+
+
+export async function getBalancesFromTxSig({txSig, tokenMint, ownerPubkey}: {txSig: string, tokenMint: string, ownerPubkey: PublicKey}) {
+  const detectedTransaction = await primaryRpcConnection.getParsedTransaction(txSig, {commitment: 'confirmed', maxSupportedTransactionVersion: 200})
+
+
+  if (detectedTransaction?.meta?.err) {
+    console.log('Transaction failed', detectedTransaction.meta.err)
+    
+    throw new Error(`Transaction failed: ${detectedTransaction.meta.err.toString()}`)
+  }
+
+  const preBalances = detectedTransaction?.meta?.preBalances;
+  const postBalances = detectedTransaction?.meta?.postBalances;
+  const accountKeys = detectedTransaction?.transaction.message.accountKeys;
+
+  // Find the index of the target wallet in the list of account keys
+  const walletIndex = accountKeys?.findIndex(
+    (accountKey) => accountKey.pubkey.toBase58() === ownerPubkey.toBase58()
+  );
+
+  const isWalletInTransaction = walletIndex !== -1 && walletIndex !== undefined;
+  const preSolLamportsBalance = isWalletInTransaction ? preBalances?.[walletIndex] ?? 0 : 0;
+  const postSolLamportsBalance = isWalletInTransaction ? postBalances?.[walletIndex] ?? 0 : 0;
+  const solPreBalance = preSolLamportsBalance / LAMPORTS_PER_SOL;
+  const solPostBalance = postSolLamportsBalance / LAMPORTS_PER_SOL;
+  const lamportsSpent = preSolLamportsBalance - postSolLamportsBalance;
+  const solSpent = lamportsSpent / LAMPORTS_PER_SOL;
+
+  console.log({
+    solPreBalance,
+    solPostBalance,
+    lamportsSpent,
+  })
+
+  const inputTokenBalance = detectedTransaction?.meta?.preTokenBalances?.find(b => b.mint === tokenMint && b.owner === ownerPubkey.toString())?.uiTokenAmount
+  const outputTokenBalance = detectedTransaction?.meta?.postTokenBalances?.find(b => b.mint === tokenMint && b.owner === ownerPubkey.toString())?.uiTokenAmount
+
+  const tokenDifference = (outputTokenBalance?.uiAmount ?? 0) - (inputTokenBalance?.uiAmount ?? 0)
+
+  const lamportsDifference = (isNaN(Number(outputTokenBalance?.amount)) ? 0 : Number(outputTokenBalance?.amount)) - 
+                             (isNaN(Number(inputTokenBalance?.amount)) ? 0 : Number(inputTokenBalance?.amount))
+
+
+  console.log({
+    inputTokenBalance,
+    outputTokenBalance,
+    tokenDifference,
+    lamportsDifference,
+    solPreBalance,
+    solPostBalance,
+  })
+
+  return {
+    inputTokenBalance,
+    outputTokenBalance,
+    tokenDifference,
+    lamportsDifference,
+    solSpent,
+    solPreBalance,
+    solPostBalance,
+  }
 }

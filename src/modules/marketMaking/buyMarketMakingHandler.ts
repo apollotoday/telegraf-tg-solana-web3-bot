@@ -1,16 +1,18 @@
 import { EJobStatus, EOnChainTransactionStatus, EWalletType, MarketMakingJob } from '@prisma/client'
 import { pickRandomWalletFromCustomer } from '../wallet/walletService'
 import { MarketMakingJobWithCycleAndBookedService } from './typesMarketMaking'
-import { executeJupiterSwap, getBalances } from '../markets/jupiter'
+import { executeAndParseSwap } from '../markets/swapExecutor'
 import { getRandomInt, randomAmount } from '../../calculationUtils'
 import { solTokenMint } from '../../config'
 import { decryptWallet } from '../wallet/walletUtils'
 import { PublicKey } from '@solana/web3.js'
 import reattempt from 'reattempt'
 import prisma from '../../lib/prisma'
+import { getBalancesFromTxSig } from '../solTransaction/solTransactionUtils'
 
 export async function handleBuyMarketMakingJob(job: MarketMakingJobWithCycleAndBookedService) {
   try {
+
     console.log(
       `Handling buy job ${job.id} for ${job.cycle.bookedService.usedSplTokenMint} token mint for customer ${job.cycle.botCustomerId}`,
     )
@@ -42,13 +44,16 @@ export async function handleBuyMarketMakingJob(job: MarketMakingJobWithCycleAndB
       actualOutputAmount,
       outputTokenBalance,
     } = await reattempt.run({ times: 4, delay: 200 }, async () => {
-      return await executeJupiterSwap(
+      return await executeAndParseSwap(
         {
+          type: 'buy',
           pubkey: new PublicKey(wallet.pubkey),
           maxSlippage: 500,
           inputAmount: randomBuyAmount,
           inputMint: solTokenMint,
           outputMint: job.cycle.bookedService.usedSplTokenMint,
+          poolId: job.cycle.bookedService.poolForService?.poolId ? new PublicKey(job.cycle.bookedService.poolForService.poolId) : undefined,
+          poolSource: job.cycle.bookedService.poolForService?.poolSource ? job.cycle.bookedService.poolForService.poolSource as 'Raydium' | 'Jupiter' : undefined,
         },
         keypair,
       )
@@ -140,7 +145,7 @@ export async function handleBuyMarketMakingJob(job: MarketMakingJobWithCycleAndB
   }
 }
 
-export async function updateBuyJobsWithValues() {
+export async function updateBuyJobsWithValuesIfTokenDifferenceWasntDetected() {
   const buyJobs = await prisma.marketMakingJob.findMany({
     where: {
       buyTransactionSignature: {
@@ -174,13 +179,13 @@ export async function updateBuyJobsWithValues() {
     try {
 
 
-      const { tokenDifference, solPreBalance, solPostBalance, outputTokenBalance, lamportsDifference, inputTokenBalance } = await getBalances({
+      const { tokenDifference, solPreBalance, solPostBalance, outputTokenBalance, inputTokenBalance, solSpent } = await getBalancesFromTxSig({
         txSig: job.buyTransactionSignature,
         tokenMint: job.cycle.bookedService.usedSplTokenMint,
         ownerPubkey: new PublicKey(job.buyWalletPubkey),
       })
   
-      console.log(`Found token difference ${tokenDifference}, sol pre balance ${solPreBalance}, sol post balance ${solPostBalance}, output token balance ${outputTokenBalance?.uiAmount}, lamports difference ${lamportsDifference}, input token balance ${inputTokenBalance}`)
+      console.log(`Found token difference ${tokenDifference}, sol pre balance ${solPreBalance}, sol post balance ${solPostBalance}, output token balance ${outputTokenBalance?.uiAmount}, input token balance ${inputTokenBalance}`)
     
       
       const updatedWallet = await prisma.botCustomerWallet.update({

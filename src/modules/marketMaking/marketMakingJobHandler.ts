@@ -1,12 +1,12 @@
 import { EJobStatus } from '@prisma/client'
 import prisma from '../../lib/prisma'
-import { handleBuyMarketMakingJob, updateBuyJobsWithValues } from './buyMarketMakingHandler'
+import { handleBuyMarketMakingJob, updateBuyJobsWithValuesIfTokenDifferenceWasntDetected } from './buyMarketMakingHandler'
 import { handleSellMarketMakingJob } from './sellMarketMakingHandler'
 
 export async function handleOpenMarketMakingJobs() {
   console.log('Handling open market making jobs')
 
-  await updateBuyJobsWithValues()
+  await updateBuyJobsWithValuesIfTokenDifferenceWasntDetected()
   
   const buyMarketMakingJobs = await prisma.marketMakingJob.findMany({
     where: {
@@ -29,7 +29,8 @@ export async function handleOpenMarketMakingJobs() {
         include: {
           bookedService: {
             include: {
-              usedSplToken: true
+              usedSplToken: true,
+              poolForService: true
             }
           },
         }
@@ -59,7 +60,8 @@ export async function handleOpenMarketMakingJobs() {
         include: {
           bookedService: {
             include: {
-              usedSplToken: true
+              usedSplToken: true,
+              poolForService: true
             }
           },
         }

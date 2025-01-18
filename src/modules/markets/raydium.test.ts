@@ -13,15 +13,20 @@ import { fakeVolumneTransaction, fakeVolumneTransactionFeePayerPool, getRaydiumP
 import reattempt from "reattempt";
 import { getDevWallet } from "../../testUtils";
 import { sendAndConfirmJitoTransactions } from "../../jitoUtils";
-import { sendAndConfirmRawTransactionAndRetry, Sol } from "../../solUtils";
+import { sendAndConfirmVersionedTransactionAndRetry, Sol } from "../../solUtils";
 import _ from "lodash";
 import { calculatePartionedSwapAmount } from "../../calculationUtils";
 import { primaryRpcConnection } from "../../config";
 import { sleep } from "../../utils";
 import { loadWalletFromEnv } from "../wallet/walletUtils";
+import asyncBatch from "async-batch";
 
 const devWallet = getDevWallet();
 const devwallet2 = getDevWallet(2);
+
+test('swap raydium for market making setup', async() => {
+  
+})
 
 test("swap raydium jito", async () => {
   const puffPool = new PublicKey("9Tb2ohu5P16BpBarqd3N27WnkF51Ukfs8Z1GzzLDxVZW");
@@ -350,7 +355,7 @@ test("swap raydium direct with buyout amount input", async () => {
 
   console.log("buyRes", buyRes);
 
-  await sendAndConfirmRawTransactionAndRetry(buyRes.tx);
+  await sendAndConfirmVersionedTransactionAndRetry({ transaction: buyRes.tx, useStakedRpc: true });
 });
 
 test("getRaydiumPoolsByTokenAddress", async () => {

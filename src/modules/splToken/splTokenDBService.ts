@@ -1,6 +1,8 @@
 import { PublicKey } from '@solana/web3.js';
 import prisma from '../../lib/prisma';
-import { getTokenInfo } from './tokenInfoService';
+import { getTokenAndPoolInfo, getTokenAndPoolInfoForPrisma } from './tokenInfoService';
+import { EServiceType } from '@prisma/client';
+import { solTokenMint } from '../../config';
 
 export async function getSplTokenByMint(mintPubKey: string) {
   return await prisma.splToken.findFirst({
@@ -19,90 +21,17 @@ export async function getTokenOrCreate(mintPubKey: string) {
   console.log(`found existing splToken=${splToken?.symbol} for mint=${mintPubKey}`)
 
   if (!splToken || !splToken.quoteTokenLiquidityPools.length) {
-    const tokenInfo = await getTokenInfo(mintPubKey)
+    const tokenInfo = await getTokenAndPoolInfoForPrisma(mintPubKey, 'create')
 
     const newSplToken = await prisma.splToken.upsert({
       where: {
         tokenMint: mintPubKey,
       },
       update: {
-        symbol: tokenInfo.symbol,
-        name: tokenInfo.name,
-        decimals: tokenInfo.decimals,
-        isSPL: true,
-        lastUsdcPrice: tokenInfo.price,
-        priceChange30mPercent: tokenInfo.priceChange30mPercent,
-        priceChange1hPercent: tokenInfo.priceChange1hPercent,
-        priceChange2hPercent: tokenInfo.priceChange2hPercent,
-        priceChange4hPercent: tokenInfo.priceChange4hPercent,
-        priceChange6hPercent: tokenInfo.priceChange6hPercent,
-        priceChange12hPercent: tokenInfo.priceChange12hPercent,
-        priceChange24hPercent: tokenInfo.priceChange24hPercent,
-        v1hUSD: tokenInfo.v1hUSD,
-        vBuy1hUSD: tokenInfo.vBuy1hUSD,
-        vSell1hUSD: tokenInfo.vSell1hUSD,
-        v2hUSD: tokenInfo.v2hUSD,
-        vBuy2hUSD: tokenInfo.vBuy2hUSD,
-        vSell2hUSD: tokenInfo.vSell2hUSD,
-        v4hUSD: tokenInfo.v4hUSD,
-        vBuy4hUSD: tokenInfo.vBuy4hUSD,
-        vSell4hUSD: tokenInfo.vSell4hUSD,
-        v8hUSD: tokenInfo.v8hUSD,
-        vBuy8hUSD: tokenInfo.vBuy8hUSD,
-        vSell8hUSD: tokenInfo.vSell8hUSD,
-        v24hUSD: tokenInfo.v24hUSD,
-        vBuy24hUSD: tokenInfo.vBuy24hUSD,
-        vSell24hUSD: tokenInfo.vSell24hUSD,
-
-        quoteTokenLiquidityPools: {
-          create: {
-            poolId: tokenInfo.poolId,
-            baseTokenMint: tokenInfo.raydiumPool.base.address,
-            liquidityUsd: tokenInfo.raydiumPool.liquidity,
-            volume24h: tokenInfo.raydiumPool.volume24h,
-            poolSource: tokenInfo.raydiumPool.source,
-          }
-        }
+        ...tokenInfo,
       },
       create: {
-        tokenMint: mintPubKey,
-        symbol: tokenInfo.symbol,
-        name: tokenInfo.name,
-        decimals: tokenInfo.decimals,
-        isSPL: true,
-        lastUsdcPrice: tokenInfo.price,
-        priceChange30mPercent: tokenInfo.priceChange30mPercent,
-        priceChange1hPercent: tokenInfo.priceChange1hPercent,
-        priceChange2hPercent: tokenInfo.priceChange2hPercent,
-        priceChange4hPercent: tokenInfo.priceChange4hPercent,
-        priceChange6hPercent: tokenInfo.priceChange6hPercent,
-        priceChange12hPercent: tokenInfo.priceChange12hPercent,
-        priceChange24hPercent: tokenInfo.priceChange24hPercent,
-        v1hUSD: tokenInfo.v1hUSD,
-        vBuy1hUSD: tokenInfo.vBuy1hUSD,
-        vSell1hUSD: tokenInfo.vSell1hUSD,
-        v2hUSD: tokenInfo.v2hUSD,
-        vBuy2hUSD: tokenInfo.vBuy2hUSD,
-        vSell2hUSD: tokenInfo.vSell2hUSD,
-        v4hUSD: tokenInfo.v4hUSD,
-        vBuy4hUSD: tokenInfo.vBuy4hUSD,
-        vSell4hUSD: tokenInfo.vSell4hUSD,
-        v8hUSD: tokenInfo.v8hUSD,
-        vBuy8hUSD: tokenInfo.vBuy8hUSD,
-        vSell8hUSD: tokenInfo.vSell8hUSD,
-        v24hUSD: tokenInfo.v24hUSD,
-        vBuy24hUSD: tokenInfo.vBuy24hUSD,
-        vSell24hUSD: tokenInfo.vSell24hUSD,
-
-        quoteTokenLiquidityPools: {
-          create: {
-            poolId: tokenInfo.poolId,
-            baseTokenMint: tokenInfo.raydiumPool.base.address,
-            liquidityUsd: tokenInfo.raydiumPool.liquidity,
-            volume24h: tokenInfo.raydiumPool.volume24h,
-            poolSource: tokenInfo.raydiumPool.source,
-          }
-        }
+        ...tokenInfo,
       },
       include: {
         quoteTokenLiquidityPools: true,
@@ -112,5 +41,74 @@ export async function getTokenOrCreate(mintPubKey: string) {
     return newSplToken
   }
 
-  return splToken
+  // if the token was updated in the last 3 minutes, we don't need to update it
+  if (splToken.updatedAt.getTime() > new Date().getTime() - 1000 * 60 * 2) {
+    return splToken
+  }
+
+  console.log(`Token info for ${mintPubKey} is outdated, updating...`)
+  return await updateSplToken(mintPubKey)
+}
+
+
+export async function updateSplToken(mintPubKey: string) {
+  const tokenInfo = await getTokenAndPoolInfoForPrisma(mintPubKey, 'update')
+
+  console.log(`Updating token ${tokenInfo.symbol} with pool info and price=${tokenInfo.lastUsdcPrice}`)
+
+  console.log(`tokenInfo=${JSON.stringify(tokenInfo)}`)
+
+  const updatedToken = await prisma.splToken.update({
+    where: {
+      tokenMint: mintPubKey,
+    },
+    data: {
+      ...tokenInfo
+    },
+    include: {
+      quoteTokenLiquidityPools: true,
+    }
+  })
+
+  console.log(`Updated token ${updatedToken.symbol} with pool info and price=${updatedToken.lastUsdcPrice}`)
+
+  return updatedToken
+}
+
+export async function updateTokenInfos() {
+  const tokenInfos = await prisma.splToken.findMany({
+    where: {
+      usedInBookedServices: {
+        some: {
+          isActive: true,
+          type: EServiceType.MARKET_MAKING,
+        },
+      },
+      updatedAt: {
+        lte: new Date(new Date().getTime() - 1000 * 60 * 2),
+      }
+    }
+  })
+  const solTokenInfo = await prisma.splToken.findFirst({
+    where: {
+      tokenMint: solTokenMint,
+    }
+  })
+
+  const updatedTokens = []
+  console.log(`Found ${tokenInfos.length} tokens to update`)
+
+  for (const tokenInfo of [...tokenInfos, solTokenInfo]) {
+    try {
+      if (!tokenInfo) {
+        continue
+      }
+      const updatedToken = await updateSplToken(tokenInfo.tokenMint)
+      updatedTokens.push(updatedToken)
+    } catch (error) {
+      console.error(`Error updating token=${tokenInfo?.symbol}`, error)
+    }
+  }
+
+  return updatedTokens
 }
