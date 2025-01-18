@@ -12,6 +12,20 @@ export async function getBirdeyeTokenInfo(tokenAddress: string) {
   return birdEyeRes.data.data;
 }
 
+
+export async function getBirdeyePriceInfo(tokenAddress: string) {
+  const birdEyeRes = await axios.get(
+    `https://public-api.birdeye.so/defi/price?address=${tokenAddress}`,
+    {
+      headers: {
+        'x-api-key': BIRDEYE_API_KEY
+      }
+    }
+  )
+
+  return birdEyeRes.data.data
+}
+
 export async function getBirdeyeOHLCV({
   tokenAddress,
   timeFrame,

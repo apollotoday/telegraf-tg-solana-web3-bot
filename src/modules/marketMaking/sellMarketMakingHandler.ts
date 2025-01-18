@@ -5,7 +5,7 @@ import { MarketMakingJobWithCycleAndBookedService } from './typesMarketMaking';
 import { getRandomFloat, getRandomInt, randomAmount } from '../../calculationUtils';
 import { decryptWallet } from '../wallet/walletUtils';
 import reattempt from 'reattempt';
-import { executeJupiterSwap } from '../markets/jupiter';
+import { executeAndParseSwap } from '../markets/swapExecutor';
 import { LAMPORTS_PER_SOL, PublicKey } from '@solana/web3.js';
 import { primaryRpcConnection, solTokenMint } from '../../config';
 import prisma from '../../lib/prisma';
@@ -32,8 +32,6 @@ export async function handleSellMarketMakingJob(job: MarketMakingJobWithCycleAnd
       minTokenBalance: minSellAmount,
     })
 
-    const preSolBalanceFromConn = await primaryRpcConnection.getBalance(new PublicKey(wallet.pubkey), 'recent')
-
     const inputSellAmount = randomAmount(maxSellAmount, minSellAmount, wallet.latestTokenBalance ?? 0);
 
     console.log(`Using wallet ${wallet.pubkey} for buy job ${job.id} to sell ${inputSellAmount} tokens`)
@@ -51,27 +49,27 @@ export async function handleSellMarketMakingJob(job: MarketMakingJobWithCycleAnd
       outputTokenBalance,
       solPreBalance,
       solPostBalance,
+      solSpent,
     } = await reattempt.run({ times: 4, delay: 200 }, async () => {
-      return await executeJupiterSwap(
+      return await executeAndParseSwap(
         {
+          type: 'sell',
           pubkey: new PublicKey(wallet.pubkey),
           maxSlippage: 500,
           inputAmount: inputSellAmount,
           inputMint: job.cycle.bookedService.usedSplTokenMint,
           outputMint: solTokenMint,
+          poolId: job.cycle.bookedService.poolForService?.poolId ? new PublicKey(job.cycle.bookedService.poolForService.poolId) : undefined,
+          poolSource: job.cycle.bookedService.poolForService?.poolSource ? job.cycle.bookedService.poolForService.poolSource as 'Raydium' | 'Jupiter' : undefined,
         },
         keypair,
       )
     })
 
+    const expectedSolEarned = expectedOutputAmount
+    const solEarned = solSpent > 0 ? solSpent * -1 : (expectedSolEarned - 0.0001)
 
-    const postSolBalanceFromConn = await primaryRpcConnection.getBalance(new PublicKey(wallet.pubkey), 'recent')
-
-    const expectedSolEarned = expectedOutputAmount / LAMPORTS_PER_SOL
-    const lamportsEarned = postSolBalanceFromConn - preSolBalanceFromConn
-    const solEarned = lamportsEarned > 0 ? (lamportsEarned / LAMPORTS_PER_SOL) : (expectedSolEarned - 0.0001)
-
-    console.log({ postSolBalanceFromConn, preSolBalanceFromConn, solEarned })
+    console.log({ solEarned })
 
     console.log(`Finished sell job ${job.id} with txSig ${txSig}, sold ${inputAmount} tokens, expected: ${expectedSolEarned} SOL, actual: ${solEarned} SOL, post balance: ${solPostBalance / LAMPORTS_PER_SOL} SOL`)
 
@@ -92,7 +90,7 @@ export async function handleSellMarketMakingJob(job: MarketMakingJobWithCycleAnd
         },
         solEarned,
         sellExpectedSolOutputAmount: expectedOutputAmount,
-        sellOutputSolBalance: postSolBalanceFromConn,
+        sellOutputSolBalance: solPostBalance,
         sellStatus: EJobStatus.FINISHED,
         tokenSold: inputAmount,
         executedAtForSell: new Date(),
@@ -107,7 +105,7 @@ export async function handleSellMarketMakingJob(job: MarketMakingJobWithCycleAnd
           decrement: inputAmount,
         },
         latestSolBalance: {
-          increment: lamportsEarned,
+          increment: solEarned,
         },
       },
     })

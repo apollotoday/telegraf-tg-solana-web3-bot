@@ -7,7 +7,6 @@ import { createBookedServiceAndWallet, getBookedServicesByBotCustomerId, TBooked
 import { sendNewServiceBookingMessage, welcomeMessage } from "./textTemplates";
 import { Message, Update } from "telegraf/typings/core/types/typegram";
 import { isValidSolanaAddress } from "../../solUtils";
-import { getTokenInfo } from "../splToken/tokenInfoService";
 import {
   defaultMarkupWithAdditionalOptions,
   defaultReplyMarkup,

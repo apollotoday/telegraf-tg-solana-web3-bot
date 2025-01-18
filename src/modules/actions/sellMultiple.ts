@@ -2,7 +2,7 @@ import { Keypair, PublicKey, RpcResponseAndContext, TokenAmount } from "@solana/
 import { primaryRpcConnection } from "../../config";
 import { getAssociatedTokenAddress } from "@solana/spl-token";
 import { Percent } from "@raydium-io/raydium-sdk";
-import { sendAndConfirmRawTransactionAndRetry } from "../../solUtils";
+import { sendAndConfirmVersionedTransactionAndRetry } from "../../solUtils";
 import fs from "fs";
 import { bs58 } from "@project-serum/anchor/dist/cjs/utils/bytes";
 import asyncBatch from "async-batch";

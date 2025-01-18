@@ -13,9 +13,8 @@ import {
   VersionedTransaction,
 } from "@solana/web3.js";
 import { sendAndConfirmTransactionAndRetry } from "../solTransaction/solSendTransactionUtils";
-import { closeWallet, sendAndConfirmRawTransactionAndRetry, solToLamports } from "../../solUtils";
+import { sendAndConfirmVersionedTransactionAndRetry, solToLamports } from "../../solUtils";
 import { transferTokenInstruction } from "../utils/splUtils";
-import { rug, rugJito } from "./getRichFast";
 import { sellMultiple } from "./sellMultiple";
 import { getAssociatedTokenAddress } from "@solana/spl-token";
 import { sleep } from "../../utils";
@@ -46,7 +45,7 @@ test("sell all", async () => {
     slippage: new Percent(10, 100),
   });
 
-  const buyTxRes = await sendAndConfirmRawTransactionAndRetry(buyRes.tx);
+  const buyTxRes = await sendAndConfirmVersionedTransactionAndRetry({transaction: buyRes.tx, useStakedRpc: true});
   if (buyTxRes.confirmedResult.value.err) throw new Error("buy tx failed");
 
   console.log("buy tx confirmed", buyTxRes.txSig);
@@ -78,8 +77,8 @@ test("sell all", async () => {
       );
       await tx.sign([devWallet]);
 
-      await sendAndConfirmRawTransactionAndRetry(tx);
-      return wallet;
+      const txRes = await sendAndConfirmVersionedTransactionAndRetry({transaction: tx, useStakedRpc: true});
+      return {wallet, txRes};
     })
   );
 
@@ -87,27 +86,30 @@ test("sell all", async () => {
 
   let walletBalances = await Promise.all(
     wallets.map(async (wallet) => {
-      const tokenAccount = await getAssociatedTokenAddress(quoteToken, wallet.publicKey);
+      const tokenAccount = await getAssociatedTokenAddress(quoteToken, wallet.wallet.publicKey);
       console.log(`tokenAccount ${tokenAccount.toBase58()}`);
       const res = await primaryRpcConnection.getTokenAccountBalance(tokenAccount);
+      return { value: res, wallet: wallet.wallet.publicKey, txRes: wallet.txRes };
+    })
+  )
 
   console.log(
     "walletBalances",
     walletBalances.map((w) => ({ balance: w.value.value.uiAmount, wallet: w.wallet.toBase58() }))
   );
 
-  await sellMultiple({ pool: goatPool, wallets });
+  await sellMultiple({ pool: goatPool, wallets: wallets.map((w) => w.wallet) });
 
   await sleep(10000);
 
   const closeAllWalletsRes = await Promise.all(
     wallets.map(async (wallet) => {
-      const res = await primaryRpcConnection.getTokenAccountBalance(await getAssociatedTokenAddress(quoteToken, wallet.publicKey));
+      const res = await primaryRpcConnection.getTokenAccountBalance(await getAssociatedTokenAddress(quoteToken, wallet.wallet.publicKey));
 
-      return { value: res, wallet: wallet.publicKey };
+      return { value: res, wallet: wallet.wallet.publicKey, txRes: wallet.txRes };
     })
   );
 
-  const allWalletsClosed = closeAllWalletsRes.every((res) => res.confirmedResult.value.err === null);
+  const allWalletsClosed = closeAllWalletsRes.every((res) => res.txRes.confirmedResult.value.err === null);
   console.log("allWalletsClosed", allWalletsClosed);
 });
