@@ -47,6 +47,7 @@ import { getJitoFeeInstructions, sendAndConfirmJitoBundle, sendAndConfirmJitoTra
 import _ from 'lodash'
 import { sendAndConfirmVersionedTransactionAndRetry, solToLamports } from '../../solUtils'
 import { sendAndConfirmTransactionAndRetry } from '../solTransaction/solSendTransactionUtils'
+import reattempt from 'reattempt'
 
 export type BuyFromPoolInput = {
   poolKeys: LiquidityPoolKeys
@@ -231,7 +232,7 @@ export class BaseRay {
 
   async buyFromPool(input: BuyFromPoolInput): Promise<{ ixs: TransactionInstruction[]; signers: Signer[]; amount: number }> {
     this.reInit()
-    const updateCPIx = ComputeBudgetProgram.setComputeUnitPrice({ microLamports: 100_001 })
+    const updateCPIx = ComputeBudgetProgram.setComputeUnitPrice({ microLamports: 500_001 })
     const updateCLIx = ComputeBudgetProgram.setComputeUnitLimit({ units: 100_000 })
     const { amountIn, amountOut, poolKeys, user, fixedSide, tokenAccountIn, tokenAccountOut, feePayer } = input
     this.cacheIxs.push(updateCPIx, updateCLIx)
@@ -1019,44 +1020,49 @@ export async function getTokensForPool(poolId: PublicKey): Promise<{ baseToken: 
   }
 }
 
-export async function executeRaydiumSwap({
+export async function executeRaydiumSwapAndRetry({
   swapParams,
   priorityFeeLamports,
+  shouldSimulate = false
 }: {
   swapParams: Parameters<typeof swapRaydium>[0]
-  priorityFeeLamports: number
+  priorityFeeLamports?: number,
+  shouldSimulate?: boolean
 }) {
-  const useJito = false
-  const { tx, amountIn, minAmountOut, expectedAmountOut, latestBlockhash } = await swapRaydium({
-    ...swapParams,
-    additionalInstructions: [
-      /*ComputeBudgetProgram.setComputeUnitPrice({
-        microLamports: priorityFeeLamports,
-      }),*/
-
-      ...(useJito ? getJitoFeeInstructions(swapParams.keypair) : []),
-    ],
+  return await reattempt.run({ times: 2, delay: 200 }, async () => {
+    const useJito = false
+    const { tx, amountIn, minAmountOut, expectedAmountOut, latestBlockhash } = await swapRaydium({
+      ...swapParams,
+      additionalInstructions: [
+        /*ComputeBudgetProgram.setComputeUnitPrice({
+          microLamports: priorityFeeLamports,
+        }),*/
+  
+        ...(useJito ? getJitoFeeInstructions(swapParams.keypair) : []),
+      ],
+    })
+  
+    if (shouldSimulate) {
+      const simulateRes = await primaryStakedRpcConnection.simulateTransaction(tx)
+      console.log({ simulateRes })
+    }
+  
+    const txRes = await (useJito
+      ? sendAndConfirmJitoTransactionViaRPC({
+          transaction: tx,
+          latestBlockhash,
+        })
+      : sendAndConfirmVersionedTransactionAndRetry({
+          transaction: tx,
+          latestBlockhash,
+          useStakedRpc: true,
+        }))
+  
+    return {
+      ...txRes,
+      amountIn,
+      minAmountOut,
+      expectedAmountOut,
+    }
   })
-
-  const simulateRes = await primaryStakedRpcConnection.simulateTransaction(tx)
-
-  console.log({ simulateRes })
-
-  const txRes = await (useJito
-    ? sendAndConfirmJitoTransactionViaRPC({
-        transaction: tx,
-        latestBlockhash,
-      })
-    : sendAndConfirmVersionedTransactionAndRetry({
-        transaction: tx,
-        latestBlockhash,
-        useStakedRpc: true,
-      }))
-
-  return {
-    ...txRes,
-    amountIn,
-    minAmountOut,
-    expectedAmountOut,
-  }
 }

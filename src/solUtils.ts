@@ -63,7 +63,7 @@ export async function sendAndConfirmVersionedTransactionAndRetry({
 }) {
   try {
     const connectionToUse = useStakedRpc ? primaryStakedRpcConnection : primaryRpcConnection
-    const blockhash = latestBlockhash ?? await connectionToUse.getLatestBlockhash()
+    const blockhash = latestBlockhash ?? (await connectionToUse.getLatestBlockhash())
     const { txSig, confirmedResult } = await reattempt.run({ times: 3, delay: 200 }, async () => {
       console.log(`Sending transaction via ${useStakedRpc ? 'staked' : 'non-staked'} RPC`)
       const [tx1] = await Promise.all([
@@ -92,7 +92,7 @@ export async function sendAndConfirmVersionedTransactionAndRetry({
 
       console.log(`Sent transaction via ${useStakedRpc ? 'staked' : 'non-staked'} RPC`, { tx1 })
 
-      const confirmedResult = await confirmTransactionSignatureAndRetry(tx1, {
+      const confirmedResult = await confirmTransactionSignature(tx1, {
         ...blockhash,
       })
 
@@ -110,25 +110,22 @@ export async function sendAndConfirmVersionedTransactionAndRetry({
   }
 }
 
-export async function confirmTransactionSignatureAndRetry(
+export async function confirmTransactionSignature(
   txSig: string,
   blockhash: {
     blockhash: string
     lastValidBlockHeight: number
   },
-  skipConfirmation?: boolean,
 ) {
   try {
-    return await reattempt.run({ times: 3, delay: 200 }, async () => {
-      return await primaryRpcConnection.confirmTransaction(
-        {
-          blockhash: blockhash.blockhash,
-          lastValidBlockHeight: blockhash.lastValidBlockHeight,
-          signature: txSig,
-        },
-        'confirmed',
-      )
-    })
+    return await primaryRpcConnection.confirmTransaction(
+      {
+        blockhash: blockhash.blockhash,
+        lastValidBlockHeight: blockhash.lastValidBlockHeight,
+        signature: txSig,
+      },
+      'confirmed',
+    )
   } catch (e) {
     console.error('Failed to confirm transaction: ', e)
     throw new Error('Please retry! Failed to confirm transaction: ' + e)

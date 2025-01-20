@@ -70,7 +70,7 @@ export async function confirmTransactionSignatureAndRetry(
   },
 ) {
   try {
-    const confirmedSigResult = await reattempt.run({ times: 6, delay: 600 }, async () => {
+    const confirmedSigResult = await reattempt.run({ times: 2, delay: 200 }, async () => {
       return await primaryRpcConnection.confirmTransaction(
         {
           blockhash: blockhash.blockhash,

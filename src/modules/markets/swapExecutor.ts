@@ -1,7 +1,7 @@
 import { Keypair, LAMPORTS_PER_SOL, PublicKey } from '@solana/web3.js';
 import { MarketMakingJobWithCycleAndBookedService } from '../marketMaking/typesMarketMaking';
 import { executeJupiterSwap } from './jupiter';
-import { executeRaydiumSwap, swapRaydium } from './raydium';
+import { executeRaydiumSwapAndRetry, swapRaydium } from './raydium';
 import { Percent } from '@raydium-io/raydium-sdk';
 import { sleep } from '../utils/timeUtils';
 import { solTokenMint } from '../../config';
@@ -65,7 +65,7 @@ export async function executeSwap(
       expectedAmountOut,
       txSig,
       confirmedResult,
-    } = await executeRaydiumSwap({
+    } = await executeRaydiumSwapAndRetry({
       swapParams: {
         poolId,
         keypair: feePayer,
