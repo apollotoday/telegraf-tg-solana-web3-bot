@@ -3,10 +3,10 @@ import { buySell, buySellVersioned, fakeVolumne, swap } from "./meteora";
 import { getDevWallet } from "../../testUtils";
 import { sendAndConfirmVersionedTransactionAndRetry, Sol } from "../../solUtils";
 import { primaryRpcConnection, meteoraDynPool } from "../../config";
-import { sendAndConfirmJitoTransactions } from "../../jitoUtils";
 import { measureTime } from "../../utils";
 import _ from "lodash";
 import { TOKEN_PROGRAM_ID } from "@solana/spl-token";
+import { sendAndConfirmJitoBundle } from '../../jitoUtils';
 
 let testWallet: Keypair;
 

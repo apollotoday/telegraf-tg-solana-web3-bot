@@ -16,7 +16,7 @@ test("close wallet", async () => {
   const startTime = Date.now();
 
   while (true) {
-    const balance = await connection
+    const balance = await primaryRpcConnection
       .getBalance(testWallet.publicKey, { commitment: "confirmed", 
         // minContextSlot: res.confirmedResult.context.slot 
       })
@@ -32,7 +32,7 @@ test("close wallet", async () => {
     sleep(200);
   }
 
-  await closeWallet({ from: testWallet, to: devWallet, slotForBalanceCheck: res.confirmedResult.context.slot });
+  await closeWallet({ from: testWallet, to: devWallet });
 });
 
 // test("sendSol and check balance", async () => {

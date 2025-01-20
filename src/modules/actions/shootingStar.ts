@@ -46,7 +46,8 @@ export async function makeShootingStar(args: { wallet: Keypair; pool: PublicKey;
     }),
   ]);
 
-  console.log("buyAmount", buyRes.amountOut.toExact());
+  console.log("buyAmount", buyRes.minAmountOut.toExact());
+  console.log("buyAmount", buyRes.expectedAmountOut.toExact());
   console.log("sellAmount", sellRes.amountIn.toExact());
 
   if (buyRes.tx && sellRes.tx) {
