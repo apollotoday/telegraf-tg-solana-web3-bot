@@ -72,7 +72,7 @@ export async function executeSwap(
         type,
         amountSide: 'in',
         amount: inputAmount,
-        slippage: new Percent(100, 100),
+        slippage: new Percent(slippage, 100),
       },
       priorityFeeLamports: 1_000_001,
     })
