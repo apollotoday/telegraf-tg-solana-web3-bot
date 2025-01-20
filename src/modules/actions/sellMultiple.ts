@@ -1,6 +1,6 @@
-import { Keypair, PublicKey, RpcResponseAndContext, TokenAmount } from "@solana/web3.js";
+import { ComputeBudgetProgram, Keypair, PublicKey, RpcResponseAndContext, TokenAmount, TransactionMessage, VersionedTransaction } from "@solana/web3.js";
 import { primaryRpcConnection } from "../../config";
-import { getAssociatedTokenAddress } from "@solana/spl-token";
+import { createCloseAccountInstruction, getAssociatedTokenAddress } from "@solana/spl-token";
 import { Percent } from "@raydium-io/raydium-sdk";
 import { sendAndConfirmVersionedTransactionAndRetry } from "../../solUtils";
 import fs from "fs";
@@ -13,7 +13,7 @@ import { sendAndConfirmJitoBundle, sendAndConfirmJitoTransaction } from "../../j
 import { filterTruthy, sleep } from "../../utils";
 import { getDevWallet } from "../../testUtils";
 import { createTransactionForInstructions } from '../solTransaction/solTransactionUtils';
-import { sendAndConfirmTransactionAndRetry } from '../solTransaction/solSendTransactionUtils';
+import { sendAndConfirmRawTransactionAndRetry, sendAndConfirmTransactionAndRetry } from '../solTransaction/solSendTransactionUtils';
 
 // const file = "/Users/matthiasschaider/Downloads/ALL";
 
@@ -37,7 +37,7 @@ import { sendAndConfirmTransactionAndRetry } from '../solTransaction/solSendTran
 //     .filter(Boolean) as Keypair[];
 
 export async function sellMultiple(args: { pool: PublicKey; wallets: Keypair[] }) {
-  // const { quoteToken: token } = await getTokensForPool(args.pool);
+  const { quoteToken: token } = await getTokensForPool(args.pool);
   let wallets = args.wallets;
 
   const startTime = Date.now();
@@ -92,7 +92,7 @@ export async function sellMultiple(args: { pool: PublicKey; wallets: Keypair[] }
             });
             if (!swapRaydiumRes.tx) throw new Error("no tx");
 
-            const res = sendAndConfirmRawTransactionAndRetry(swapRaydiumRes.tx);
+            const res = await sendAndConfirmVersionedTransactionAndRetry({transaction: swapRaydiumRes.tx, latestBlockhash: swapRaydiumRes.latestBlockhash, useStakedRpc: true});
 
             return { res, wallet: walletBalance.wallet };
           } catch (e) {
@@ -131,6 +131,7 @@ export async function sellMultiple(args: { pool: PublicKey; wallets: Keypair[] }
   const closeAllWalletsRes = await Promise.all(
     wallets.map(async (wallet) => {
       const associatedTokenAccountAddress = await getAssociatedTokenAddress(token, wallet.publicKey);
+      const latestBlockhash = await primaryRpcConnection.getLatestBlockhash();
       const tx = new VersionedTransaction(
         new TransactionMessage({
           instructions: [
@@ -139,12 +140,12 @@ export async function sellMultiple(args: { pool: PublicKey; wallets: Keypair[] }
             createCloseAccountInstruction(associatedTokenAccountAddress, wallet.publicKey, wallet.publicKey),
           ],
           payerKey: wallet.publicKey,
-          recentBlockhash: (await connection.getLatestBlockhash()).blockhash,
+          recentBlockhash: latestBlockhash.blockhash,
         }).compileToV0Message()
       );
 
       await tx.sign([wallet]);
-      return await sendAndConfirmRawTransactionAndRetry(tx);
+      return await sendAndConfirmVersionedTransactionAndRetry({transaction: tx, latestBlockhash: latestBlockhash, useStakedRpc: true});
     })
   );
 
@@ -168,7 +169,7 @@ export async function rugJito(args: { pool: PublicKey; wallets: Keypair[] }) {
         try {
           const associatedTokenAccountAddress = await getAssociatedTokenAddress(token, wallet.publicKey);
 
-          let balance = await connection.getTokenAccountBalance(associatedTokenAccountAddress);
+          let balance = await primaryRpcConnection.getTokenAccountBalance(associatedTokenAccountAddress);
           return { wallet, balance };
         } catch (e) {
           console.log(`error at checking wallet ${wallet.publicKey.toBase58()}`, e);
@@ -256,6 +257,7 @@ export async function rugJito(args: { pool: PublicKey; wallets: Keypair[] }) {
   const closeAllWalletsRes = await Promise.all(
     wallets.map(async (wallet) => {
       const associatedTokenAccountAddress = await getAssociatedTokenAddress(token, wallet.publicKey);
+      const latestBlockhash = await primaryRpcConnection.getLatestBlockhash();
       const tx = new VersionedTransaction(
         new TransactionMessage({
           instructions: [
@@ -264,12 +266,12 @@ export async function rugJito(args: { pool: PublicKey; wallets: Keypair[] }) {
             createCloseAccountInstruction(associatedTokenAccountAddress, wallet.publicKey, wallet.publicKey),
           ],
           payerKey: wallet.publicKey,
-          recentBlockhash: (await connection.getLatestBlockhash()).blockhash,
+          recentBlockhash: latestBlockhash.blockhash,
         }).compileToV0Message()
       );
 
       await tx.sign([wallet]);
-      return await sendAndConfirmRawTransactionAndRetry(tx);
+      return await sendAndConfirmVersionedTransactionAndRetry({transaction: tx, latestBlockhash: latestBlockhash, useStakedRpc: true});
     })
   );
 
@@ -301,7 +303,7 @@ async function sellAll(args: { wallet: Keypair; token: PublicKey; pool: PublicKe
       amountSide: "in",
       type: "sell",
       keypair: args.wallet,
-      feePayer: wallet,
+      feePayer: args.wallet,
       poolId: args.pool,
       slippage: new Percent(10, 100),
     });

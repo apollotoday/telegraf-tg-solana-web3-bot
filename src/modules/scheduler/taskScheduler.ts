@@ -11,9 +11,9 @@ export default function taskSchedulerInit() {
   cron.schedule('*/15 * * * * *', async () => {
     console.log('Cron: every 15 seconds')
 
-    await updateTokenInfos()
+    // await updateTokenInfos()
 
-    await handleOpenMarketMakingJobs()
+    // await handleOpenMarketMakingJobs()
 
     await checkServicesAwaitingFunds()
 
