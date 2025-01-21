@@ -61,7 +61,7 @@ const JoinTheWaitlist = ({ ...props }) => {
 
       toaster.create({
         title: 'Success',
-        description: 'Keep an eye on your inbox for updates',
+        description: 'Thanks for signing up! Keep an eye on your inbox for updates',
       })
       return
     } catch (error) {
