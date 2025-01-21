@@ -10,7 +10,8 @@
   },
   "exclude": [
     "node_modules",
-    "cli/cli.ts"
+    "cli/cli.ts",
+    "web"
   ],
   "include": ["src"]
 }

@@ -1,7 +1,7 @@
 import { EServiceType, EWalletType } from '@prisma/client'
 import { primaryRpcConnection, fundsToSendForRanking } from '../../config'
 import { solTransfer } from '../../solUtils'
-import { encryptPrivateKey, generateAndEncryptWallet } from './walletUtils'
+import { generateAndEncryptWallet } from './walletUtils'
 import prisma from '../../lib/prisma'
 import { ComputeBudgetProgram, PublicKey, Transaction } from '@solana/web3.js'
 import { sleep } from '../../utils'

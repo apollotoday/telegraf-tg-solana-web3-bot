@@ -1,7 +1,5 @@
 import cron from 'node-cron'
-import { handleOpenMarketMakingJobs } from '../marketMaking/marketMakingJobHandler';
-import { checkServicesAwaitingFunds } from '../telegramBot/botServiceCheck';
-import { updateTokenInfos } from '../splToken/splTokenDBService';
+import { checkServicesAwaitingFunds, checkServicesRankingBoost } from '../telegramBot/botServiceCheck';
 
 // pm2 instance name
 const processName = process.env.name || 'primary';
@@ -16,6 +14,7 @@ export default function taskSchedulerInit() {
     // await handleOpenMarketMakingJobs()
 
     await checkServicesAwaitingFunds()
+    await checkServicesRankingBoost()
 
     console.log('Cron: every 15 seconds done')
     

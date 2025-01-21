@@ -25,7 +25,7 @@ ${bold('Select a service below to get started')}
     reply_markup: {
       inline_keyboard: [
         [
-          { text: 'Ranking Boost 🥇 (coming soon)', callback_data: telegramBotActions.rankingBoost },
+          { text: 'Ranking Boost', callback_data: telegramBotActions.rankingBoost },
           { text: 'Volume Boost ⬆️ (coming soon)', callback_data: telegramBotActions.volumeBoost },
         ],
         [{ text: 'Boost - Ranking, Volume and Holders 📈 (coming soon)', callback_data: telegramBotActions.boostMedium }],

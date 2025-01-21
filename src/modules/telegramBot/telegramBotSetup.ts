@@ -1,24 +1,22 @@
-import { BookedService, BotCustomer, EServiceType } from "@prisma/client";
-import { Context, Markup, NarrowedContext, session, Telegraf } from "telegraf";
+import { EServiceType } from "@prisma/client";
+import { NarrowedContext, session, Telegraf } from "telegraf";
 import { bold, fmt } from "telegraf/format";
-import prisma from "../../lib/prisma";
-import { getBotCustomerByName, getBotCustomerByNameOrCreate } from "../customer/botCustomer";
-import { createBookedServiceAndWallet, getBookedServicesByBotCustomerId, TBookedServiceDefault } from "../customer/bookedService";
+import { getBotCustomerByNameOrCreate } from "../customer/botCustomer";
+import { createBookedServiceAndWallet, getBookedServicesByBotCustomerId } from "../customer/bookedService";
 import { sendNewServiceBookingMessage, welcomeMessage } from "./textTemplates";
-import { Message, Update } from "telegraf/typings/core/types/typegram";
+import { InlineKeyboardButton, Message, Update } from "telegraf/typings/core/types/typegram";
 import { isValidSolanaAddress } from "../../solUtils";
 import {
   defaultMarkupWithAdditionalOptions,
-  defaultReplyMarkup,
   MomentumBotContext,
   TBotAction,
-  TBotAIMarketMakingGoal,
-  TBotAIMarketMakingTradingStyle,
   telegramBotActions,
   userConfigurationInputs,
 } from "./telegramBotActionsAndTypes";
+import { solAmount } from '../../config'
+import { MINIMUM_SOL_BALANCE_FOR_SERVICE } from './botServiceCheck'
 import { volumneBotTask } from "../../trigger/volumeBotTasks";
-import { getBirdEyeSolPrice, getBirdEyeUsdcRate } from "../splToken/birdEye";
+import { getBirdEyeSolPrice } from "../splToken/birdEye";
 
 export const telegrafBot = new Telegraf<MomentumBotContext>(process.env.MOMENTUM_AI_TELEGRAM_BOT_TOKEN!);
 
@@ -85,7 +83,8 @@ ${welcomeMessage}
   });
 
   telegrafBot.action(telegramBotActions.rankingBoost, (ctx) => {
-    ctx.reply("Ranking boost service selected");
+    ctx.reply('Ranking boost service selected. Paste token contract address')
+    ctx.session.botAction = 'rankingBoost'
   });
 
   telegrafBot.action(telegramBotActions.boostMedium, (ctx) => {
@@ -129,6 +128,22 @@ ${bold("To get started, please send your token CA.")}
     ctx.session.tokenCA = ctx.text ?? "";
   });
 
+  telegrafBot.action(telegramBotActions.viewServices, (ctx) => {
+    const activeBookedServices = ctx.activeBookedServices
+    const activeBookedServicesList: InlineKeyboardButton[][] = []
+    activeBookedServices.map(bookedServices => activeBookedServicesList.push([{ text: bookedServices.usedSplToken.symbol, callback_data: `viewServices_${bookedServices.id}` }]))
+    ctx.replyWithPhoto(`https://s3.us-west-1.amazonaws.com/storage.monet.community/5z7kgy95vb.png`, {
+      caption: fmt`
+${welcomeMessage}
+
+        You have ${ctx.activeBookedServices.length} active services running.
+`,
+      reply_markup: {
+        inline_keyboard: activeBookedServicesList,
+      },
+    })
+  })
+
   telegrafBot.action(telegramBotActions.volumeBoost, (ctx) => {
     ctx.session.botAction = telegramBotActions.volumeBoost as TBotAction;
     ctx.replyWithPhoto("https://s3.us-west-1.amazonaws.com/storage.monet.community/5z7kgy95vb.png", {
@@ -160,6 +175,96 @@ ${bold("To get started, please send your token CA.")}
 
     ctx.session.currentFieldToFill = userConfigurationInputs.tokenCA;
   });
+
+  telegrafBot.on('text', async (ctx) => {
+    if (ctx.session.currentFieldToFill === userConfigurationInputs.tokenCA) {
+      if (isValidSolanaAddress(ctx.text)) {
+        console.log('Valid solana address, setting tokenCA', ctx.text)
+
+        ctx.session.tokenCA = ctx.text ?? ''
+
+        if (ctx.session.botAction === telegramBotActions.aiMarketMaking) {
+          try {
+            const bookedService = await createBookedServiceAndWallet({
+              botCustomerId: ctx.botCustomer.id,
+              awaitingFunding: true,
+              isActive: false,
+              serviceType: EServiceType.MARKET_MAKING,
+              usedSplTokenMint: ctx.session.tokenCA,
+            })
+            if (!bookedService) {
+              ctx.reply(`Not found on Raydium Amm Pools`)
+              return
+            }
+            const pubkey = bookedService.mainWallet.pubkey
+
+            ctx.replyWithPhoto('https://s3.us-west-1.amazonaws.com/storage.monet.community/5z7kgy95vb.png', {
+              caption: fmt`
+  🪄🪄🪄🪄🪄
+  
+  Market making service for ${bookedService.usedSplToken.symbol} has been setup.
+  
+  Please deposit SOL and tokens to the following address to continue:
+  ${bold(pubkey)}
+  
+  1. Deposit a minimum of 1 SOL to the address to start the service.
+  2. Usually, we recommend 50% SOL and 50% tokens.
+  
+  Current balance: 0 SOL / 0 ${bookedService.usedSplToken.symbol}
+  
+  🪄🪄🪄🪄🪄
+`,
+              reply_markup: defaultMarkupWithAdditionalOptions([
+
+              ]),
+            })
+
+            ctx.session.serviceAwaitingFunds = bookedService
+            ctx.session.currentFieldToFill = userConfigurationInputs.solSpent
+          } catch (error) {
+            console.error('Error creating booked service', error)
+
+            ctx.reply(`Something went wrong, an error occurred: ${error}`)
+          }
+        }
+      } else {
+        ctx.reply('Please send a valid token CA')
+      }
+    }
+
+    if (ctx.session.botAction == 'rankingBoost') {
+      if (!ctx.session.currentFieldToFill) {
+        if (ctx.text) {
+          ctx.session.tokenCA = ctx.text
+          const bookedService = await createBookedServiceAndWallet({
+            botCustomerId: ctx.botCustomer.id,
+            solAmount: solAmount,
+            awaitingFunding: true,
+            isActive: false,
+            serviceType: EServiceType.RANKING,
+            usedSplTokenMint: ctx.text,
+          })
+          if (!bookedService) ctx.reply(fmt`Not found Raydium AMM Pools`)
+          else ctx.reply(fmt`
+🪄🪄🪄🪄🪄
+
+Ranking Boost service for ${bookedService.usedSplToken.symbol} has been setup.
+
+Please deposit SOL and tokens to the following address to continue:
+${bold(bookedService.mainWallet.pubkey)}
+
+1. Deposit a minimum of ${MINIMUM_SOL_BALANCE_FOR_SERVICE[EServiceType.MARKET_MAKING]} SOL to the address to start the service.
+
+Current balance: 0 SOL / 0 ${bookedService.usedSplToken.symbol}
+
+🪄🪄🪄🪄🪄`)
+        }
+      }
+    }
+
+    if (ctx.session.currentFieldToFill === userConfigurationInputs.solSpent) {
+    }
+  })
 
   const transactionPerMinuteOptions = [
     { label: "2 tx/min", value: 2 },
@@ -252,7 +357,7 @@ Current balance: 0 SOL / 0 ${bookedService.usedSplToken.symbol}
     }
   });
 
-  momentumActions.handleInput("aiMarketMaking", "solSpent", (ctx) => {});
+  momentumActions.handleInput("aiMarketMaking", "solSpent", (ctx) => { });
 
   momentumActions.handleInput("volumeBoost", "tokenCA", async (ctx) => {
     if (!isValidSolanaAddress(ctx.text)) return ctx.reply("Please send a valid token CA");

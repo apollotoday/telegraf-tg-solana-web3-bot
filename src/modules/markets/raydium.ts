@@ -569,8 +569,8 @@ export async function formatAmmKeysById(connection: Connection, id: string): Pro
     const marketAccount = await connection.getAccountInfo(marketId)
     // console.log("marketAccount", marketAccount);
     if (marketAccount === null) {
-      console.log(' get market info error')
-      throw Error(' get market info error')
+      console.log('get market info error')
+      throw Error('get market info error')
     }
     const marketInfo = MARKET_STATE_LAYOUT_V3.decode(marketAccount.data)
     // console.log("marketInfo", marketInfo);

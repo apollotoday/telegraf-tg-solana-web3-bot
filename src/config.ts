@@ -1,4 +1,4 @@
-import { Connection, PublicKey } from "@solana/web3.js";
+import { Connection, LAMPORTS_PER_SOL, PublicKey } from "@solana/web3.js";
 import "dotenv/config";
 import dotenv from "dotenv";
 import path from "path";
@@ -47,3 +47,12 @@ export const fundsToSendForRanking = 0.0031;
 export const goatPool = new PublicKey("9Tb2ohu5P16BpBarqd3N27WnkF51Ukfs8Z1GzzLDxVZW");
 
 export const lpPoolForTests = new PublicKey("7G4maaEqLsvPebXRLo94ckSnzq12bRBb9Tz8p51cqF3h");
+
+// test
+export const minSol = 0.0021 * LAMPORTS_PER_SOL
+export const maxSol = 0.003 * LAMPORTS_PER_SOL
+export const buyAmount = 0.00002 * LAMPORTS_PER_SOL
+export const walletCountsPerCycle = 10
+export const subWalletCount = 50 // 300
+export const subWalletGroupCounts = 10 // 10
+export const solAmount = 0.1 // 2
