@@ -79,9 +79,14 @@ export const ComingSoonButton = ({ ...props }) => {
 // Get in toufch with out team button
 export const GetInTouchTeamButton = ({ ...props }) => {
   const TextComponent = () => (
-    <Box fontWeight={'600'} fontSize={'16px'} lineHeight={'24px'} mr={'10px'}>
-      Get in touch with our team
-    </Box>
+    <>
+      <Box fontWeight={'600'} fontSize={'16px'} lineHeight={'24px'} mr={'10px'} display={{ base: 'none', md: 'block' }}>
+        Get in touch with our team
+      </Box>
+      <Box fontWeight={'600'} fontSize={'16px'} lineHeight={'24px'} mr={'10px'} display={{ base: 'block', md: 'none' }}>
+        Get in touch with us
+      </Box>
+    </>
   )
 
   return <WhiteButton TextComponent={<TextComponent />} RightIcon={ChevronRightIcon} {...props} />
