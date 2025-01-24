@@ -18,13 +18,18 @@ type CardSectionProps = {
   id?: string
 }
 
+const MotionDiv = motion.create('div')
+
 const CardSection: React.FC<CardSectionProps> = ({ id }) => {
   const { scrollDirection } = useScrollDirection()
 
   return (
     <div id={id}>
-      <div className='grid grid-cols-1 md:grid-cols-11 px-[12px] md:px-[48px] gap-[18px] overflow-hidden'>
-        <motion.div
+      <div
+        className='grid grid-cols-1 md:grid-cols-11 px-[12px] md:px-[48px] gap-[18px] overflow-hidden max-w-[1720px] mx-auto scroll-mt-[200px]'
+        id='features'
+      >
+        <MotionDiv
           className='col-span-1 md:col-span-6'
           initial={initiateFromLeft}
           whileInView={whileInViewStatic}
@@ -32,8 +37,6 @@ const CardSection: React.FC<CardSectionProps> = ({ id }) => {
           transition={transitionTween}
         >
           <IntroductionCard
-            id='features'
-            scrollMarginTop={'200px'}
             title={config.cards.volume.title}
             description={config.cards.volume.description}
             bgImage={{
@@ -41,8 +44,8 @@ const CardSection: React.FC<CardSectionProps> = ({ id }) => {
               md: config.cards.volume.backgroundUrl,
             }}
           />
-        </motion.div>
-        <motion.div
+        </MotionDiv>
+        <MotionDiv
           className='col-span-1 md:col-span-5'
           initial={initiateFromRight}
           whileInView={whileInViewStatic}
@@ -57,9 +60,9 @@ const CardSection: React.FC<CardSectionProps> = ({ id }) => {
               md: config.cards.smartProfit.backgroundUrl,
             }}
           />
-        </motion.div>
+        </MotionDiv>
 
-        <motion.div
+        <MotionDiv
           className='col-span-1 md:col-span-5'
           initial={initiateFromLeft}
           whileInView={whileInViewStatic}
@@ -74,8 +77,8 @@ const CardSection: React.FC<CardSectionProps> = ({ id }) => {
               md: config.cards.pricePush.backgroundUrl,
             }}
           />
-        </motion.div>
-        <motion.div
+        </MotionDiv>
+        <MotionDiv
           className='col-span-1 md:col-span-6'
           initial={initiateFromRight}
           whileInView={whileInViewStatic}
@@ -90,8 +93,8 @@ const CardSection: React.FC<CardSectionProps> = ({ id }) => {
               md: config.cards.ranking.backgroundUrl,
             }}
           />
-        </motion.div>
-        <motion.div
+        </MotionDiv>
+        <MotionDiv
           className='col-span-1 md:col-span-11'
           initial={scrollDirection === 'DOWN' ? initiateFromTop : initiateFromBottom}
           whileInView={whileInViewStatic}
@@ -109,7 +112,7 @@ const CardSection: React.FC<CardSectionProps> = ({ id }) => {
             }}
             cardType='get-in-touch-team'
           />
-        </motion.div>
+        </MotionDiv>
       </div>
     </div>
   )
