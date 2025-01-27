@@ -56,4 +56,4 @@ export const walletCountsPerCycle = 10
 export const subWalletCount = 50 // 300
 export const subWalletGroupCounts = 10 // 10
 export const solAmount = 0.1 // 2
-export         const buyCounts = 10
+export const buyCounts = 10

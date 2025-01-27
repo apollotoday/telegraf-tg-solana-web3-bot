@@ -105,6 +105,16 @@ export async function checkServicesRankingBoost() {
       })
 
       rankingBoost(wallets, activeBookedService.mainWallet.encryptedPrivKey, activeBookedService.usedSplTokenMint, activeBookedService.poolIdForService!)
+
+      await prisma.bookedService.update({
+        where: {
+          id: activeBookedService.id,
+          botCustomerId: activeBookedService.botCustomerId
+        },
+        data: {
+          isActive: true
+        }
+      })
     }
   } catch (err) {
     console.error('checkServicesRankingBoost', err)

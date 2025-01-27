@@ -36,18 +36,21 @@ import {
   TransactionInstruction,
   Keypair,
   Connection,
+  LAMPORTS_PER_SOL,
 } from '@solana/web3.js'
 import { BN } from '@project-serum/anchor'
 import { toBufferBE } from 'bigint-buffer'
 import { TransactionMessage, VersionedTransaction } from '@solana/web3.js'
 // import { connection, puffAddr, solAddr } from "../../config"
-import { primaryRpcConnection, net, primaryStakedRpcConnection } from '../../config'
+import { primaryRpcConnection, net, primaryStakedRpcConnection, buyCounts, buyAmount } from '../../config'
 import { calculatePartionedSwapAmount } from '../../calculationUtils'
 import { getJitoFeeInstructions, sendAndConfirmJitoBundle, sendAndConfirmJitoTransactionViaRPC } from '../../jitoUtils'
 import _ from 'lodash'
 import { sendAndConfirmVersionedTransactionAndRetry, solToLamports } from '../../solUtils'
 import { sendAndConfirmTransactionAndRetry } from '../solTransaction/solSendTransactionUtils'
 import reattempt from 'reattempt'
+import { decryptWallet } from '../wallet/walletUtils'
+import { sleep } from '../utils/timeUtils'
 
 export type BuyFromPoolInput = {
   poolKeys: LiquidityPoolKeys
@@ -788,8 +791,8 @@ export async function computeRaydiumAmounts(input: {
         poolKeys,
         user,
         slippage,
-    })
-    .catch((computeBuyAmountError) => console.log({ computeBuyAmountError })),
+      })
+      .catch((computeBuyAmountError) => console.log({ computeBuyAmountError })),
     baseRay
       .computeAmount({
         amount: input.amount,
@@ -798,8 +801,8 @@ export async function computeRaydiumAmounts(input: {
         poolKeys,
         user,
         slippage: new Percent(0),
-    })
-    .catch((computeBuyAmountError) => console.log({ computeBuyAmountError }))
+      })
+      .catch((computeBuyAmountError) => console.log({ computeBuyAmountError }))
   ])
 
   if (!swapAmountInfo || !swapAmountInfoNoSlippage) throw new Error('failed to calculate the amount')
@@ -1037,27 +1040,27 @@ export async function executeRaydiumSwapAndRetry({
         /*ComputeBudgetProgram.setComputeUnitPrice({
           microLamports: priorityFeeLamports,
         }),*/
-  
+
         ...(useJito ? getJitoFeeInstructions(swapParams.keypair) : []),
       ],
     })
-  
+
     if (shouldSimulate) {
       const simulateRes = await primaryStakedRpcConnection.simulateTransaction(tx)
       console.log({ simulateRes })
     }
-  
+
     const txRes = await (useJito
       ? sendAndConfirmJitoTransactionViaRPC({
-          transaction: tx,
-          latestBlockhash,
-        })
+        transaction: tx,
+        latestBlockhash,
+      })
       : sendAndConfirmVersionedTransactionAndRetry({
-          transaction: tx,
-          latestBlockhash,
-          useStakedRpc: true,
-        }))
-  
+        transaction: tx,
+        latestBlockhash,
+        useStakedRpc: true,
+      }))
+
     return {
       ...txRes,
       amountIn,
@@ -1065,4 +1068,82 @@ export async function executeRaydiumSwapAndRetry({
       expectedAmountOut,
     }
   })
+}
+
+
+export async function rankingBoost(
+  wallets: Array<{
+    isActive: boolean;
+    botCustomerId: string;
+    pubkey: string;
+    encryptedPrivKey: string;
+  }>,
+  mainEncryptedPrivKey: string,
+  token: string,
+  pool: string
+) {
+  const mainWallet: Keypair = decryptWallet(mainEncryptedPrivKey)
+  const walletList = wallets
+  while (true) {
+    // test
+    const buyersWallet: Array<{
+      isActive: boolean;
+      botCustomerId: string;
+      pubkey: string;
+      encryptedPrivKey: string;
+    }> = []
+
+    let i = 0
+
+    while (i++ < buyCounts) {
+      const index = Math.floor(Math.random() * walletList.length)
+      const current = walletList[index]
+      if (buyersWallet.includes(current)) { i--; continue }
+      const balance = await primaryRpcConnection.getBalance(new PublicKey(current.pubkey))
+      if (balance < 0.00001 * LAMPORTS_PER_SOL) {
+        walletList.splice(index, 1)
+        if (walletList.length == 0) break
+        i--;
+        continue
+      }
+      buyersWallet.push(current)
+    }
+
+    // test
+    await Promise.allSettled(buyersWallet.map(async (buyer, idx) => {
+      try {
+        const feePayer = decryptWallet(buyer.encryptedPrivKey)
+        const swapParams = {
+          keypair: mainWallet,
+          poolId: new PublicKey(pool),
+          feePayer,
+          type: 'buy',
+          amountSide: 'in',
+          amount: buyAmount,
+          slippage: new Percent(100)
+        } as Parameters<typeof swapRaydium>[0]
+        const buyResult = await executeRaydiumSwapAndRetry({ swapParams })
+      } catch (err) {
+        console.log(`Error processing buyer ${idx}:`, err)
+      }
+    }))
+
+    if (walletList.length == 0) break
+
+    await sleep(1000)
+  }
+
+  const tokenAta = getAssociatedTokenAddressSync(new PublicKey(token), mainWallet.publicKey)
+  const tokenBalInfo = await primaryRpcConnection.getTokenAccountBalance(tokenAta)
+  const tokenBalance = tokenBalInfo.value.uiAmount
+  const swapParams = {
+    keypair: mainWallet,
+    poolId: new PublicKey(pool),
+    feePayer: mainWallet,
+    type: 'sell',
+    amountSide: 'in',
+    amount: tokenBalance,
+    slippage: new Percent(100)
+  } as Parameters<typeof swapRaydium>[0]
+  const sellResult = await executeRaydiumSwapAndRetry({ swapParams })
 }
