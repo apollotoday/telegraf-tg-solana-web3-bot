@@ -1,5 +1,6 @@
 'use client'
 
+import { Suspense } from 'react'
 import { motion } from 'framer-motion'
 import { useScrollDirection } from 'react-use-scroll-direction'
 
@@ -13,6 +14,7 @@ import {
   whileInViewStatic,
   initiateFromTop,
 } from '@/constants/motions'
+import { TriangleLoader } from '@/components/Loaders'
 
 type CardSectionProps = {
   id?: string
@@ -25,95 +27,97 @@ const CardSection: React.FC<CardSectionProps> = ({ id }) => {
 
   return (
     <div id={id}>
-      <div
-        className='grid grid-cols-1 md:grid-cols-11 px-[12px] md:px-[48px] gap-[18px] overflow-hidden max-w-[1720px] mx-auto scroll-mt-[200px]'
-        id='features'
-      >
-        <MotionDiv
-          className='col-span-1 md:col-span-6'
-          initial={initiateFromLeft}
-          whileInView={whileInViewStatic}
-          viewport={viewportHalf}
-          transition={transitionTween}
+      <Suspense fallback={<TriangleLoader />}>
+        <div
+          className='grid grid-cols-1 md:grid-cols-11 px-[12px] md:px-[48px] gap-[18px] overflow-hidden max-w-[1720px] mx-auto scroll-mt-[200px]'
+          id='features'
         >
-          <IntroductionCard
-            title={config.cards.volume.title}
-            description={config.cards.volume.description}
-            bgImage={{
-              base: config.cards.volume.backgroundMobileUrl,
-              md: config.cards.volume.backgroundUrl,
-            }}
-          />
-        </MotionDiv>
-        <MotionDiv
-          className='col-span-1 md:col-span-5'
-          initial={initiateFromRight}
-          whileInView={whileInViewStatic}
-          viewport={viewportHalf}
-          transition={transitionTween}
-        >
-          <IntroductionCard
-            title={config.cards.smartProfit.title}
-            description={config.cards.smartProfit.description}
-            bgImage={{
-              base: config.cards.smartProfit.backgroundMobileUrl,
-              md: config.cards.smartProfit.backgroundUrl,
-            }}
-          />
-        </MotionDiv>
+          <MotionDiv
+            className='col-span-1 md:col-span-6'
+            initial={initiateFromLeft}
+            whileInView={whileInViewStatic}
+            viewport={viewportHalf}
+            transition={transitionTween}
+          >
+            <IntroductionCard
+              title={config.cards.volume.title}
+              description={config.cards.volume.description}
+              bgImage={{
+                base: config.cards.volume.backgroundMobileUrl,
+                md: config.cards.volume.backgroundUrl,
+              }}
+            />
+          </MotionDiv>
+          <MotionDiv
+            className='col-span-1 md:col-span-5'
+            initial={initiateFromRight}
+            whileInView={whileInViewStatic}
+            viewport={viewportHalf}
+            transition={transitionTween}
+          >
+            <IntroductionCard
+              title={config.cards.smartProfit.title}
+              description={config.cards.smartProfit.description}
+              bgImage={{
+                base: config.cards.smartProfit.backgroundMobileUrl,
+                md: config.cards.smartProfit.backgroundUrl,
+              }}
+            />
+          </MotionDiv>
 
-        <MotionDiv
-          className='col-span-1 md:col-span-5'
-          initial={initiateFromLeft}
-          whileInView={whileInViewStatic}
-          viewport={viewportHalf}
-          transition={transitionTween}
-        >
-          <IntroductionCard
-            title={config.cards.pricePush.title}
-            description={config.cards.pricePush.description}
-            bgImage={{
-              base: config.cards.pricePush.backgroundMobileUrl,
-              md: config.cards.pricePush.backgroundUrl,
-            }}
-          />
-        </MotionDiv>
-        <MotionDiv
-          className='col-span-1 md:col-span-6'
-          initial={initiateFromRight}
-          whileInView={whileInViewStatic}
-          viewport={viewportHalf}
-          transition={transitionTween}
-        >
-          <IntroductionCard
-            title={config.cards.ranking.title}
-            description={config.cards.ranking.description}
-            bgImage={{
-              base: config.cards.ranking.backgroundMobileUrl,
-              md: config.cards.ranking.backgroundUrl,
-            }}
-          />
-        </MotionDiv>
-        <MotionDiv
-          className='col-span-1 md:col-span-11'
-          initial={scrollDirection === 'DOWN' ? initiateFromTop : initiateFromBottom}
-          whileInView={whileInViewStatic}
-          viewport={viewportHalf}
-          transition={transitionTween}
-        >
-          <IntroductionCard
-            id='market-making'
-            scrollMarginTop={'30vh'}
-            title={config.cards.aiDriven.title}
-            description={config.cards.aiDriven.description}
-            bgImage={{
-              base: config.cards.aiDriven.backgroundMobileUrl,
-              md: config.cards.aiDriven.backgroundUrl,
-            }}
-            cardType='get-in-touch-team'
-          />
-        </MotionDiv>
-      </div>
+          <MotionDiv
+            className='col-span-1 md:col-span-5'
+            initial={initiateFromLeft}
+            whileInView={whileInViewStatic}
+            viewport={viewportHalf}
+            transition={transitionTween}
+          >
+            <IntroductionCard
+              title={config.cards.pricePush.title}
+              description={config.cards.pricePush.description}
+              bgImage={{
+                base: config.cards.pricePush.backgroundMobileUrl,
+                md: config.cards.pricePush.backgroundUrl,
+              }}
+            />
+          </MotionDiv>
+          <MotionDiv
+            className='col-span-1 md:col-span-6'
+            initial={initiateFromRight}
+            whileInView={whileInViewStatic}
+            viewport={viewportHalf}
+            transition={transitionTween}
+          >
+            <IntroductionCard
+              title={config.cards.ranking.title}
+              description={config.cards.ranking.description}
+              bgImage={{
+                base: config.cards.ranking.backgroundMobileUrl,
+                md: config.cards.ranking.backgroundUrl,
+              }}
+            />
+          </MotionDiv>
+          <MotionDiv
+            className='col-span-1 md:col-span-11'
+            initial={scrollDirection === 'DOWN' ? initiateFromTop : initiateFromBottom}
+            whileInView={whileInViewStatic}
+            viewport={viewportHalf}
+            transition={transitionTween}
+          >
+            <IntroductionCard
+              id='market-making'
+              scrollMarginTop={'30vh'}
+              title={config.cards.aiDriven.title}
+              description={config.cards.aiDriven.description}
+              bgImage={{
+                base: config.cards.aiDriven.backgroundMobileUrl,
+                md: config.cards.aiDriven.backgroundUrl,
+              }}
+              cardType='get-in-touch-team'
+            />
+          </MotionDiv>
+        </div>
+      </Suspense>
     </div>
   )
 }
