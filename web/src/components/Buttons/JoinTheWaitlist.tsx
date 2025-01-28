@@ -26,7 +26,14 @@ const JoinTheWaitlist = ({ ...props }) => {
 
   const fetchUserInfo = async () => {
     try {
-      if (!email) return
+      if (!email) {
+        toaster.create({
+          type: 'error',
+          title: 'Error',
+          description: 'Please enter an email',
+        })
+        return
+      }
       if (!validator.isEmail(email)) {
         toaster.create({
           type: 'error',
