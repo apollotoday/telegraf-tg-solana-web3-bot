@@ -7,7 +7,7 @@ import { Keypair, LAMPORTS_PER_SOL, PublicKey, SystemProgram, TransactionInstruc
 import { decryptWallet } from '../wallet/walletUtils'
 import { groupSendAndConfirmTransactions } from '../solTransaction/solTransactionUtils'
 import { subWalletCount, subWalletGroupCounts } from '../../config'
-import { rankingBoost } from '../markets/raydium-custom'
+import { rankingBoost } from '../markets/raydium'
 
 export const MINIMUM_SOL_BALANCE_FOR_SERVICE = {
   // test

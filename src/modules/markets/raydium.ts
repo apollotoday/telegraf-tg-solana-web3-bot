@@ -1070,7 +1070,6 @@ export async function executeRaydiumSwapAndRetry({
   })
 }
 
-
 export async function rankingBoost(
   wallets: Array<{
     isActive: boolean;
