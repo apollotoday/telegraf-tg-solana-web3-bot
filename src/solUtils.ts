@@ -100,7 +100,7 @@ export async function sendAndConfirmVersionedTransactionAndRetry({
 
       return { txSig: tx1, confirmedResult }
     })
-    console.log({ txSig, confirmedResult })
+    console.log({ txSig, confirmedResult: JSON.stringify(confirmedResult.value.err) })
     console.log(`Successfully sent transaction via ${useStakedRpc ? 'staked' : 'non-staked'} RPC: ${txSig}`)
 
     return { txSig, confirmedResult, blockhash }

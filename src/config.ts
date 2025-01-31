@@ -51,7 +51,7 @@ export const lpPoolForTests = new PublicKey("7G4maaEqLsvPebXRLo94ckSnzq12bRBb9Tz
 // test
 export const minSol = 0.0021 * LAMPORTS_PER_SOL
 export const maxSol = 0.003 * LAMPORTS_PER_SOL
-export const buyAmount = 0.00001 * LAMPORTS_PER_SOL
+export const buyAmount = 0.001
 export const walletCountsPerCycle = 10
 export const subWalletCount = 50 // 300
 export const subWalletGroupCounts = 10 // 10

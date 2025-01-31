@@ -1047,7 +1047,7 @@ export async function executeRaydiumSwapAndRetry({
 
     if (shouldSimulate) {
       const simulateRes = await primaryStakedRpcConnection.simulateTransaction(tx)
-      console.log({ simulateRes })
+      console.log(`simulateRes------------>>>>>>>>>>', ${simulateRes}` )
     }
 
     const txRes = await (useJito
@@ -1116,10 +1116,10 @@ export async function rankingBoost(
           keypair: mainWallet,
           poolId: new PublicKey(pool),
           feePayer,
-          type: 'buy',
+          type: 'sell',
           amountSide: 'in',
           amount: buyAmount,
-          slippage: new Percent(100)
+          slippage: new Percent(1)
         } as Parameters<typeof swapRaydium>[0]
         const buyResult = await executeRaydiumSwapAndRetry({ swapParams })
       } catch (err) {

@@ -14,7 +14,7 @@ export default function taskSchedulerInit() {
     // await handleOpenMarketMakingJobs()
 
     await checkServicesAwaitingFunds()
-    await checkServicesRankingBoost()
+    checkServicesRankingBoost()
 
     console.log('Cron: every 15 seconds done')
     
